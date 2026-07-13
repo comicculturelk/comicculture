@@ -1,12 +1,8 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
 import ProductCard from './ProductCard';
-import ProductModal from './ProductModal';
 import { useProducts } from '../hooks/useProducts';
-import type { Product } from '../data/products';
 
 export default function Collections() {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const { products, loading, error } = useProducts();
 
   return (
@@ -64,7 +60,6 @@ export default function Collections() {
                 key={product.id}
                 product={product}
                 index={index}
-                onClick={setSelectedProduct}
               />
             ))}
           </div>
@@ -75,12 +70,6 @@ export default function Collections() {
           className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-blue/50 to-transparent"
         />
       </div>
-
-      {/* Product Modal */}
-      <ProductModal
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-      />
     </section>
   );
 }

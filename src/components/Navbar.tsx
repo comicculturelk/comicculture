@@ -8,7 +8,6 @@ const MotionLink = motion.create(Link);
 const navLinks = [
   { label: 'Home', to: '/' },
   { label: 'Shop', to: '/shop' },
-  { label: 'About', to: '/about' },
   { label: 'Contact', to: '/contact' },
 ];
 
