@@ -2,11 +2,12 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import ProductCard from './ProductCard';
 import ProductModal from './ProductModal';
-import { products } from '../data/products';
+import { useProducts } from '../hooks/useProducts';
 import type { Product } from '../data/products';
 
 export default function Collections() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const { products, loading, error } = useProducts();
 
   return (
     <section id="collection" className="relative py-24 lg:py-32">
@@ -43,17 +44,31 @@ export default function Collections() {
           </p>
         </motion.div>
 
+        {/* Loading state */}
+        {loading && (
+          <p className="text-center text-white/50">Loading collection...</p>
+        )}
+
+        {/* Error state */}
+        {error && !loading && (
+          <p className="text-center text-brand-red">
+            Couldn't load products right now. Please refresh the page.
+          </p>
+        )}
+
         {/* Product grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {products.map((product, index) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              index={index}
-              onClick={setSelectedProduct}
-            />
-          ))}
-        </div>
+        {!loading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {products.map((product, index) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                index={index}
+                onClick={setSelectedProduct}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Glow line */}
         <motion.div
