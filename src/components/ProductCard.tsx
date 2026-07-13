@@ -1,15 +1,17 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { useRef } from 'react';
+import { Link } from 'react-router-dom';
 import type { Product } from '../data/products';
+
+const MotionLink = motion.create(Link);
 
 interface ProductCardProps {
   product: Product;
   index: number;
-  onClick: (product: Product) => void;
 }
 
-export default function ProductCard({ product, index, onClick }: ProductCardProps) {
-  const ref = useRef<HTMLDivElement>(null);
+export default function ProductCard({ product, index }: ProductCardProps) {
+  const ref = useRef<HTMLAnchorElement>(null);
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -35,16 +37,16 @@ export default function ProductCard({ product, index, onClick }: ProductCardProp
   };
 
   return (
-    <motion.div
+    <MotionLink
       ref={ref}
-      className="group perspective-1000 cursor-pointer"
+      to={`/product/${product.slug}`}
+      className="group perspective-1000 block cursor-pointer"
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ delay: index * 0.1, duration: 0.6 }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      onClick={() => onClick(product)}
     >
       <motion.div
         className="relative preserve-3d rounded-2xl overflow-hidden bg-gradient-to-b from-white/5 to-transparent border border-white/10 transition-all duration-300 group-hover:border-brand-red/30"
@@ -100,6 +102,6 @@ export default function ProductCard({ product, index, onClick }: ProductCardProp
           </p>
         </div>
       </motion.div>
-    </motion.div>
+    </MotionLink>
   );
 }

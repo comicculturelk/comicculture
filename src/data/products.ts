@@ -64,6 +64,20 @@ export async function fetchProducts(): Promise<Product[]> {
   return (data ?? []).map(mapRowToProduct);
 }
 
+export async function fetchProductBySlug(slug: string): Promise<Product | null> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load product: ${error.message}`);
+  }
+
+  return data ? mapRowToProduct(data) : null;
+}
+
 export function formatPrice(price: number): string {
   return `Rs. ${price}`;
 }
