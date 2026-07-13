@@ -1,14 +1,12 @@
+import { Routes, Route } from 'react-router-dom';
 import LoadingScreen from './components/LoadingScreen';
 import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import Collections from './components/Collections';
-import WhySection from './components/WhySection';
-import Timeline from './components/Timeline';
-import Gallery from './components/Gallery';
-import Reviews from './components/Reviews';
-import FAQ from './components/FAQ';
-import Contact from './components/Contact';
 import Footer from './components/Footer';
+import Home from './pages/Home';
+import Shop from './pages/Shop';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
@@ -16,14 +14,13 @@ export default function App() {
       <LoadingScreen />
       <Navbar />
       <main>
-        <Hero />
-        <Collections />
-        <WhySection />
-        <Timeline />
-        <Gallery />
-        <Reviews />
-        <FAQ />
-        <Contact />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/shop" element={<Shop />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </main>
       <Footer />
     </>
