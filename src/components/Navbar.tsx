@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ShoppingBag } from 'lucide-react';
 
+const MotionLink = motion.create(Link);
+
 const navLinks = [
-  { label: 'Home', href: '#home' },
-  { label: 'Drop 01', href: '#collection' },
-  { label: 'About', href: '#about' },
-  { label: 'Gallery', href: '#gallery' },
-  { label: 'Contact', href: '#contact' },
+  { label: 'Home', to: '/' },
+  { label: 'Shop', to: '/shop' },
+  { label: 'About', to: '/about' },
+  { label: 'Contact', to: '/contact' },
 ];
 
 export default function Navbar() {
@@ -32,52 +34,52 @@ export default function Navbar() {
       >
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-6">
           {/* Logo */}
-          <motion.a
-            href="#home"
+          <MotionLink
+            to="/"
             className="flex items-center gap-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
             <div className="relative flex h-9 w-9 items-center justify-center">
-              <div className="absolute inset-0 blur-md opacity-50" />
+              <div className="absolute inset-0 bg-brand-red blur-md opacity-50" />
               <img
                 src="/images/logo/logo-white.svg"
                 alt="ComicCulture"
-                className="relative h-10 w-10"
+                className="relative h-8 w-8"
               />
             </div>
             <div className="hidden sm:flex flex-col">
               <span className="font-display text-base text-white leading-none">COMIC</span>
               <span className="font-display text-base text-brand-red leading-none">CULTURE</span>
             </div>
-          </motion.a>
+          </MotionLink>
 
           {/* Desktop Nav Links */}
           <ul className="hidden lg:flex items-center gap-8">
             {navLinks.map((link) => (
-              <li key={link.href}>
-                <a
-                  href={link.href}
+              <li key={link.to}>
+                <Link
+                  to={link.to}
                   className="relative text-sm font-medium text-white/70 transition-colors hover:text-white group"
                 >
                   {link.label}
                   <span className="absolute -bottom-1 left-0 h-px w-0 bg-brand-red transition-all group-hover:w-full" />
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
 
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-4">
-            <motion.a
-              href="#collection"
+            <MotionLink
+              to="/shop"
               className="btn-primary"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <ShoppingBag className="h-4 w-4" />
               Shop Now
-            </motion.a>
+            </MotionLink>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -116,27 +118,27 @@ export default function Navbar() {
             >
               <ul className="flex flex-col gap-1">
                 {navLinks.map((link) => (
-                  <li key={link.href}>
-                    <a
-                      href={link.href}
+                  <li key={link.to}>
+                    <Link
+                      to={link.to}
                       className="block rounded-lg px-4 py-3 text-lg font-medium text-white/80 transition-colors hover:bg-white/5 hover:text-white"
                       onClick={() => setMobileOpen(false)}
                     >
                       {link.label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
 
               <div className="mt-6 pt-6 border-t border-white/10">
-                <a
-                  href="#collection"
+                <Link
+                  to="/shop"
                   className="btn-primary w-full justify-center"
                   onClick={() => setMobileOpen(false)}
                 >
                   <ShoppingBag className="h-5 w-5" />
                   Shop Now
-                </a>
+                </Link>
               </div>
             </motion.nav>
           </motion.div>
