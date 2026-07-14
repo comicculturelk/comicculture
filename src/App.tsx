@@ -2,6 +2,8 @@ import { Routes, Route } from 'react-router-dom';
 import LoadingScreen from './components/LoadingScreen';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import CartDrawer from './components/CartDrawer';
+import { CartProvider } from './context/CartContext';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import Product from './pages/Product';
@@ -10,7 +12,7 @@ import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
-    <>
+    <CartProvider>
       <LoadingScreen />
       <Navbar />
       <main>
@@ -23,6 +25,7 @@ export default function App() {
         </Routes>
       </main>
       <Footer />
-    </>
+      <CartDrawer />
+    </CartProvider>
   );
 }
