@@ -1,14 +1,24 @@
 import { motion } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
-import { MessageCircle, Instagram, ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { MessageCircle, Instagram, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useProduct } from '../hooks/useProduct';
+import { useCart } from '../hooks/useCart';
 import { generateWhatsAppMessage } from '../data/products';
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
   const { product, loading, error } = useProduct(slug);
+  const { addItem, openCart } = useCart();
   const [selectedSize, setSelectedSize] = useState<string>('M');
+  const [activeImage, setActiveImage] = useState<string | null>(null);
+
+  // Reset the active gallery image whenever the loaded product changes
+  useEffect(() => {
+    if (product) {
+      setActiveImage(product.image);
+    }
+  }, [product]);
 
   if (loading) {
     return (
@@ -33,6 +43,25 @@ export default function Product() {
 
   const whatsappLink = `https://wa.me/94787756338?text=${generateWhatsAppMessage(product, selectedSize)}`;
 
+  const galleryImages =
+    product.images && product.images.length > 0
+      ? [product.image, ...product.images.filter((img) => img !== product.image)]
+      : [product.image];
+
+  const displayedImage = activeImage ?? product.image;
+
+  const handleAddToCart = () => {
+    addItem({
+      productId: product.id,
+      slug: product.slug,
+      name: product.name,
+      image: product.image,
+      price: product.price,
+      size: selectedSize,
+    });
+    openCart();
+  };
+
   return (
     <section className="relative min-h-screen bg-brand-bg py-24 lg:py-32">
       <div className="absolute inset-0 bg-web-pattern opacity-10" />
@@ -52,16 +81,40 @@ export default function Product() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Product image */}
-          <div className="relative flex-shrink-0 lg:w-1/2">
-            <div className="aspect-square overflow-hidden bg-brand-bg">
-              <img
-                src={product.image}
+          {/* Product image gallery */}
+          <div className="flex-shrink-0 lg:w-1/2">
+            <div className="relative aspect-square overflow-hidden bg-brand-bg">
+              <motion.img
+                key={displayedImage}
+                src={displayedImage}
                 alt={product.name}
                 className="h-full w-full object-cover"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
               />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-bg via-transparent to-transparent lg:bg-gradient-to-r" />
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-brand-bg via-transparent to-transparent lg:bg-gradient-to-r" />
+
+            {/* Thumbnails, only shown when there's more than one image */}
+            {galleryImages.length > 1 && (
+              <div className="flex gap-3 p-4">
+                {galleryImages.map((img) => (
+                  <button
+                    key={img}
+                    type="button"
+                    onClick={() => setActiveImage(img)}
+                    className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                      displayedImage === img
+                        ? 'border-brand-red'
+                        : 'border-white/20 hover:border-white/40'
+                    }`}
+                  >
+                    <img src={img} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product info */}
@@ -116,29 +169,41 @@ export default function Product() {
             </div>
 
             {/* CTA buttons */}
-            <div className="mt-auto flex flex-col gap-3 pt-8 sm:flex-row">
-              <motion.a
-                href={whatsappLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-500"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <MessageCircle className="h-5 w-5" />
-                Order on WhatsApp
-              </motion.a>
-              <motion.a
-                href={product.instagramLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-3 font-semibold text-white"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Instagram className="h-5 w-5" />
-                View on Instagram
-              </motion.a>
+            <div className="mt-auto pt-8">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <motion.button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="btn-primary flex-1"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <ShoppingBag className="h-5 w-5" />
+                  Add to Cart
+                </motion.button>
+                <motion.a
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-500"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  Order on WhatsApp
+                </motion.a>
+                <motion.a
+                  href={product.instagramLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-3 font-semibold text-white"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Instagram className="h-5 w-5" />
+                  View on Instagram
+                </motion.a>
+              </div>
             </div>
           </div>
         </motion.div>

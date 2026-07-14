@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ShoppingBag } from 'lucide-react';
+import { Menu, X, ShoppingBag, ShoppingCart } from 'lucide-react';
+import { useCart } from '../hooks/useCart';
 
 const MotionLink = motion.create(Link);
 
@@ -14,6 +15,7 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { totalItems, openCart } = useCart();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -70,6 +72,18 @@ export default function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-4">
+            <button
+              onClick={openCart}
+              className="relative rounded-lg p-2 text-white/80 transition-colors hover:text-white"
+              aria-label="Open cart"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-red text-[10px] font-bold text-white">
+                  {totalItems}
+                </span>
+              )}
+            </button>
             <MotionLink
               to="/shop"
               className="btn-primary"
@@ -81,15 +95,29 @@ export default function Navbar() {
             </MotionLink>
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <motion.button
-            className="lg:hidden p-2 text-white"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            whileTap={{ scale: 0.9 }}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </motion.button>
+          {/* Mobile: Cart + Menu Toggle */}
+          <div className="flex items-center gap-1 lg:hidden">
+            <button
+              onClick={openCart}
+              className="relative p-2 text-white"
+              aria-label="Open cart"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-red text-[10px] font-bold text-white">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+            <motion.button
+              className="p-2 text-white"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              whileTap={{ scale: 0.9 }}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </motion.button>
+          </div>
         </nav>
       </motion.header>
 
