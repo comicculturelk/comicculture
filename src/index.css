@@ -12,11 +12,13 @@
   }
 
   body {
-    @apply bg-brand-bg text-white font-sans;
+    /* Use semantic token for background to make intent clearer */
+    @apply bg-background text-white font-sans;
   }
 
   ::selection {
-    @apply bg-brand-red text-white;
+    /* selection uses primary color */
+    @apply bg-primary text-white;
   }
 }
 
@@ -30,11 +32,11 @@
   }
 
   .text-gradient-red {
-    @apply bg-gradient-to-r from-brand-red to-brand-red-dark bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent;
   }
 
   .text-gradient-blue {
-    @apply bg-gradient-to-r from-brand-blue to-brand-blue-glow bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-secondary to-secondary-glow bg-clip-text text-transparent;
   }
 
   .glow-red {
@@ -46,16 +48,17 @@
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-red px-6 py-3 text-sm font-semibold text-white transition-all;
+    /* kept visual exact but use semantic primary token */
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white transition-all;
   }
 
   .btn-primary:hover {
-    @apply bg-brand-red-dark;
+    @apply bg-primary-hover;
     box-shadow: 0 0 20px rgba(225, 29, 72, 0.5);
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/30 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-white hover:text-brand-bg;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/30 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-white hover:text-background;
   }
 
   .halftone-overlay {

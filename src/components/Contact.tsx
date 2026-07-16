@@ -21,7 +21,7 @@ const contactMethods = [
     label: 'Email',
     value: 'comicculturelk@gmail.com',
     href: 'mailto:comicculturelk@gmail.com',
-    gradient: 'bg-brand-blue',
+    gradient: 'bg-secondary',
   },
 ];
 
@@ -29,9 +29,9 @@ export default function Contact() {
   return (
     <section id="contact" className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-brand-bg">
+      <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-15" />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-red/50 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-6">
@@ -66,7 +66,7 @@ export default function Contact() {
               transition={{ delay: index * 0.1, duration: 0.5 }}
               whileHover={{ y: -4 }}
             >
-              <div className="glass rounded-2xl p-6 text-center transition-all duration-300 group-hover:border-brand-red/30">
+              <div className="glass rounded-2xl p-6 text-center transition-all duration-300 group-hover:border-primary/30">
                 <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-xl ${method.gradient}`}>
                   <method.icon className="h-6 w-6 text-white" />
                 </div>
@@ -91,8 +91,8 @@ export default function Contact() {
         >
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-brand-red/20 border border-brand-red/30">
-                <MapPin className="h-6 w-6 text-brand-red" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/20 border border-primary/30">
+                <MapPin className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-white/50 uppercase tracking-wider">Based in</p>
@@ -113,7 +113,7 @@ export default function Contact() {
             href="https://wa.me/94787756338"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-red px-6 py-3 font-semibold text-white transition-all hover:bg-brand-red-dark"
+            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-hover"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

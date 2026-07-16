@@ -116,7 +116,7 @@ export default function Checkout() {
 
   if (items.length === 0) {
     return (
-      <section className="relative flex min-h-screen flex-col items-center justify-center gap-4 overflow-hidden bg-brand-bg px-6 text-center">
+      <section className="relative flex min-h-screen flex-col items-center justify-center gap-4 overflow-hidden bg-background px-6 text-center">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
         <div className="relative z-10 flex flex-col items-center gap-4">
           <ShoppingBag className="h-10 w-10 text-white/30" />
@@ -130,7 +130,7 @@ export default function Checkout() {
   }
 
   return (
-    <section className="relative min-h-screen bg-brand-bg py-24 lg:py-32">
+    <section className="relative min-h-screen bg-background py-24 lg:py-32">
       <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
@@ -250,11 +250,11 @@ export default function Checkout() {
                     onChange={(e) => handleChange('district', e.target.value)}
                     className={inputClass(!!errors.district)}
                   >
-                    <option value="" className="bg-brand-bg">
+                    <option value="" className="bg-background">
                       Select district
                     </option>
                     {DISTRICTS.map((d) => (
-                      <option key={d} value={d} className="bg-brand-bg">
+                      <option key={d} value={d} className="bg-background">
                         {d}
                       </option>
                     ))}
@@ -277,9 +277,9 @@ export default function Checkout() {
             {/* Delivery */}
             <div>
               <h2 className="mb-4 font-display text-xl text-white tracking-wide">DELIVERY</h2>
-              <div className="flex items-center justify-between rounded-lg border border-brand-red bg-brand-red/20 px-4 py-3">
+              <div className="flex items-center justify-between rounded-lg border border-primary bg-primary/20 px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <Truck className="h-5 w-5 flex-shrink-0 text-brand-red" />
+                  <Truck className="h-5 w-5 flex-shrink-0 text-primary" />
                   <div>
                     <p className="text-sm font-medium text-white">
                       Standard Delivery (Islandwide)
@@ -288,10 +288,10 @@ export default function Checkout() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-brand-red">
+                  <span className="text-sm font-medium text-primary">
                     Rs. {DELIVERY_FEE}
                   </span>
-                  <CheckCircle2 className="h-4 w-4 text-brand-red" />
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
                 </div>
               </div>
             </div>
@@ -334,7 +334,7 @@ export default function Checkout() {
             <div className="space-y-4">
               {items.map((item) => (
                 <div key={`${item.productId}-${item.size}`} className="flex gap-3">
-                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-brand-bg">
+                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-background">
                     <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
                   </div>
                   <div className="flex flex-1 flex-col justify-center">
@@ -361,7 +361,7 @@ export default function Checkout() {
               </div>
               <div className="flex items-center justify-between border-t border-white/10 pt-2 font-display text-lg text-white">
                 <span>Total</span>
-                <span className="text-brand-red">Rs. {total}</span>
+                <span className="text-primary">Rs. {total}</span>
               </div>
             </div>
 
@@ -386,8 +386,8 @@ export default function Checkout() {
 }
 
 function inputClass(hasError: boolean) {
-  return `w-full rounded-lg border bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-red ${
-    hasError ? 'border-brand-red/60' : 'border-white/20'
+  return `w-full rounded-lg border bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-primary ${
+    hasError ? 'border-primary/60' : 'border-white/20'
   }`;
 }
 
@@ -405,10 +405,10 @@ function FormField({
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium text-white/80">
-        {label} {required && <span className="text-brand-red">*</span>}
+        {label} {required && <span className="text-primary">*</span>}
       </label>
       {children}
-      {error && <p className="mt-1 text-xs text-brand-red">{error}</p>}
+      {error && <p className="mt-1 text-xs text-primary">{error}</p>}
     </div>
   );
 }

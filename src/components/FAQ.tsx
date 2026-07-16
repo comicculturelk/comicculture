@@ -39,7 +39,7 @@ export default function FAQ() {
   return (
     <section className="relative py-24 lg:py-32">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-brand-bg via-white/[0.02] to-brand-bg">
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-white/[0.02] to-background">
         <div className="absolute inset-0 halftone-overlay opacity-20" />
       </div>
 
@@ -80,7 +80,7 @@ export default function FAQ() {
                   whileTap={{ scale: 0.9 }}
                 >
                   {open === index ? (
-                    <Minus className="h-5 w-5 text-brand-red flex-shrink-0" />
+                    <Minus className="h-5 w-5 text-primary flex-shrink-0" />
                   ) : (
                     <Plus className="h-5 w-5 text-white/60 flex-shrink-0" />
                   )}

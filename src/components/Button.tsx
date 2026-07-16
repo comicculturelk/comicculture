@@ -8,7 +8,7 @@ interface ButtonProps extends HTMLMotionProps<'button'> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-brand-red text-white hover:bg-brand-red-dark',
+  primary: 'bg-primary text-white hover:bg-primary-hover',
   secondary: 'bg-white/10 text-white hover:bg-white/20',
   outline: 'border border-white/20 text-white hover:bg-white/10',
   ghost: 'text-white/70 hover:text-white hover:bg-white/10',

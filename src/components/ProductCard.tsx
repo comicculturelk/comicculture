@@ -49,13 +49,13 @@ export default function ProductCard({ product, index }: ProductCardProps) {
       onMouseLeave={handleMouseLeave}
     >
       <motion.div
-        className="relative preserve-3d rounded-2xl overflow-hidden bg-gradient-to-b from-white/5 to-transparent border border-white/10 transition-all duration-300 group-hover:border-brand-red/30"
+        className="relative preserve-3d rounded-2xl overflow-hidden bg-gradient-to-b from-white/5 to-transparent border border-white/10 transition-all duration-300 group-hover:border-primary/30"
         style={{ rotateX, rotateY }}
         whileHover={{ scale: 1.02 }}
       >
         {/* Glow effect */}
         <motion.div
-          className="absolute -inset-px rounded-2xl bg-gradient-to-r from-brand-red/0 via-brand-red/50 to-brand-blue/0 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100"
+          className="absolute -inset-px rounded-2xl bg-gradient-to-r from-primary/0 via-primary/50 to-secondary/0 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100"
         />
 
         {/* Image container */}
@@ -67,7 +67,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
           />
 
           {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-brand-bg via-transparent to-transparent opacity-80" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80" />
 
           {/* Tagline badge */}
           <div className="absolute top-4 left-4">
@@ -78,7 +78,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
 
           {/* View button on hover */}
           <motion.div
-            className="absolute inset-0 flex items-center justify-center bg-brand-bg/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100"
           >
             <span className="btn-primary text-sm">
               View Details
@@ -88,7 +88,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
 
         {/* Info */}
         <div className="relative p-5">
-          <p className="text-xs text-brand-red font-medium uppercase tracking-wider">
+          <p className="text-xs text-primary font-medium uppercase tracking-wider">
             {product.collection}
           </p>
           <h3 className="mt-1 font-display text-xl text-white tracking-wide">
@@ -97,7 +97,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
           <p className="mt-2 text-sm text-white/60 italic">
             "{product.lore}"
           </p>
-          <p className="mt-3 font-display text-2xl text-brand-red">
+          <p className="mt-3 font-display text-2xl text-primary">
             Rs. {product.price}
           </p>
         </div>

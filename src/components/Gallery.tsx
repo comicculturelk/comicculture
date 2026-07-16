@@ -18,7 +18,7 @@ export default function Gallery() {
   return (
     <section id="gallery" className="relative py-24 lg:py-32">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-brand-bg via-white/[0.02] to-brand-bg">
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-white/[0.02] to-background">
         <div className="absolute inset-0 halftone-overlay opacity-20" />
       </div>
 
@@ -60,8 +60,8 @@ export default function Gallery() {
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
               {/* Instagram overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-brand-bg via-transparent to-transparent opacity-60" />
-              <div className="absolute inset-0 bg-brand-bg/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex items-center justify-center gap-8">
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60" />
+              <div className="absolute inset-0 bg-background/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex items-center justify-center gap-8">
                 <div className="flex items-center gap-2 text-white">
                   <Heart className="h-6 w-6" />
                   <span className="font-medium">Like</span>

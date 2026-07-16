@@ -53,7 +53,7 @@ export default function Reviews() {
   return (
     <section className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-brand-bg">
+      <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
       </div>
 
@@ -86,7 +86,7 @@ export default function Reviews() {
               <motion.img
                 src={reviews[current].avatar}
                 alt={reviews[current].name}
-                className="mx-auto h-20 w-20 rounded-full object-cover border-2 border-brand-red"
+                className="mx-auto h-20 w-20 rounded-full object-cover border-2 border-primary"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.1, type: 'spring' }}
@@ -97,7 +97,7 @@ export default function Reviews() {
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
-                    className={`h-5 w-5 ${i < reviews[current].rating ? 'text-brand-red fill-brand-red' : 'text-white/20'}`}
+                    className={`h-5 w-5 ${i < reviews[current].rating ? 'text-primary fill-primary' : 'text-white/20'}`}
                   />
                 ))}
               </div>
@@ -114,7 +114,7 @@ export default function Reviews() {
               <p className="text-sm text-white/50">
                 {reviews[current].location}
               </p>
-              <p className="mt-2 text-sm text-brand-red">
+              <p className="mt-2 text-sm text-primary">
                 Purchased: {reviews[current].product}
               </p>
             </motion.div>
@@ -137,7 +137,7 @@ export default function Reviews() {
                   key={index}
                   onClick={() => setCurrent(index)}
                   className={`h-2 rounded-full transition-all ${
-                    index === current ? 'w-8 bg-brand-red' : 'w-2 bg-white/30'
+                    index === current ? 'w-8 bg-primary' : 'w-2 bg-white/30'
                   }`}
                 />
               ))}

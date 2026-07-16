@@ -54,7 +54,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
 
             {/* Product image */}
             <div className="relative lg:w-1/2 flex-shrink-0">
-              <div className="aspect-square overflow-hidden bg-brand-bg">
+              <div className="aspect-square overflow-hidden bg-background">
                 <motion.img
                   src={product.image}
                   alt={product.name}
@@ -66,14 +66,14 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
               </div>
 
               {/* Glow effect */}
-              <div className="absolute inset-0 bg-gradient-to-t from-brand-bg via-transparent to-transparent lg:bg-gradient-to-r" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent lg:bg-gradient-to-r" />
             </div>
 
             {/* Product info */}
             <div className="relative flex flex-1 flex-col p-6 lg:p-10 overflow-y-auto">
               {/* Collection badge */}
               <div className="inline-flex">
-                <span className="rounded-full bg-brand-red/20 px-3 py-1 text-xs font-medium text-brand-red">
+                <span className="rounded-full bg-primary/20 px-3 py-1 text-xs font-medium text-primary">
                   {product.collection}
                 </span>
               </div>
@@ -89,7 +89,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
               </p>
 
               {/* Price */}
-              <p className="mt-4 font-display text-4xl text-brand-red">
+              <p className="mt-4 font-display text-4xl text-primary">
                 Rs. {product.price}
               </p>
 
@@ -107,7 +107,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                       key={size}
                       className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
                         selectedSize === size
-                          ? 'border-brand-red bg-brand-red/20 text-brand-red'
+                          ? 'border-primary bg-primary/20 text-primary'
                           : 'border-white/20 text-white/70 hover:border-white/40 hover:text-white'
                       }`}
                       onClick={() => setSelectedSize(size)}

@@ -14,7 +14,7 @@ export default function Timeline() {
   return (
     <section className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-brand-bg">
+      <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
       </div>
 
@@ -38,7 +38,7 @@ export default function Timeline() {
         {/* Timeline */}
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-brand-red via-brand-blue to-brand-red opacity-30 hidden md:block" />
+          <div className="absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-primary via-secondary to-primary opacity-30 hidden md:block" />
 
           <div className="grid grid-cols-2 md:grid-cols-6 gap-6 md:gap-4">
             {steps.map((step, index) => (
@@ -52,11 +52,11 @@ export default function Timeline() {
               >
                 {/* Step circle */}
                 <motion.div
-                  className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-brand-bg border-2 border-brand-red/50"
+                  className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-background border-2 border-primary/50"
                   whileHover={{ scale: 1.1, borderColor: 'rgb(225, 29, 72)' }}
                   transition={{ type: 'spring', stiffness: 300 }}
                 >
-                  <step.icon className="h-7 w-7 text-brand-red" />
+                  <step.icon className="h-7 w-7 text-primary" />
                 </motion.div>
 
                 {/* Label */}
@@ -68,7 +68,7 @@ export default function Timeline() {
                 </p>
 
                 {/* Step number */}
-                <div className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand-red text-xs font-bold text-white">
+                <div className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
                   {index + 1}
                 </div>
               </motion.div>

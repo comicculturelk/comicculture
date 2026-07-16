@@ -14,7 +14,7 @@ export default function OrderSuccess() {
   const state = (location.state ?? {}) as OrderSuccessState;
 
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-brand-bg px-6 text-center">
+    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
       <div className="absolute inset-0 bg-web-pattern opacity-20" />
       <div className="absolute inset-0 halftone-overlay opacity-30" />
 
@@ -25,12 +25,12 @@ export default function OrderSuccess() {
         transition={{ duration: 0.5 }}
       >
         <motion.div
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-red/20"
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ duration: 0.4, delay: 0.15, type: 'spring' }}
         >
-          <CheckCircle2 className="h-8 w-8 text-brand-red" />
+          <CheckCircle2 className="h-8 w-8 text-primary" />
         </motion.div>
 
         <h1 className="mt-6 font-display text-3xl text-white tracking-wide md:text-4xl">

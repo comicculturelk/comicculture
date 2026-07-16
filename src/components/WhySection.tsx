@@ -6,13 +6,13 @@ const features = [
     icon: Star,
     title: 'Premium Jersey Material',
     description: 'High-quality breathable fabric designed for comfort and durability. Perfect for sports or streetwear.',
-    color: 'from-brand-red to-brand-red-dark',
+    color: 'from-primary to-primary-hover',
   },
   {
     icon: Sparkles,
     title: 'Unique Spider-Verse Designs',
     description: 'Each jersey is inspired by iconic Spider-Man variants across the multiverse. Stand out from the crowd.',
-    color: 'from-brand-blue to-brand-blue-glow',
+    color: 'from-secondary to-secondary-glow',
   },
   {
     icon: Clock,
@@ -26,7 +26,7 @@ export default function WhySection() {
   return (
     <section id="about" className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-brand-bg via-white/[0.02] to-brand-bg">
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-white/[0.02] to-background">
         <div className="absolute inset-0 halftone-overlay opacity-30" />
       </div>
 
@@ -58,7 +58,7 @@ export default function WhySection() {
               viewport={{ once: true }}
               transition={{ delay: index * 0.15, duration: 0.6 }}
             >
-              <div className="relative glass rounded-2xl p-8 text-center transition-all duration-300 group-hover:border-brand-red/30">
+              <div className="relative glass rounded-2xl p-8 text-center transition-all duration-300 group-hover:border-primary/30">
                 {/* Glow on hover */}
                 <div className="absolute -inset-px rounded-2xl bg-gradient-to-br opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-20" style={{ backgroundImage: `linear-gradient(to bottom right, var(--tw-gradient-from), var(--tw-gradient-to))` }} />
 

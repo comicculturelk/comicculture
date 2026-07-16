@@ -13,7 +13,7 @@ export default function LoadingScreen() {
     <AnimatePresence>
       {loading && (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-bg"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
@@ -84,7 +84,7 @@ export default function LoadingScreen() {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 1.5, duration: 0.5 }}
             >
-              <div className="h-4 w-4 rounded-full bg-brand-red glow-red" />
+              <div className="h-4 w-4 rounded-full bg-primary glow-red" />
             </motion.div>
 
             {/* Logo text */}
@@ -95,7 +95,7 @@ export default function LoadingScreen() {
               transition={{ delay: 1.8, duration: 0.5 }}
             >
               <span className="font-display text-4xl tracking-wider text-white">COMIC</span>
-              <span className="font-display text-4xl tracking-wider text-brand-red">CULTURE</span>
+              <span className="font-display text-4xl tracking-wider text-primary">CULTURE</span>
             </motion.div>
           </div>
 
