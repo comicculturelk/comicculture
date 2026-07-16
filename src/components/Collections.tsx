@@ -8,9 +8,9 @@ export default function Collections() {
   return (
     <section id="collection" className="relative py-24 lg:py-32">
       {/* Background */}
-      <div className="absolute inset-0 bg-brand-bg">
+      <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-20" />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-red/50 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-6">
@@ -23,7 +23,7 @@ export default function Collections() {
           transition={{ duration: 0.6 }}
         >
           <motion.span
-            className="inline-block rounded-full bg-brand-red/10 px-4 py-2 text-sm font-medium text-brand-red"
+            className="inline-block rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary"
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -47,7 +47,7 @@ export default function Collections() {
 
         {/* Error state */}
         {error && !loading && (
-          <p className="text-center text-brand-red">
+          <p className="text-center text-primary">
             Couldn't load products right now. Please refresh the page.
           </p>
         )}
@@ -67,7 +67,7 @@ export default function Collections() {
 
         {/* Glow line */}
         <motion.div
-          className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-blue/50 to-transparent"
+          className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-secondary/50 to-transparent"
         />
       </div>
     </section>

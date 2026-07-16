@@ -31,7 +31,7 @@ export default function CartDrawer() {
 
           {/* Drawer */}
           <motion.div
-            className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-white/10 bg-brand-bg"
+            className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-white/10 bg-background"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -80,20 +80,20 @@ export default function CartDrawer() {
                           <Link
                             to={`/product/${item.slug}`}
                             onClick={closeCart}
-                            className="font-display text-base text-white tracking-wide transition-colors hover:text-brand-red"
+                            className="font-display text-base text-white tracking-wide transition-colors hover:text-primary"
                           >
                             {item.name}
                           </Link>
                           <button
                             onClick={() => removeItem(item.productId, item.size)}
-                            className="text-white/40 transition-colors hover:text-brand-red"
+                            className="text-white/40 transition-colors hover:text-primary"
                             aria-label="Remove item"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                         <p className="text-xs text-white/50">Size: {item.size}</p>
-                        <p className="mt-1 font-display text-brand-red">Rs. {item.price}</p>
+                        <p className="mt-1 font-display text-primary">Rs. {item.price}</p>
 
                         <div className="mt-auto flex items-center gap-3 pt-2">
                           <button
@@ -130,7 +130,7 @@ export default function CartDrawer() {
                   <span className="text-white/60">
                     Subtotal ({totalItems} {totalItems === 1 ? 'item' : 'items'})
                   </span>
-                  <span className="font-display text-2xl text-brand-red">Rs. {totalPrice}</span>
+                  <span className="font-display text-2xl text-primary">Rs. {totalPrice}</span>
                 </div>
                 <Link to="/checkout" onClick={closeCart} className="btn-primary w-full">
                   Proceed to Checkout

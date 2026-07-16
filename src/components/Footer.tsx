@@ -3,10 +3,10 @@ import { Instagram, MessageCircle, Heart } from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer className="relative border-t border-white/5 bg-brand-bg">
+    <footer className="relative border-t border-white/5 bg-background">
       {/* Animated top line */}
       <motion.div
-        className="absolute top-0 left-0 h-px bg-brand-red"
+        className="absolute top-0 left-0 h-px bg-primary"
         initial={{ width: 0 }}
         whileInView={{ width: '100%' }}
         viewport={{ once: true }}
@@ -27,7 +27,7 @@ export default function Footer() {
             </div>
             <div className="flex flex-col">
               <span className="font-display text-base text-white leading-none">COMIC</span>
-              <span className="font-display text-base text-brand-red leading-none">CULTURE</span>
+              <span className="font-display text-base text-primary leading-none">CULTURE</span>
             </div>
           </motion.div>
 
@@ -59,7 +59,7 @@ export default function Footer() {
         {/* Bottom */}
         <div className="mt-8 pt-8 border-t border-white/5 text-center">
           <p className="text-sm text-white/50 flex items-center justify-center gap-1">
-            Made with <Heart className="h-4 w-4 text-brand-red" /> in Sri Lanka
+            Made with <Heart className="h-4 w-4 text-primary" /> in Sri Lanka
           </p>
           <p className="mt-2 text-xs text-white/30">
             &copy; {new Date().getFullYear()} ComicCulture. All rights reserved.

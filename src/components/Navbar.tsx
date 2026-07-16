@@ -42,7 +42,7 @@ export default function Navbar() {
             whileTap={{ scale: 0.98 }}
           >
             <div className="relative flex h-9 w-9 items-center justify-center">
-              <div className="absolute inset-0 bg-brand-red blur-md opacity-50" />
+              <div className="absolute inset-0 bg-primary blur-md opacity-50" />
               <img
                 src="/images/logo/logo-white.svg"
                 alt="ComicCulture"
@@ -51,7 +51,7 @@ export default function Navbar() {
             </div>
             <div className="hidden sm:flex flex-col">
               <span className="font-display text-base text-white leading-none">COMIC</span>
-              <span className="font-display text-base text-brand-red leading-none">CULTURE</span>
+              <span className="font-display text-base text-primary leading-none">CULTURE</span>
             </div>
           </MotionLink>
 
@@ -64,7 +64,7 @@ export default function Navbar() {
                   className="relative text-sm font-medium text-white/70 transition-colors hover:text-white group"
                 >
                   {link.label}
-                  <span className="absolute -bottom-1 left-0 h-px w-0 bg-brand-red transition-all group-hover:w-full" />
+                  <span className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all group-hover:w-full" />
                 </Link>
               </li>
             ))}
@@ -79,7 +79,7 @@ export default function Navbar() {
             >
               <ShoppingCart className="h-5 w-5" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-red text-[10px] font-bold text-white">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
                   {totalItems}
                 </span>
               )}
@@ -104,7 +104,7 @@ export default function Navbar() {
             >
               <ShoppingCart className="h-5 w-5" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-red text-[10px] font-bold text-white">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
                   {totalItems}
                 </span>
               )}
@@ -138,7 +138,7 @@ export default function Navbar() {
 
             {/* Menu Content */}
             <motion.nav
-              className="absolute top-20 left-0 right-0 bg-brand-bg border-t border-white/10 px-6 py-8"
+              className="absolute top-20 left-0 right-0 bg-background border-t border-white/10 px-6 py-8"
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}

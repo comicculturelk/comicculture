@@ -54,7 +54,7 @@ export default function Product() {
 
   if (loading) {
     return (
-      <section className="flex min-h-screen items-center justify-center bg-brand-bg">
+      <section className="flex min-h-screen items-center justify-center bg-background">
         <p className="text-white/50">Loading product...</p>
       </section>
     );
@@ -62,8 +62,8 @@ export default function Product() {
 
   if (error || !product) {
     return (
-      <section className="flex min-h-screen flex-col items-center justify-center gap-4 bg-brand-bg px-6 text-center">
-        <p className="text-brand-red">
+      <section className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <p className="text-primary">
           {error ? "Couldn't load this product." : "We couldn't find that product."}
         </p>
         <Link to="/shop" className="btn-primary">
@@ -109,7 +109,7 @@ export default function Product() {
   };
 
   return (
-    <section className="relative min-h-screen bg-brand-bg py-24 lg:py-32">
+    <section className="relative min-h-screen bg-background py-24 lg:py-32">
       <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
@@ -142,7 +142,7 @@ export default function Product() {
         >
           {/* Product image gallery */}
           <div className="flex-shrink-0 lg:w-1/2">
-            <div className="relative aspect-square overflow-hidden bg-brand-bg">
+            <div className="relative aspect-square overflow-hidden bg-background">
               <motion.img
                 key={displayedImage}
                 src={displayedImage}
@@ -152,9 +152,9 @@ export default function Product() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-bg via-transparent to-transparent lg:bg-gradient-to-r" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent lg:bg-gradient-to-r" />
               {product.featured && (
-                <span className="absolute left-4 top-4 rounded-full bg-brand-red px-3 py-1 text-xs font-semibold text-white">
+                <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
                   Featured
                 </span>
               )}
@@ -170,7 +170,7 @@ export default function Product() {
                     onClick={() => setActiveImage(img)}
                     className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
                       displayedImage === img
-                        ? 'border-brand-red'
+                        ? 'border-primary'
                         : 'border-white/20 hover:border-white/40'
                     }`}
                   >
@@ -185,7 +185,7 @@ export default function Product() {
           <div className="relative flex flex-1 flex-col p-6 lg:p-10">
             {/* Collection badge + SKU */}
             <div className="flex items-center justify-between">
-              <span className="rounded-full bg-brand-red/20 px-3 py-1 text-xs font-medium text-brand-red">
+              <span className="rounded-full bg-primary/20 px-3 py-1 text-xs font-medium text-primary">
                 {product.collection}
               </span>
               {product.sku && (
@@ -204,7 +204,7 @@ export default function Product() {
             <p className="mt-2 text-lg text-white/60 italic">"{product.lore}"</p>
 
             {/* Price */}
-            <p className="mt-4 font-display text-4xl text-brand-red">
+            <p className="mt-4 font-display text-4xl text-primary">
               {formatPrice(product.price)}
             </p>
 
@@ -233,7 +233,7 @@ export default function Product() {
                     type="button"
                     className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
                       selectedSize === size
-                        ? 'border-brand-red bg-brand-red/20 text-brand-red'
+                        ? 'border-primary bg-primary/20 text-primary'
                         : 'border-white/20 text-white/70 hover:border-white/40 hover:text-white'
                     }`}
                     onClick={() => setSelectedSize(size)}
@@ -315,15 +315,15 @@ export default function Product() {
             {/* Trust badges */}
             <div className="mt-8 grid grid-cols-1 gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
               <div className="flex items-center gap-2 text-xs text-white/60">
-                <Truck className="h-4 w-4 flex-shrink-0 text-brand-red" />
+                <Truck className="h-4 w-4 flex-shrink-0 text-primary" />
                 Island-wide delivery
               </div>
               <div className="flex items-center gap-2 text-xs text-white/60">
-                <ShieldCheck className="h-4 w-4 flex-shrink-0 text-brand-red" />
+                <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
                 Secure ordering
               </div>
               <div className="flex items-center gap-2 text-xs text-white/60">
-                <RefreshCw className="h-4 w-4 flex-shrink-0 text-brand-red" />
+                <RefreshCw className="h-4 w-4 flex-shrink-0 text-primary" />
                 7-day exchange
               </div>
             </div>
@@ -402,7 +402,7 @@ export default function Product() {
             onClick={() => setShowSizeGuide(false)}
           >
             <motion.div
-              className="w-full max-w-md rounded-2xl border border-white/10 bg-brand-bg p-6"
+              className="w-full max-w-md rounded-2xl border border-white/10 bg-background p-6"
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -497,7 +497,7 @@ function RelatedProductCard({ product }: { product: ProductType }) {
       to={`/product/${product.slug}`}
       className="group overflow-hidden rounded-xl border border-white/10 bg-white/5 transition-colors hover:border-white/30"
     >
-      <div className="aspect-square overflow-hidden bg-brand-bg">
+      <div className="aspect-square overflow-hidden bg-background">
         <img
           src={product.image}
           alt={product.name}
@@ -506,7 +506,7 @@ function RelatedProductCard({ product }: { product: ProductType }) {
       </div>
       <div className="p-3">
         <p className="truncate text-sm font-medium text-white">{product.name}</p>
-        <p className="mt-1 text-sm text-brand-red">{formatPrice(product.price)}</p>
+        <p className="mt-1 text-sm text-primary">{formatPrice(product.price)}</p>
       </div>
     </Link>
   );
