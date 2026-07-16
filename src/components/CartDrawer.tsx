@@ -132,19 +132,22 @@ export default function CartDrawer() {
                   </span>
                   <span className="font-display text-2xl text-brand-red">Rs. {totalPrice}</span>
                 </div>
+                <Link to="/checkout" onClick={closeCart} className="btn-primary w-full">
+                  Proceed to Checkout
+                </Link>
                 <motion.a
                   href={whatsappLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-500"
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-500"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   <MessageCircle className="h-5 w-5" />
-                  Checkout on WhatsApp
+                  Or Order on WhatsApp
                 </motion.a>
                 <p className="mt-3 text-center text-xs text-white/40">
-                  Card checkout coming soon — for now, we confirm orders over WhatsApp.
+                  No payment is collected online yet — we'll confirm delivery with you directly.
                 </p>
               </div>
             )}

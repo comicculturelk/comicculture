@@ -8,6 +8,8 @@ import Home from './pages/Home';
 import Shop from './pages/Shop';
 import Product from './pages/Product';
 import Contact from './pages/Contact';
+import Checkout from './pages/Checkout';
+import OrderSuccess from './pages/OrderSuccess';
 import NotFound from './pages/NotFound';
 
 export default function App() {
@@ -21,6 +23,8 @@ export default function App() {
           <Route path="/shop" element={<Shop />} />
           <Route path="/product/:slug" element={<Product />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
