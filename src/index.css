@@ -5,6 +5,19 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+  --color-background: #090909;
+  --color-foreground: #FFFFFF;
+  --color-primary: #E11D48;
+  --color-primary-hover: #BE123C;
+  --color-secondary: #2563EB;
+  --color-secondary-glow: #3B82F6;
+  --color-border: #27272A;
+
+  --color-primary-rgb: 225 29 72;
+  --color-secondary-rgb: 37 99 235;
+}
+
   html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
@@ -13,12 +26,12 @@
 
   body {
     /* Use semantic token for background to make intent clearer */
-    @apply bg-background text-white font-sans;
+    @apply bg-background text-foreground font-sans;
   }
 
   ::selection {
     /* selection uses primary color */
-    @apply bg-primary text-white;
+    @apply bg-primary text-foreground;
   }
 }
 
@@ -40,25 +53,25 @@
   }
 
   .glow-red {
-    box-shadow: 0 0 30px rgba(225, 29, 72, 0.4);
+    box-shadow: 0 0 30px rgba(var(--color-primary-rgb), 0.4);
   }
 
   .glow-blue {
-    box-shadow: 0 0 30px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 0 30px rgba(var(--color-secondary-rgb), 0.4);
   }
 
   .btn-primary {
     /* kept visual exact but use semantic primary token */
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white transition-all;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-foreground transition-all;
   }
 
   .btn-primary:hover {
     @apply bg-primary-hover;
-    box-shadow: 0 0 20px rgba(225, 29, 72, 0.5);
+    box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.5);
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/30 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-white hover:text-background;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/30 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-white hover:text-background;
   }
 
   .halftone-overlay {
@@ -91,14 +104,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #090909;
+  background: var(--color-background);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #E11D48;
+  background: var(--color-primary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #BE123C;
+  background: var(--color-primary-hover);
 }
