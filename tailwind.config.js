@@ -4,25 +4,29 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          bg: '#090909',
-          red: '#E11D48',
-          'red-dark': '#BE123C',
-          blue: '#2563EB',
-          'blue-glow': '#3B82F6',
-        },
-        /* Semantic aliases for easier developer understanding.
-           These map directly to the existing brand colors so the
-           visual design does not change. Use these in new code. */
-        primary: '#E11D48',
-        'primary-hover': '#BE123C',
-        secondary: '#2563EB',
-        'secondary-glow': '#3B82F6',
-        background: '#090909',
-          /* Keep the minimal set of semantic aliases that are used
-            in the project. Avoid adding tokens that are not referenced
-            to prevent confusion. */
-      },
+  brand: {
+    bg: '#090909',
+    red: '#E11D48',
+    'red-dark': '#BE123C',
+    blue: '#2563EB',
+    'blue-glow': '#3B82F6',
+  },
+
+  // Semantic tokens
+  background: '#090909',
+  surface: '#111111',
+
+  primary: '#E11D48',
+  'primary-hover': '#BE123C',
+
+  secondary: '#2563EB',
+  'secondary-glow': '#3B82F6',
+
+  foreground: '#FFFFFF',
+  muted: '#A1A1AA',
+
+  border: '#27272A',
+},
       fontFamily: {
         display: ['Bebas Neue', 'Impact', 'sans-serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
