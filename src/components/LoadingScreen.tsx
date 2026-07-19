@@ -43,7 +43,7 @@ export default function LoadingScreen() {
                     y1={y1}
                     x2={x2}
                     y2={y2}
-                    stroke="#E11D48"
+                    stroke="var(--color-primary)"
                     strokeWidth="1"
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 0.6 }}
@@ -64,7 +64,7 @@ export default function LoadingScreen() {
                   cy="150"
                   r={radius}
                   fill="none"
-                  stroke="#E11D48"
+                  stroke="var(--color-primary)"
                   strokeWidth="1"
                   initial={{ pathLength: 0, opacity: 0 }}
                   animate={{ pathLength: 1, opacity: 1 - i * 0.15 }}
