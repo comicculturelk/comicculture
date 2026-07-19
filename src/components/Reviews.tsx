@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, ChevronLeft, ChevronRight, Instagram } from 'lucide-react';
 
 const reviews = [
   {
@@ -51,7 +51,7 @@ export default function Reviews() {
   const next = () => setCurrent((current + 1) % reviews.length);
 
   return (
-    <section className="relative py-24 lg:py-32 overflow-hidden">
+    <section id="community" className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
@@ -66,9 +66,13 @@ export default function Reviews() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-white tracking-wide">
-            WHAT FANS <span className="text-gradient-red">SAY</span>
+          <span className="inline-block rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+            FAN TRANSMISSIONS
+          </span>
+          <h2 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
+            THE COMICCULTURE <span className="text-gradient-red">COMMUNITY</span>
           </h2>
+          <p className="mt-4 text-lg text-muted">Real stories from real collectors.</p>
         </motion.div>
 
         {/* Reviews carousel */}
@@ -76,7 +80,7 @@ export default function Reviews() {
           <AnimatePresence mode="wait">
             <motion.div
               key={current}
-              className="glass rounded-2xl p-8 md:p-12 text-center"
+              className="glass relative rounded-2xl p-8 md:p-12 text-center"
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -50 }}
@@ -97,21 +101,21 @@ export default function Reviews() {
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
-                    className={`h-5 w-5 ${i < reviews[current].rating ? 'text-primary fill-primary' : 'text-white/20'}`}
+                    className={`h-5 w-5 ${i < reviews[current].rating ? 'text-primary fill-primary' : 'text-foreground/20'}`}
                   />
                 ))}
               </div>
 
               {/* Review text */}
-              <p className="mt-6 text-lg md:text-xl text-white/80 leading-relaxed italic">
+              <p className="mt-6 text-lg md:text-xl text-foreground/80 leading-relaxed italic">
                 "{reviews[current].text}"
               </p>
 
               {/* Author */}
-              <p className="mt-6 font-display text-lg text-white">
+              <p className="mt-6 font-display text-lg text-foreground">
                 {reviews[current].name}
               </p>
-              <p className="text-sm text-white/50">
+              <p className="text-sm text-muted">
                 {reviews[current].location}
               </p>
               <p className="mt-2 text-sm text-primary">
@@ -124,7 +128,7 @@ export default function Reviews() {
           <div className="mt-8 flex justify-center gap-4">
             <motion.button
               onClick={prev}
-              className="rounded-full bg-white/10 p-3 text-white transition-colors hover:bg-white/20"
+              className="rounded-full bg-foreground/10 p-3 text-foreground transition-colors hover:bg-foreground/20"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
@@ -137,14 +141,14 @@ export default function Reviews() {
                   key={index}
                   onClick={() => setCurrent(index)}
                   className={`h-2 rounded-full transition-all ${
-                    index === current ? 'w-8 bg-primary' : 'w-2 bg-white/30'
+                    index === current ? 'w-8 bg-primary' : 'w-2 bg-foreground/30'
                   }`}
                 />
               ))}
             </div>
             <motion.button
               onClick={next}
-              className="rounded-full bg-white/10 p-3 text-white transition-colors hover:bg-white/20"
+              className="rounded-full bg-foreground/10 p-3 text-foreground transition-colors hover:bg-foreground/20"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
@@ -152,6 +156,25 @@ export default function Reviews() {
             </motion.button>
           </div>
         </div>
+
+        {/* Community follow line — replaces the dropped Instagram grid section */}
+        <motion.div
+          className="mt-12 text-center"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.2 }}
+        >
+          <a
+            href="https://instagram.com/comicculture.lk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-foreground"
+          >
+            <Instagram className="h-4 w-4" />
+            Join the conversation @ComicCulture.lk
+          </a>
+        </motion.div>
       </div>
     </section>
   );
