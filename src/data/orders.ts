@@ -1,0 +1,61 @@
+import { supabase } from '../lib/supabase';
+import type { CartItem } from '../context/CartContext';
+
+export interface CreateOrderInput {
+  orderReference: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  district: string;
+  postalCode: string;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  items: CartItem[];
+}
+
+export async function createOrder(input: CreateOrderInput): Promise<void> {
+  const orderId = crypto.randomUUID();
+
+  const { error: orderError } = await supabase.from('orders').insert({
+    id: orderId,
+    order_reference: input.orderReference,
+    full_name: input.fullName,
+    phone: input.phone,
+    email: input.email.trim() || null,
+    address_line1: input.addressLine1,
+    address_line2: input.addressLine2.trim() || null,
+    city: input.city,
+    district: input.district,
+    postal_code: input.postalCode.trim() || null,
+    subtotal: input.subtotal,
+    delivery_fee: input.deliveryFee,
+    total: input.total,
+  });
+
+  if (orderError) {
+    throw new Error(orderError.message);
+  }
+
+  const orderItems = input.items.map((item) => ({
+    order_id: orderId,
+    product_id: item.productId,
+    slug: item.slug,
+    name: item.name,
+    image: item.image,
+    price: item.price,
+    size: item.size,
+    quantity: item.quantity,
+  }));
+
+  const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+
+  if (itemsError) {
+    // Order row exists but items failed — surface this distinctly so it's
+    // easy to find/fix from the Supabase dashboard if it ever happens.
+    throw new Error(`Order ${input.orderReference} was created, but saving items failed: ${itemsError.message}`);
+  }
+}

@@ -11,6 +11,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
+import { createOrder } from '../data/orders';
 
 const DELIVERY_FEE = 350;
 
@@ -57,6 +58,7 @@ export default function Checkout() {
   const [promoCode, setPromoCode] = useState('');
   const [promoNote, setPromoNote] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const deliveryFee = items.length > 0 ? DELIVERY_FEE : 0;
   const total = totalPrice + deliveryFee;
@@ -91,17 +93,34 @@ export default function Checkout() {
     setPromoNote("Promo codes aren't available just yet — check back soon!");
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
+    setSubmitError(null);
     setIsSubmitting(true);
 
-    // Simulated submission — no payment gateway or order backend yet.
     const orderReference = `CC-${Date.now().toString().slice(-6)}`;
-    setTimeout(() => {
+
+    try {
+      await createOrder({
+        orderReference,
+        fullName: form.fullName.trim(),
+        phone: form.phone.trim(),
+        email: form.email,
+        addressLine1: form.addressLine1.trim(),
+        addressLine2: form.addressLine2,
+        city: form.city.trim(),
+        district: form.district,
+        postalCode: form.postalCode,
+        subtotal: totalPrice,
+        deliveryFee,
+        total,
+        items,
+      });
+
       clearCart();
       navigate('/order-success', {
         state: {
@@ -111,7 +130,14 @@ export default function Checkout() {
           total,
         },
       });
-    }, 700);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong placing your order. Please try again.'
+      );
+      setIsSubmitting(false);
+    }
   };
 
   if (items.length === 0) {
@@ -364,6 +390,12 @@ export default function Checkout() {
                 <span className="text-primary">Rs. {total}</span>
               </div>
             </div>
+
+            {submitError && (
+              <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm text-primary">
+                {submitError}
+              </p>
+            )}
 
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
               {isSubmitting ? (
