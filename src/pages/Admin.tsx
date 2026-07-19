@@ -1,8 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { MessageCircle } from 'lucide-react';
+import {
+  MessageCircle,
+  ShoppingBag,
+  Clock,
+  AlertTriangle,
+  Wallet,
+  PackageX,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { fetchProducts, updateProductStock, type Product } from '../data/products';
+import { fetchProducts, updateProductStock, getStockForSize, type Product } from '../data/products';
 
 const STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
 
@@ -152,7 +161,7 @@ function AdminOrders() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | (typeof STATUSES)[number]>('all');
-  const [view, setView] = useState<'orders' | 'inventory'>('orders');
+  const [view, setView] = useState<'dashboard' | 'orders' | 'inventory'>('orders');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleExpand = (id: string) => {
@@ -209,7 +218,7 @@ function AdminOrders() {
           <div className="flex items-center gap-4">
             <h1 className="font-display text-3xl text-white tracking-wide">ADMIN</h1>
             <div className="flex gap-2">
-              {(['orders', 'inventory'] as const).map((v) => (
+              {(['dashboard', 'orders', 'inventory'] as const).map((v) => (
                 <button
                   key={v}
                   type="button"
@@ -361,6 +370,7 @@ function AdminOrders() {
         )}
 
         {view === 'inventory' && <AdminInventory />}
+        {view === 'dashboard' && <AdminDashboard />}
       </div>
     </section>
   );
@@ -455,6 +465,185 @@ function AdminInventory() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+const LOW_STOCK_THRESHOLD = 3;
+
+interface DashboardOrderRow {
+  order_reference: string;
+  full_name: string;
+  total: number;
+  status: string;
+  created_at: string;
+}
+
+interface DashboardOrderItemRow {
+  name: string;
+  quantity: number;
+}
+
+function isSameDay(iso: string, reference: Date): boolean {
+  const d = new Date(iso);
+  return (
+    d.getFullYear() === reference.getFullYear() &&
+    d.getMonth() === reference.getMonth() &&
+    d.getDate() === reference.getDate()
+  );
+}
+
+function DashboardCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="glass rounded-2xl p-5">
+      <div className="flex items-center gap-2 text-white/50">
+        <Icon className="h-4 w-4" />
+        <span className="text-xs uppercase tracking-wide">{label}</span>
+      </div>
+      <p className="mt-2 font-display text-2xl text-white tracking-wide">{value}</p>
+    </div>
+  );
+}
+
+function AdminDashboard() {
+  const [orders, setOrders] = useState<DashboardOrderRow[]>([]);
+  const [orderItems, setOrderItems] = useState<DashboardOrderItemRow[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [ordersRes, itemsRes, productsData] = await Promise.all([
+          supabase
+            .from('orders')
+            .select('order_reference, full_name, total, status, created_at')
+            .order('created_at', { ascending: false }),
+          supabase.from('order_items').select('name, quantity'),
+          fetchProducts(),
+        ]);
+
+        if (cancelled) return;
+
+        if (ordersRes.error) throw new Error(ordersRes.error.message);
+        if (itemsRes.error) throw new Error(itemsRes.error.message);
+
+        setOrders((ordersRes.data ?? []) as DashboardOrderRow[]);
+        setOrderItems((itemsRes.data ?? []) as DashboardOrderItemRow[]);
+        setProducts(productsData);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) return <p className="text-white/50">Loading dashboard...</p>;
+  if (error) return <p className="text-primary">{error}</p>;
+
+  const today = new Date();
+  const totalOrders = orders.length;
+  const ordersToday = orders.filter((o) => isSameDay(o.created_at, today)).length;
+  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const totalRevenue = orders
+    .filter((o) => o.status !== 'cancelled')
+    .reduce((sum, o) => sum + Number(o.total), 0);
+
+  let lowStockCount = 0;
+  let outOfStockCount = 0;
+  for (const product of products) {
+    for (const size of product.sizes) {
+      const qty = getStockForSize(product, size);
+      if (qty <= 0) outOfStockCount += 1;
+      else if (qty <= LOW_STOCK_THRESHOLD) lowStockCount += 1;
+    }
+  }
+
+  const salesByName = new Map<string, number>();
+  let totalItemsSold = 0;
+  for (const item of orderItems) {
+    totalItemsSold += item.quantity;
+    salesByName.set(item.name, (salesByName.get(item.name) ?? 0) + item.quantity);
+  }
+  let bestSeller: string | null = null;
+  let bestSellerQty = 0;
+  for (const [name, qty] of salesByName) {
+    if (qty > bestSellerQty) {
+      bestSeller = name;
+      bestSellerQty = qty;
+    }
+  }
+
+  const recentOrders = orders.slice(0, 5);
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <DashboardCard icon={ShoppingBag} label="Total Orders" value={totalOrders} />
+        <DashboardCard icon={Clock} label="Orders Today" value={ordersToday} />
+        <DashboardCard icon={AlertTriangle} label="Pending Orders" value={pendingOrders} />
+        <DashboardCard icon={Wallet} label="Total Revenue" value={`Rs. ${totalRevenue.toLocaleString()}`} />
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-white/40">Inventory Overview</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <DashboardCard icon={AlertTriangle} label="Low Stock Sizes" value={lowStockCount} />
+          <DashboardCard icon={PackageX} label="Out of Stock Sizes" value={outOfStockCount} />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-white/40">Sales Insights</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <DashboardCard icon={TrendingUp} label="Best Selling Product" value={bestSeller ?? 'No sales yet'} />
+          <DashboardCard icon={ShoppingBag} label="Total Items Sold" value={totalItemsSold} />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-white/40">Recent Activity</h2>
+        {recentOrders.length === 0 ? (
+          <p className="text-white/40">No orders yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {recentOrders.map((order) => (
+              <div
+                key={order.order_reference}
+                className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
+              >
+                <div>
+                  <p className="font-display text-sm text-white tracking-wide">{order.order_reference}</p>
+                  <p className="text-xs text-white/40">{formatDate(order.created_at)}</p>
+                </div>
+                <p className="text-sm text-white/70">{order.full_name}</p>
+                <p className="text-sm font-medium text-primary">Rs. {order.total}</p>
+                <StatusBadge status={order.status} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
