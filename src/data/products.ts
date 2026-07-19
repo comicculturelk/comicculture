@@ -121,3 +121,14 @@ export function getStockForSize(product: Pick<Product, 'stock'>, size: string): 
 export function isSizeInStock(product: Pick<Product, 'stock'>, size: string): boolean {
   return getStockForSize(product, size) > 0;
 }
+
+/** Overwrites a product's per-size stock map (admin use only). */
+export async function updateProductStock(
+  productId: string,
+  stock: Record<string, number>
+): Promise<void> {
+  const { error } = await supabase.from('products').update({ stock }).eq('id', productId);
+  if (error) {
+    throw new Error(`Failed to update stock: ${error.message}`);
+  }
+}

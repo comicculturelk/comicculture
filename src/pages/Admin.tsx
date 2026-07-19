@@ -1,8 +1,56 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { fetchProducts, updateProductStock, type Product } from '../data/products';
 
 const STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const hours24 = d.getHours();
+  const hours = hours24 % 12 || 12;
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  const ampm = hours24 >= 12 ? 'PM' : 'AM';
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${hours}:${minutes} ${ampm}`;
+}
+
+function toWhatsAppLink(phone: string, customerName: string, orderReference: string): string {
+  const digits = phone.replace(/\D/g, '');
+  const number = digits.startsWith('94')
+    ? digits
+    : digits.startsWith('0')
+      ? `94${digits.slice(1)}`
+      : `94${digits}`;
+  const message = `Hi ${customerName}, this is ComicCulture regarding your order ${orderReference}.`;
+  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'border-yellow-500/40 bg-yellow-500/20 text-yellow-400',
+  confirmed: 'border-blue-500/40 bg-blue-500/20 text-blue-400',
+  packed: 'border-purple-500/40 bg-purple-500/20 text-purple-400',
+  shipped: 'border-orange-500/40 bg-orange-500/20 text-orange-400',
+  delivered: 'border-green-500/40 bg-green-500/20 text-green-400',
+  cancelled: 'border-red-500/40 bg-red-500/20 text-red-400',
+};
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${
+        STATUS_STYLES[status] ?? 'border-white/20 bg-white/10 text-white/60'
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
 
 interface OrderItemRow {
   id: string;
@@ -103,6 +151,18 @@ function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | (typeof STATUSES)[number]>('all');
+  const [view, setView] = useState<'orders' | 'inventory'>('orders');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const loadOrders = async () => {
     setLoading(true);
@@ -139,81 +199,262 @@ function AdminOrders() {
 
   const handleSignOut = () => supabase.auth.signOut();
 
+  const filteredOrders =
+    statusFilter === 'all' ? orders : orders.filter((o) => o.status === statusFilter);
+
   return (
-    <section className="min-h-screen bg-background px-6 py-12">
+    <section className="min-h-screen bg-background px-6 py-24 lg:py-32">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="font-display text-3xl text-white tracking-wide">ORDERS</h1>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h1 className="font-display text-3xl text-white tracking-wide">ADMIN</h1>
+            <div className="flex gap-2">
+              {(['orders', 'inventory'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    view === v
+                      ? 'border-primary bg-primary/20 text-primary'
+                      : 'border-white/20 text-white/60 hover:border-white/40 hover:text-white'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
           <button type="button" onClick={handleSignOut} className="btn-outline text-sm">
             Sign Out
           </button>
         </div>
 
-        {loading && <p className="text-white/50">Loading orders...</p>}
+        {loading && view === 'orders' && <p className="text-white/50">Loading orders...</p>}
         {error && <p className="text-primary">{error}</p>}
 
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <div key={order.id} className="glass rounded-2xl p-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="font-display text-lg text-white tracking-wide">
-                    {order.order_reference}
-                  </p>
-                  <p className="text-xs text-white/40">
-                    {new Date(order.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <select
-                  value={order.status}
-                  disabled={updatingId === order.id}
-                  onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                  className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-primary"
+        {view === 'orders' && (
+          <>
+            <div className="mb-6 flex flex-wrap gap-2">
+              {(['all', ...STATUSES] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    statusFilter === s
+                      ? 'border-primary bg-primary/20 text-primary'
+                      : 'border-white/20 text-white/60 hover:border-white/40 hover:text-white'
+                  }`}
                 >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s} className="bg-background">
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-                <div>
-                  <p className="text-white/40">Customer</p>
-                  <p className="text-white/80">{order.full_name}</p>
-                  <p className="text-white/80">{order.phone}</p>
-                </div>
-                <div>
-                  <p className="text-white/40">Address</p>
-                  <p className="text-white/80">
-                    {order.address_line1}
-                    {order.address_line2 ? `, ${order.address_line2}` : ''}
-                  </p>
-                  <p className="text-white/80">
-                    {order.city}, {order.district} {order.postal_code ?? ''}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <p className="mb-2 text-white/40">Items</p>
-                <ul className="space-y-1 text-sm text-white/70">
-                  {order.order_items.map((item) => (
-                    <li key={item.id}>
-                      {item.name} — Size {item.size} · Qty {item.quantity} · Rs. {item.price}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <p className="mt-4 text-right font-display text-lg text-primary">
-                Total: Rs. {order.total}
-              </p>
+                  {s}
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
+
+            {!loading && filteredOrders.length === 0 && (
+              <p className="text-white/40">No orders match this filter.</p>
+            )}
+
+            <div className="space-y-4">
+              {filteredOrders.map((order) => {
+                const isExpanded = expandedIds.has(order.id);
+                return (
+                  <div key={order.id} className="glass rounded-2xl p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="font-display text-lg text-white tracking-wide">
+                          {order.order_reference}
+                        </p>
+                        <p className="text-xs text-white/40">{formatDate(order.created_at)}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-xs uppercase tracking-wide text-white/40">Status</span>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={order.status} />
+                          <select
+                            value={order.status}
+                            disabled={updatingId === order.id}
+                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                            className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-primary"
+                          >
+                            {STATUSES.map((s) => (
+                              <option key={s} value={s} className="bg-background">
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-4 text-sm">
+                      <div>
+                        <p className="font-medium text-white">{order.full_name}</p>
+                        <p className="text-white/60">{order.phone}</p>
+                      </div>
+                      <p className="font-display text-lg text-primary">Rs. {order.total}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(order.id)}
+                      className="mt-4 text-xs font-medium text-white/50 transition-colors hover:text-white"
+                    >
+                      {isExpanded ? 'Hide Details' : 'View Details'}
+                    </button>
+
+                    {isExpanded && (
+                      <>
+                        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-white/10 pt-4 text-sm sm:grid-cols-2">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-white/40">Customer</p>
+                            <p className="mt-1 font-medium text-white">{order.full_name}</p>
+                            <div className="mt-1 flex items-center gap-2">
+                              <p className="text-white/70">{order.phone}</p>
+                              <a
+                                href={toWhatsAppLink(order.phone, order.full_name, order.order_reference)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-green-500"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                WhatsApp
+                              </a>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-white/40">Address</p>
+                            <p className="mt-1 text-white/70">
+                              {order.address_line1}
+                              {order.address_line2 ? `, ${order.address_line2}` : ''}
+                            </p>
+                            <p className="text-white/70">
+                              {order.city}, {order.district} {order.postal_code ?? ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 border-t border-white/10 pt-4">
+                          <p className="mb-2 text-xs uppercase tracking-wide text-white/40">Items</p>
+                          <ul className="space-y-1 text-sm text-white/70">
+                            {order.order_items.map((item) => (
+                              <li key={item.id} className="flex justify-between">
+                                <span>
+                                  {item.name}{' '}
+                                  <span className="text-white/40">
+                                    · Size {item.size} · Qty {item.quantity}
+                                  </span>
+                                </span>
+                                <span className="text-white/60">Rs. {item.price}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {view === 'inventory' && <AdminInventory />}
       </div>
     </section>
+  );
+}
+
+function AdminInventory() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Record<string, Record<string, number>>>({});
+
+  useEffect(() => {
+    fetchProducts()
+      .then((data) => {
+        setProducts(data);
+        setDraft(Object.fromEntries(data.map((p) => [p.id, { ...(p.stock ?? {}) }])));
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load products'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleStockChange = (productId: string, size: string, value: string) => {
+    const qty = Math.max(0, Number(value) || 0);
+    setDraft((prev) => ({ ...prev, [productId]: { ...prev[productId], [size]: qty } }));
+    setSavedId(null);
+  };
+
+  const handleSave = async (productId: string) => {
+    setSavingId(productId);
+    try {
+      await updateProductStock(productId, draft[productId] ?? {});
+      setSavedId(productId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save stock');
+    }
+    setSavingId(null);
+  };
+
+  if (loading) return <p className="text-white/50">Loading products...</p>;
+
+  return (
+    <div className="space-y-4">
+      {error && <p className="text-primary">{error}</p>}
+      {products.map((product) => (
+        <div key={product.id} className="glass rounded-2xl p-6">
+          <p className="font-display text-lg text-white tracking-wide">{product.name}</p>
+          <div className="mt-4 flex flex-wrap gap-4">
+            {product.sizes.map((size) => {
+              const qty = draft[product.id]?.[size] ?? 0;
+              const stockState = qty <= 0 ? 'out' : qty <= 3 ? 'low' : 'ok';
+              return (
+                <label
+                  key={size}
+                  className="flex flex-col items-center gap-1 text-xs uppercase tracking-wide text-white/50"
+                >
+                  {size}
+                  <input
+                    type="number"
+                    min={0}
+                    value={qty}
+                    onChange={(e) => handleStockChange(product.id, size, e.target.value)}
+                    className={`w-16 rounded-lg border bg-white/5 px-2 py-1.5 text-center text-sm outline-none focus:border-primary ${
+                      stockState === 'out'
+                        ? 'border-red-500/60 text-red-400'
+                        : stockState === 'low'
+                          ? 'border-yellow-500/60 text-yellow-400'
+                          : 'border-white/20 text-white'
+                    }`}
+                  />
+                  {stockState === 'out' && (
+                    <span className="normal-case text-[10px] text-red-400">Out of stock</span>
+                  )}
+                  {stockState === 'low' && (
+                    <span className="normal-case text-[10px] text-yellow-400">Low stock</span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => handleSave(product.id)}
+              disabled={savingId === product.id}
+              className="btn-primary px-6 py-2 text-sm"
+            >
+              {savingId === product.id ? 'Saving...' : 'Save'}
+            </button>
+            {savedId === product.id && <span className="text-xs text-green-400">Saved</span>}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
