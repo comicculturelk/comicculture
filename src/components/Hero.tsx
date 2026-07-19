@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef } from 'react';
-import { ArrowDown, Play, ShoppingBag } from 'lucide-react';
+import { ArrowDown, Compass, ShoppingBag } from 'lucide-react';
+import CornerFrame from './CornerFrame';
 
 export default function Hero() {
   const ref = useRef(null);
@@ -13,7 +14,7 @@ export default function Hero() {
       {/* Animated background layers */}
       <div className="absolute inset-0">
         {/* Base gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-black" />
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
 
         {/* Animated gradient orbs */}
         <motion.div
@@ -39,11 +40,11 @@ export default function Hero() {
         {/* Halftone overlay */}
         <div className="absolute inset-0 halftone-overlay opacity-40" />
 
-        {/* Floating particles */}
-        {[...Array(20)].map((_, i) => (
+        {/* Floating particles — trimmed from 20 to 12 for a more restrained, cinematic feel */}
+        {[...Array(12)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute h-1 w-1 rounded-full bg-white/20"
+            className="absolute h-1 w-1 rounded-full bg-foreground/20"
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -60,6 +61,23 @@ export default function Hero() {
           />
         ))}
       </div>
+
+      {/* Comic cover masthead — indicia-style credits like a real issue */}
+      <motion.div
+        className="absolute top-6 left-0 right-0 z-10 hidden items-center justify-between px-8 sm:flex"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2.4, duration: 0.6 }}
+      >
+        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40">
+          ComicCulture Presents
+        </span>
+        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40">
+          Issue №01 · Drop 01
+        </span>
+      </motion.div>
+
+      <CornerFrame className="hidden sm:block" />
 
       {/* Content */}
       <motion.div
@@ -87,19 +105,19 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 2.8, duration: 0.8 }}
         >
-          <span className="text-white">WEAR YOUR</span>
+          <span className="text-foreground">WEAR YOUR</span>
           <br />
           <span className="text-gradient-red">UNIVERSE</span>
         </motion.h1>
 
-        {/* Subtitle */}
+        {/* Subtitle — the brand line */}
         <motion.p
-          className="mt-6 text-center text-lg md:text-xl text-white/60 max-w-lg"
+          className="mt-6 max-w-xl text-balance text-center text-lg md:text-xl text-muted"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 3.1, duration: 0.6 }}
         >
-          Football Meets The Spider-Verse
+          Every design is a chapter. Every shirt has a story.
         </motion.p>
 
         {/* CTA Buttons */}
@@ -116,16 +134,17 @@ export default function Hero() {
             whileTap={{ scale: 0.95 }}
           >
             <ShoppingBag className="h-5 w-5" />
-            Browse Collection
+            Read The Collection
           </motion.a>
-          <motion.button
+          <motion.a
+            href="#universe"
             className="btn-outline"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Play className="h-5 w-5" />
-            Watch Trailer
-          </motion.button>
+            <Compass className="h-5 w-5" />
+            Enter The Universe
+          </motion.a>
         </motion.div>
 
         {/* Stats */}
@@ -136,18 +155,18 @@ export default function Hero() {
           transition={{ delay: 3.6, duration: 0.6 }}
         >
           <div>
-            <p className="font-display text-3xl text-white">6</p>
-            <p className="text-sm text-white/50">Unique Designs</p>
+            <p className="font-display text-3xl text-foreground">6</p>
+            <p className="text-sm text-muted">Unique Designs</p>
           </div>
-          <div className="h-12 w-px bg-white/10" />
+          <div className="h-12 w-px bg-foreground/10" />
           <div>
-            <p className="font-display text-3xl text-white">LIMITED</p>
-            <p className="text-sm text-white/50">Edition</p>
+            <p className="font-display text-3xl text-foreground">LIMITED</p>
+            <p className="text-sm text-muted">Edition</p>
           </div>
-          <div className="h-12 w-px bg-white/10" />
+          <div className="h-12 w-px bg-foreground/10" />
           <div>
-            <p className="font-display text-3xl text-primary">Rs. 89</p>
-            <p className="text-sm text-white/50">Starting</p>
+            <p className="font-display text-3xl text-primary">JERSEY</p>
+            <p className="text-sm text-muted">Grade Fabric</p>
           </div>
         </motion.div>
 
@@ -158,12 +177,12 @@ export default function Hero() {
           animate={{ opacity: 1 }}
           transition={{ delay: 4 }}
         >
-          <span className="text-xs uppercase tracking-widest text-white/40">Scroll</span>
+          <span className="text-xs uppercase tracking-widest text-muted">Scroll</span>
           <motion.div
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 1.5, repeat: Infinity }}
           >
-            <ArrowDown className="h-5 w-5 text-white/60" />
+            <ArrowDown className="h-5 w-5 text-muted" />
           </motion.div>
         </motion.div>
       </motion.div>
