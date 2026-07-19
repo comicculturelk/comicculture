@@ -18,6 +18,7 @@ export interface Product {
   fit?: string;
   careInstructions?: string[];
   sku?: string;
+  stock?: Record<string, number>;
 }
 
 // Shape of a row as it comes back from Supabase (snake_case column names)
@@ -38,6 +39,7 @@ interface ProductRow {
   material: string | null;
   fit: string | null;
   care_instructions: string[] | null;
+  stock: Record<string, number> | null;
 }
 
 const DEFAULT_CARE_INSTRUCTIONS = [
@@ -69,6 +71,7 @@ function mapRowToProduct(row: ProductRow): Product {
         ? row.care_instructions
         : DEFAULT_CARE_INSTRUCTIONS,
     sku: `CC-${row.id.toUpperCase()}`,
+    stock: row.stock ?? {},
   };
 }
 
@@ -107,4 +110,14 @@ export function generateWhatsAppMessage(product: Product, size: string, quantity
   const qtyText = quantity > 1 ? `${quantity}x ` : '';
   const message = `Hi! I'd like to order ${qtyText}the ${product.name} jersey in size ${size} from ComicCulture. Is it available?`;
   return encodeURIComponent(message);
+}
+
+/** Remaining stock for a given size (0 if unknown/out of stock). */
+export function getStockForSize(product: Pick<Product, 'stock'>, size: string): number {
+  return product.stock?.[size] ?? 0;
+}
+
+/** Whether a given size can currently be ordered. */
+export function isSizeInStock(product: Pick<Product, 'stock'>, size: string): boolean {
+  return getStockForSize(product, size) > 0;
 }

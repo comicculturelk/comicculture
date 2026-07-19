@@ -18,6 +18,20 @@ export interface CreateOrderInput {
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<void> {
+  // Validate + reserve stock atomically before creating the order.
+  // Throws (and aborts) if any item is out of stock or oversold.
+  const { error: stockError } = await supabase.rpc('decrement_stock_for_order', {
+    items: input.items.map((item) => ({
+      product_id: item.productId,
+      size: item.size,
+      quantity: item.quantity,
+    })),
+  });
+
+  if (stockError) {
+    throw new Error(stockError.message);
+  }
+
   const orderId = crypto.randomUUID();
 
   const { error: orderError } = await supabase.from('orders').insert({

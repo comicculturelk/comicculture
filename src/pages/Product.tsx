@@ -19,7 +19,7 @@ import { useEffect, useState } from 'react';
 import { useProduct } from '../hooks/useProduct';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
-import { generateWhatsAppMessage, formatPrice } from '../data/products';
+import { generateWhatsAppMessage, formatPrice, getStockForSize, isSizeInStock } from '../data/products';
 import type { Product as ProductType } from '../data/products';
 
 const SIZE_GUIDE = [
@@ -36,7 +36,7 @@ export default function Product() {
   const { slug } = useParams<{ slug: string }>();
   const { product, loading, error } = useProduct(slug);
   const { products: allProducts } = useProducts();
-  const { addItem, openCart } = useCart();
+  const { addItem, openCart, stockMessage } = useCart();
   const [selectedSize, setSelectedSize] = useState<string>('M');
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
@@ -47,7 +47,9 @@ export default function Product() {
   useEffect(() => {
     if (product) {
       setActiveImage(product.image);
-      setSelectedSize(product.sizes[0] ?? 'M');
+      setSelectedSize(
+        product.sizes.find((s) => isSizeInStock(product, s)) ?? product.sizes[0] ?? 'M'
+      );
       setQuantity(1);
     }
   }, [product]);
@@ -90,17 +92,22 @@ export default function Product() {
     .filter((p) => p.collection === product.collection && p.slug !== product.slug)
     .slice(0, 4);
 
+  const availableStock = getStockForSize(product, selectedSize);
+  const maxQuantity = Math.max(1, Math.min(10, availableStock));
+
   const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i += 1) {
-      addItem({
+    addItem(
+      {
         productId: product.id,
         slug: product.slug,
         name: product.name,
         image: product.image,
         price: product.price,
         size: selectedSize,
-      });
-    }
+        maxStock: availableStock,
+      },
+      quantity
+    );
     openCart();
   };
 
@@ -227,22 +234,40 @@ export default function Product() {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {product.sizes.map((size) => (
-                  <motion.button
-                    key={size}
-                    type="button"
-                    className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
-                      selectedSize === size
-                        ? 'border-primary bg-primary/20 text-primary'
-                        : 'border-white/20 text-white/70 hover:border-white/40 hover:text-white'
-                    }`}
-                    onClick={() => setSelectedSize(size)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    {size}
-                  </motion.button>
-                ))}
+                {product.sizes.map((size) => {
+                  const inStock = isSizeInStock(product, size);
+                  return (
+                    <div key={size} className="flex flex-col items-center gap-1">
+                      <motion.button
+                        type="button"
+                        disabled={!inStock}
+                        className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
+                          selectedSize === size
+                            ? 'border-primary bg-primary/20 text-primary'
+                            : 'border-white/20 text-white/70 hover:border-white/40 hover:text-white'
+                        } ${
+                          !inStock
+                            ? 'cursor-not-allowed opacity-40 hover:border-white/20 hover:text-white/70'
+                            : ''
+                        }`}
+                        onClick={() => {
+                          if (!inStock) return;
+                          setSelectedSize(size);
+                          setQuantity(1);
+                        }}
+                        whileHover={inStock ? { scale: 1.05 } : undefined}
+                        whileTap={inStock ? { scale: 0.95 } : undefined}
+                      >
+                        {size}
+                      </motion.button>
+                      {!inStock && (
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-white/40">
+                          Sold out
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -264,14 +289,19 @@ export default function Product() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                  disabled={quantity >= 10}
+                  onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
+                  disabled={quantity >= maxQuantity}
                   className="flex h-10 w-10 items-center justify-center text-white/70 transition-colors hover:text-white disabled:opacity-30"
                   aria-label="Increase quantity"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
+              {quantity >= maxQuantity && availableStock > 0 && (
+                <p className="mt-2 text-xs text-white/40">
+                  Only {availableStock} left in size {selectedSize}
+                </p>
+              )}
             </div>
 
             {/* CTA buttons */}
@@ -279,13 +309,17 @@ export default function Product() {
               <motion.button
                 type="button"
                 onClick={handleAddToCart}
-                className="btn-primary w-full"
+                disabled={availableStock === 0}
+                className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <ShoppingBag className="h-5 w-5" />
-                Add to Cart
+                {availableStock === 0 ? 'Sold Out' : 'Add to Cart'}
               </motion.button>
+              {stockMessage && (
+                <p className="mt-2 text-xs text-primary">{stockMessage}</p>
+              )}
               <div className="mt-3 flex flex-col gap-3 sm:flex-row">
                 <motion.a
                   href={whatsappLink}

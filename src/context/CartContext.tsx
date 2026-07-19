@@ -8,6 +8,8 @@ export interface CartItem {
   price: number;
   size: string;
   quantity: number;
+  /** Available stock for this size at the time it was added, used to cap quantity client-side. */
+  maxStock?: number;
 }
 
 interface CartContextValue {
@@ -21,6 +23,8 @@ interface CartContextValue {
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
+  /** User-friendly message set when a quantity was capped by available stock. */
+  stockMessage: string | null;
 }
 
 export const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -39,6 +43,7 @@ function loadCart(): CartItem[] {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => loadCart());
   const [isOpen, setIsOpen] = useState(false);
+  const [stockMessage, setStockMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -49,18 +54,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   const addItem: CartContextValue['addItem'] = (item, quantity = 1) => {
+    const existing = items.find(
+      (i) => i.productId === item.productId && i.size === item.size
+    );
+    const cap = item.maxStock ?? existing?.maxStock;
+    const desiredQty = (existing?.quantity ?? 0) + quantity;
+    const cappedQty = cap != null ? Math.min(desiredQty, cap) : desiredQty;
+
+    setStockMessage(
+      cap != null && desiredQty > cap
+        ? cap > 0
+          ? `Only ${cap} left in size ${item.size} — quantity adjusted.`
+          : `Sorry, size ${item.size} just sold out.`
+        : null
+    );
+
     setItems((prev) => {
-      const existing = prev.find(
-        (i) => i.productId === item.productId && i.size === item.size
-      );
       if (existing) {
         return prev.map((i) =>
           i.productId === item.productId && i.size === item.size
-            ? { ...i, quantity: i.quantity + quantity }
+            ? { ...i, quantity: cappedQty, maxStock: cap ?? i.maxStock }
             : i
         );
       }
-      return [...prev, { ...item, quantity }];
+      return [...prev, { ...item, quantity: cappedQty }];
     });
   };
 
@@ -73,9 +90,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem(productId, size);
       return;
     }
+    const target = items.find((i) => i.productId === productId && i.size === size);
+    const cap = target?.maxStock;
+    const cappedQty = cap != null ? Math.min(quantity, cap) : quantity;
+
+    setStockMessage(
+      cap != null && quantity > cap ? `Only ${cap} left in size ${size}.` : null
+    );
+
     setItems((prev) =>
       prev.map((i) =>
-        i.productId === productId && i.size === size ? { ...i, quantity } : i
+        i.productId === productId && i.size === size ? { ...i, quantity: cappedQty } : i
       )
     );
   };
@@ -101,6 +126,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         isOpen,
         openCart,
         closeCart,
+        stockMessage,
       }}
     >
       {children}
