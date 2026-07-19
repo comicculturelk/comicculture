@@ -50,26 +50,7 @@ export default function ProductShowcase() {
         {!loading && !error && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
             {products.map((product, index) => (
-              <div key={product.id}>
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                    Issue №0{index + 1}
-                  </span>
-                  {product.featured && (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                      Reader's Pick
-                    </span>
-                  )}
-                </div>
-
-                <ProductCard product={product} index={index} />
-
-                {product.lore && (
-                  <p className="mt-3 text-sm italic text-muted leading-relaxed line-clamp-2">
-                    "{product.lore}"
-                  </p>
-                )}
-              </div>
+              <ProductCard key={product.id} product={product} index={index} />
             ))}
           </div>
         )}

@@ -4,8 +4,6 @@ import Universe from '../components/Collections';
 import ProductShowcase from '../components/ProductShowcase';
 import Reviews from '../components/Reviews';
 import FinalCTA from '../components/FinalCTA';
-import FAQ from '../components/FAQ';
-import Contact from '../components/Contact';
 
 export default function Home() {
   return (
@@ -16,8 +14,6 @@ export default function Home() {
       <ProductShowcase />
       <Reviews />
       <FinalCTA />
-      <FAQ />
-      <Contact />
     </>
   );
 }

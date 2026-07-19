@@ -23,7 +23,7 @@ const universes: Universe[] = [
       "Six issues. One web. Our debut arc, inspired by the masked hero everyone grew up swinging alongside.",
     image: '/images/products/classic-red/carousel.webp',
     status: 'live',
-    to: '/shop',
+    to: '/collections/web-slinger-saga',
   },
   {
     name: 'Shadow City Files',

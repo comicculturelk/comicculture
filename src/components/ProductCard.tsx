@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { Star } from 'lucide-react';
 import type { Product } from '../data/products';
 
 const MotionLink = motion.create(Link);
@@ -19,8 +20,8 @@ export default function ProductCard({ product, index }: ProductCardProps) {
   const xSpring = useSpring(x, { stiffness: 300, damping: 30 });
   const ySpring = useSpring(y, { stiffness: 300, damping: 30 });
 
-  const rotateX = useTransform(ySpring, [-0.5, 0.5], [10, -10]);
-  const rotateY = useTransform(xSpring, [-0.5, 0.5], [-10, 10]);
+  const rotateX = useTransform(ySpring, [-0.5, 0.5], [8, -8]);
+  const rotateY = useTransform(xSpring, [-0.5, 0.5], [-8, 8]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!ref.current) return;
@@ -49,14 +50,12 @@ export default function ProductCard({ product, index }: ProductCardProps) {
       onMouseLeave={handleMouseLeave}
     >
       <motion.div
-        className="relative preserve-3d rounded-2xl overflow-hidden bg-gradient-to-b from-white/5 to-transparent border border-white/10 transition-all duration-300 group-hover:border-primary/30"
+        className="relative preserve-3d overflow-hidden rounded-2xl border border-foreground/10 bg-surface transition-all duration-300 group-hover:border-primary/30"
         style={{ rotateX, rotateY }}
         whileHover={{ scale: 1.02 }}
       >
         {/* Glow effect */}
-        <motion.div
-          className="absolute -inset-px rounded-2xl bg-gradient-to-r from-primary/0 via-primary/50 to-secondary/0 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100"
-        />
+        <motion.div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-primary/0 via-primary/40 to-secondary/0 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100" />
 
         {/* Image container */}
         <div className="relative aspect-[3/4] overflow-hidden">
@@ -66,40 +65,58 @@ export default function ProductCard({ product, index }: ProductCardProps) {
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
 
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80" />
+          {/* Comic dot texture + gradient overlay */}
+          <div className="absolute inset-0 halftone-overlay opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent" />
 
-          {/* Tagline badge */}
-          <div className="absolute top-4 left-4">
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+          {/* Issue number */}
+          <span className="absolute top-4 left-4 font-display text-xs tracking-[0.2em] text-foreground/60">
+            ISSUE №{String(index + 1).padStart(2, '0')}
+          </span>
+
+          {/* Featured badge */}
+          {product.featured && (
+            <span className="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-primary/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
+              <Star className="h-3 w-3 fill-primary" />
+              Reader's Pick
+            </span>
+          )}
+
+          {/* Tagline ribbon */}
+          <div className="absolute bottom-4 left-4">
+            <span className="rounded-full border border-foreground/10 bg-background/60 px-3 py-1 text-xs font-medium text-foreground backdrop-blur-sm">
               {product.tagline}
             </span>
           </div>
 
-          {/* View button on hover */}
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-          >
-            <span className="btn-primary text-sm">
-              View Details
-            </span>
+          {/* Hover CTA */}
+          <motion.div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <span className="btn-primary text-sm">Open This Issue</span>
           </motion.div>
         </div>
 
+        {/* Panel gutter divider */}
+        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
         {/* Info */}
         <div className="relative p-5">
-          <p className="text-xs text-primary font-medium uppercase tracking-wider">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             {product.collection}
           </p>
-          <h3 className="mt-1 font-display text-xl text-white tracking-wide">
+          <h3 className="mt-1 font-display text-xl tracking-wide text-foreground">
             {product.name}
           </h3>
-          <p className="mt-2 text-sm text-white/60 italic">
-            "{product.lore}"
-          </p>
-          <p className="mt-3 font-display text-2xl text-primary">
-            Rs. {product.price}
-          </p>
+          {product.lore && (
+            <p className="mt-2 text-sm italic text-muted leading-relaxed line-clamp-2">
+              "{product.lore}"
+            </p>
+          )}
+          <div className="mt-4 flex items-center justify-between">
+            <p className="font-display text-2xl text-primary">Rs. {product.price}</p>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              Collector's Edition
+            </span>
+          </div>
         </div>
       </motion.div>
     </MotionLink>
