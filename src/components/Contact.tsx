@@ -43,10 +43,10 @@ export default function Contact() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-white tracking-wide">
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
             GET IN <span className="text-gradient-red">TOUCH</span>
           </h2>
-          <p className="mt-4 text-lg text-white/60 max-w-2xl mx-auto">
+          <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
             Questions about jerseys? Want to collaborate? Reach out and let's talk.
           </p>
         </motion.div>
@@ -68,12 +68,12 @@ export default function Contact() {
             >
               <div className="glass rounded-2xl p-6 text-center transition-all duration-300 group-hover:border-primary/30">
                 <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-xl ${method.gradient}`}>
-                  <method.icon className="h-6 w-6 text-white" />
+                  <method.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
-                <p className="mt-4 text-sm text-white/50 uppercase tracking-wider">
+                <p className="mt-4 text-sm text-muted uppercase tracking-wider">
                   {method.label}
                 </p>
-                <p className="mt-2 font-medium text-white">
+                <p className="mt-2 font-medium text-foreground">
                   {method.value}
                 </p>
               </div>
@@ -95,16 +95,15 @@ export default function Contact() {
                 <MapPin className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-white/50 uppercase tracking-wider">Based in</p>
-                <p className="mt-1 font-display text-xl text-white tracking-wide">
-                  Sri Lanka
+                  <p className="text-sm text-muted uppercase tracking-wider">Based in</p>
+                  <p className="mt-1 font-display text-xl text-foreground tracking-wide">
                 </p>
               </div>
             </div>
 
             <div className="text-center md:text-right">
-              <p className="text-sm text-white/60 mb-3">Ships worldwide from</p>
-              <p className="font-display text-lg text-white">Colombo, Sri Lanka</p>
+              <p className="text-sm text-muted mb-3">Ships worldwide from</p>
+              <p className="font-display text-lg text-foreground">Colombo, Sri Lanka</p>
             </div>
           </div>
 
@@ -113,7 +112,7 @@ export default function Contact() {
             href="https://wa.me/94787756338"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-hover"
+            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:bg-primary-hover"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

@@ -33,24 +33,24 @@ export default function OrderSuccess() {
           <CheckCircle2 className="h-8 w-8 text-primary" />
         </motion.div>
 
-        <h1 className="mt-6 font-display text-3xl text-white tracking-wide md:text-4xl">
+        <h1 className="mt-6 font-display text-3xl text-foreground tracking-wide md:text-4xl">
           ORDER <span className="text-gradient-red">RECEIVED</span>
         </h1>
 
-        <p className="mt-4 text-white/60">
+        <p className="mt-4 text-muted">
           {state.customerName ? `Thanks, ${state.customerName}! ` : 'Thank you! '}
           Your order has been received. We'll reach out shortly on WhatsApp or phone to confirm
           delivery details.
         </p>
 
         {state.orderReference && (
-          <div className="mt-6 rounded-lg border border-white/10 bg-white/5 px-6 py-3">
-            <p className="text-xs uppercase tracking-wide text-white/40">Order Reference</p>
-            <p className="font-display text-lg text-white tracking-wide">
+          <div className="mt-6 rounded-lg border border-border bg-surface px-6 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted">Order Reference</p>
+            <p className="font-display text-lg text-foreground tracking-wide">
               {state.orderReference}
             </p>
             {typeof state.total === 'number' && (
-              <p className="mt-1 text-sm text-white/50">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {state.totalItems} {state.totalItems === 1 ? 'item' : 'items'} · Rs. {state.total}
               </p>
             )}

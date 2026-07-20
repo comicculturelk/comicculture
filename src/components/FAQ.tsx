@@ -52,7 +52,7 @@ export default function FAQ() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-white tracking-wide">
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
             GOT <span className="text-gradient-red">QUESTIONS</span>
           </h2>
         </motion.div>
@@ -72,7 +72,7 @@ export default function FAQ() {
                 onClick={() => toggle(index)}
                 className="w-full flex items-center justify-between p-5 text-left"
               >
-                <span className="font-display text-lg text-white tracking-wide pr-8">
+                <span className="font-display text-lg text-foreground tracking-wide pr-8">
                   {faq.question}
                 </span>
                 <motion.div
@@ -82,7 +82,7 @@ export default function FAQ() {
                   {open === index ? (
                     <Minus className="h-5 w-5 text-primary flex-shrink-0" />
                   ) : (
-                    <Plus className="h-5 w-5 text-white/60 flex-shrink-0" />
+                    <Plus className="h-5 w-5 text-muted flex-shrink-0" />
                   )}
                 </motion.div>
               </button>
@@ -95,7 +95,7 @@ export default function FAQ() {
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <div className="px-5 pb-5 text-white/70 leading-relaxed">
+                    <div className="px-5 pb-5 text-muted-foreground leading-relaxed">
                       {faq.answer}
                     </div>
                   </motion.div>

@@ -6,31 +6,35 @@
 
 @layer base {
   :root {
-    --color-background: #090909;
-    --color-surface: #111111;
-    --color-surface-hover: rgba(255, 255, 255, 0.06);
-    --color-foreground: #FFFFFF;
-    --color-muted: #A1A1AA;
-    --color-muted-foreground: #D4D4D8;
-    --color-primary: #E11D48;
-    --color-primary-hover: #BE123C;
+    /* Premium editorial light theme — Phase 1
+       Approx balance: 75% off-white/white, 15% charcoal/black,
+       8% ComicCulture red, 2% accent (secondary kept as-is). */
+    --color-background: #FAFAF8;
+    --color-surface: #F8F8F6;
+    --color-surface-hover: rgba(17, 17, 17, 0.04);
+    --color-foreground: #111111;
+    --color-muted: #666666;
+    --color-muted-foreground: #8C8C8C;
+    --color-primary: #D62839;
+    --color-primary-hover: #B71C31;
+    --color-primary-foreground: #FFFFFF;
     --color-secondary: #2563EB;
     --color-secondary-glow: #3B82F6;
-    --color-border: #27272A;
+    --color-border: #E5E5E5;
     --color-success: #22c55e;
     --color-warning: #facc15;
     --color-danger: #ef4444;
 
-    --overlay-surface: rgba(255, 255, 255, 0.05);
-    --overlay-muted: rgba(255, 255, 255, 0.10);
+    --overlay-surface: rgba(17, 17, 17, 0.04);
+    --overlay-muted: rgba(17, 17, 17, 0.08);
 
-    --shadow-soft: 0 20px 50px rgba(0, 0, 0, 0.35);
+    --shadow-soft: 0 20px 50px rgba(17, 17, 17, 0.10);
     --shadow-primary-glow: 0 0 30px rgba(var(--color-primary-rgb), 0.4);
     --shadow-secondary-glow: 0 0 30px rgba(var(--color-secondary-rgb), 0.4);
 
-    --color-primary-rgb: 225 29 72;
+    --color-primary-rgb: 214 40 57;
     --color-secondary-rgb: 37 99 235;
-    --color-foreground-rgb: 255 255 255;
+    --color-foreground-rgb: 17 17 17;
   }
 
   html {
@@ -45,8 +49,8 @@
   }
 
   ::selection {
-    /* selection uses primary color */
-    @apply bg-primary text-foreground;
+    /* selection uses primary color with dedicated on-primary text token */
+    @apply bg-primary text-primary-foreground;
   }
 }
 
@@ -80,8 +84,8 @@
   }
 
   .btn-primary {
-    /* kept visual exact but use semantic primary token */
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-foreground transition-all;
+    /* kept visual exact but use semantic on-primary token for readable text */
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all;
   }
 
   .btn-primary:hover {

@@ -145,8 +145,8 @@ export default function Checkout() {
       <section className="relative flex min-h-screen flex-col items-center justify-center gap-4 overflow-hidden bg-background px-6 text-center">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
         <div className="relative z-10 flex flex-col items-center gap-4">
-          <ShoppingBag className="h-10 w-10 text-white/30" />
-          <p className="text-white/60">Your cart is empty — add something before checking out.</p>
+          <ShoppingBag className="h-10 w-10 text-muted/30" />
+          <p className="text-muted/60">Your cart is empty — add something before checking out.</p>
           <Link to="/shop" className="btn-primary">
             Browse Collection
           </Link>
@@ -161,23 +161,23 @@ export default function Checkout() {
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
         {/* Breadcrumb */}
-        <nav className="mb-6 flex items-center gap-1.5 text-sm text-white/50">
-          <Link to="/" className="transition-colors hover:text-white">
+        <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Link to="/" className="transition-colors hover:text-foreground">
             Home
           </Link>
           <span>/</span>
-          <span className="text-white/80">Checkout</span>
+          <span className="text-muted">Checkout</span>
         </nav>
 
         <Link
           to="/shop"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-white/60 transition-colors hover:text-white"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Continue Shopping
         </Link>
 
-        <h1 className="mb-8 font-display text-3xl text-white tracking-wide md:text-4xl">
+        <h1 className="mb-8 font-display text-3xl text-foreground tracking-wide md:text-4xl">
           CHECKOUT
         </h1>
 
@@ -194,7 +194,7 @@ export default function Checkout() {
           >
             {/* Customer information */}
             <div>
-              <h2 className="mb-4 font-display text-xl text-white tracking-wide">
+              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">
                 CUSTOMER INFORMATION
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -302,15 +302,15 @@ export default function Checkout() {
 
             {/* Delivery */}
             <div>
-              <h2 className="mb-4 font-display text-xl text-white tracking-wide">DELIVERY</h2>
+              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">DELIVERY</h2>
               <div className="flex items-center justify-between rounded-lg border border-primary bg-primary/20 px-4 py-3">
                 <div className="flex items-center gap-3">
                   <Truck className="h-5 w-5 flex-shrink-0 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-white">
+                    <p className="text-sm font-medium text-foreground">
                       Standard Delivery (Islandwide)
                     </p>
-                    <p className="text-xs text-white/50">Arrives in 2-4 business days</p>
+                    <p className="text-xs text-muted-foreground">Arrives in 2-4 business days</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -324,10 +324,10 @@ export default function Checkout() {
 
             {/* Promo code */}
             <div>
-              <h2 className="mb-4 font-display text-xl text-white tracking-wide">PROMO CODE</h2>
+              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">PROMO CODE</h2>
               <div className="flex gap-3">
                 <div className="relative flex-1">
-                  <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                  <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted/30" />
                   <input
                     type="text"
                     value={promoCode}
@@ -344,7 +344,7 @@ export default function Checkout() {
                   Apply
                 </button>
               </div>
-              {promoNote && <p className="mt-2 text-xs text-white/40">{promoNote}</p>}
+              {promoNote && <p className="mt-2 text-xs text-muted-foreground">{promoNote}</p>}
             </div>
           </motion.div>
 
@@ -355,7 +355,7 @@ export default function Checkout() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <h2 className="font-display text-xl text-white tracking-wide">ORDER SUMMARY</h2>
+            <h2 className="font-display text-xl text-foreground tracking-wide">ORDER SUMMARY</h2>
 
             <div className="space-y-4">
               {items.map((item) => (
@@ -364,28 +364,28 @@ export default function Checkout() {
                     <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
                   </div>
                   <div className="flex flex-1 flex-col justify-center">
-                    <p className="text-sm font-medium text-white">{item.name}</p>
-                    <p className="text-xs text-white/50">
+                    <p className="text-sm font-medium text-foreground">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
                       Size: {item.size} · Qty: {item.quantity}
                     </p>
                   </div>
-                  <p className="self-center text-sm font-medium text-white/80">
+                  <p className="self-center text-sm font-medium text-muted">
                     Rs. {item.price * item.quantity}
                   </p>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-2 border-t border-white/10 pt-4 text-sm">
-              <div className="flex items-center justify-between text-white/60">
+            <div className="space-y-2 border-t border-border pt-4 text-sm">
+              <div className="flex items-center justify-between text-muted-foreground">
                 <span>Subtotal ({totalItems} {totalItems === 1 ? 'item' : 'items'})</span>
                 <span>Rs. {totalPrice}</span>
               </div>
-              <div className="flex items-center justify-between text-white/60">
+              <div className="flex items-center justify-between text-muted-foreground">
                 <span>Delivery fee</span>
                 <span>Rs. {deliveryFee}</span>
               </div>
-              <div className="flex items-center justify-between border-t border-white/10 pt-2 font-display text-lg text-white">
+              <div className="flex items-center justify-between border-t border-border pt-2 font-display text-lg text-foreground">
                 <span>Total</span>
                 <span className="text-primary">Rs. {total}</span>
               </div>
@@ -407,7 +407,7 @@ export default function Checkout() {
                 'Place Order'
               )}
             </button>
-            <p className="text-center text-xs text-white/40">
+            <p className="text-center text-xs text-muted-foreground">
               No payment is collected now — we'll contact you to confirm delivery.
             </p>
           </motion.div>
@@ -418,8 +418,8 @@ export default function Checkout() {
 }
 
 function inputClass(hasError: boolean) {
-  return `w-full rounded-lg border bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-primary ${
-    hasError ? 'border-primary/60' : 'border-white/20'
+  return `w-full rounded-lg border bg-surface px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary ${
+    hasError ? 'border-primary/60' : 'border-border'
   }`;
 }
 
@@ -436,7 +436,7 @@ function FormField({
 }) {
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-white/80">
+      <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
         {label} {required && <span className="text-primary">*</span>}
       </label>
       {children}

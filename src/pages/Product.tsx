@@ -57,7 +57,7 @@ export default function Product() {
   if (loading) {
     return (
       <section className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-white/50">Loading product...</p>
+        <p className="text-muted-foreground">Loading product...</p>
       </section>
     );
   }
@@ -121,28 +121,28 @@ export default function Product() {
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
         {/* Breadcrumb */}
-        <nav className="mb-6 flex items-center gap-1.5 text-sm text-white/50">
-          <Link to="/" className="transition-colors hover:text-white">
+        <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Link to="/" className="transition-colors hover:text-foreground">
             Home
           </Link>
           <ChevronRight className="h-3.5 w-3.5" />
-          <Link to="/shop" className="transition-colors hover:text-white">
+          <Link to="/shop" className="transition-colors hover:text-foreground">
             Shop
           </Link>
           <ChevronRight className="h-3.5 w-3.5" />
-          <span className="text-white/80">{product.name}</span>
+          <span className="text-muted">{product.name}</span>
         </nav>
 
         <Link
           to="/shop"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-white/60 transition-colors hover:text-white lg:hidden"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground lg:hidden"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Shop
         </Link>
 
         <motion.div
-          className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 lg:flex-row"
+          className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface lg:flex-row"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -159,9 +159,13 @@ export default function Product() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent lg:bg-gradient-to-r" />
+
+              {/* Editorial corner accents */}
+              <span className="pointer-events-none absolute top-4 right-4 h-6 w-6 border-t border-r border-foreground/20" />
+              <span className="pointer-events-none absolute bottom-4 left-4 h-6 w-6 border-b border-l border-foreground/20" />
+
               {product.featured && (
-                <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
+                <span className="absolute left-4 top-4 rounded-full border border-border bg-background/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">
                   Featured
                 </span>
               )}
@@ -178,7 +182,7 @@ export default function Product() {
                     className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
                       displayedImage === img
                         ? 'border-primary'
-                        : 'border-white/20 hover:border-white/40'
+                        : 'border-border hover:border-foreground'
                     }`}
                   >
                     <img src={img} alt="" className="h-full w-full object-cover" />
@@ -190,44 +194,49 @@ export default function Product() {
 
           {/* Product info */}
           <div className="relative flex flex-1 flex-col p-6 lg:p-10">
-            {/* Collection badge + SKU */}
+            {/* Collection label + SKU */}
             <div className="flex items-center justify-between">
-              <span className="rounded-full bg-primary/20 px-3 py-1 text-xs font-medium text-primary">
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
                 {product.collection}
               </span>
               {product.sku && (
-                <span className="text-xs uppercase tracking-wide text-white/40">
-                  SKU: {product.sku}
+                <span className="font-mono text-xs uppercase tracking-wide text-muted">
+                  {product.sku}
                 </span>
               )}
             </div>
 
             {/* Title */}
-            <h1 className="mt-4 font-display text-3xl text-white tracking-wide lg:text-4xl">
+            <h1 className="mt-4 font-display text-3xl text-foreground tracking-wide lg:text-4xl">
               {product.name}
             </h1>
 
             {/* Lore */}
-            <p className="mt-2 text-lg text-white/60 italic">"{product.lore}"</p>
+            <p className="mt-2 text-lg text-muted-foreground italic">"{product.lore}"</p>
 
             {/* Price */}
-            <p className="mt-4 font-display text-4xl text-primary">
-              {formatPrice(product.price)}
-            </p>
+            <div className="mt-4 flex items-baseline gap-3">
+              <p className="font-display text-4xl text-foreground">
+                {formatPrice(product.price)}
+              </p>
+              <span className="text-[11px] font-medium uppercase tracking-widest text-muted">
+                Limited Drop
+              </span>
+            </div>
 
             {/* Description */}
-            <p className="mt-6 text-white/70 leading-relaxed">{product.description}</p>
+            <p className="mt-6 text-muted-foreground leading-relaxed">{product.description}</p>
 
             {/* Size selector */}
             <div className="mt-8">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-white/80">
-                  Select Size <span className="text-white/50">— {selectedSize}</span>
+                <p className="text-sm font-medium text-muted">
+                  Select Size <span className="text-muted-foreground">— {selectedSize}</span>
                 </p>
                 <button
                   type="button"
                   onClick={() => setShowSizeGuide(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-white/50 transition-colors hover:text-white"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <Ruler className="h-3.5 w-3.5" />
                   Size Guide
@@ -244,10 +253,10 @@ export default function Product() {
                         className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
                           selectedSize === size
                             ? 'border-primary bg-primary/20 text-primary'
-                            : 'border-white/20 text-white/70 hover:border-white/40 hover:text-white'
+                            : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
                         } ${
                           !inStock
-                            ? 'cursor-not-allowed opacity-40 hover:border-white/20 hover:text-white/70'
+                            ? 'cursor-not-allowed opacity-40 hover:border-border hover:text-muted-foreground'
                             : ''
                         }`}
                         onClick={() => {
@@ -261,7 +270,7 @@ export default function Product() {
                         {size}
                       </motion.button>
                       {!inStock && (
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-white/40">
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                           Sold out
                         </span>
                       )}
@@ -273,32 +282,32 @@ export default function Product() {
 
             {/* Quantity selector */}
             <div className="mt-6">
-              <p className="mb-3 text-sm font-medium text-white/80">Quantity</p>
-              <div className="inline-flex items-center rounded-lg border border-white/20">
+              <p className="mb-3 text-sm font-medium text-muted">Quantity</p>
+              <div className="inline-flex items-center rounded-lg border border-border">
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   disabled={quantity <= 1}
-                  className="flex h-10 w-10 items-center justify-center text-white/70 transition-colors hover:text-white disabled:opacity-30"
+                  className="flex h-10 w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
                   aria-label="Decrease quantity"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="w-10 text-center text-sm font-medium text-white">
+                <span className="w-10 text-center text-sm font-medium text-foreground">
                   {quantity}
                 </span>
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
                   disabled={quantity >= maxQuantity}
-                  className="flex h-10 w-10 items-center justify-center text-white/70 transition-colors hover:text-white disabled:opacity-30"
+                  className="flex h-10 w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
                   aria-label="Increase quantity"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
               {quantity >= maxQuantity && availableStock > 0 && (
-                <p className="mt-2 text-xs text-white/40">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Only {availableStock} left in size {selectedSize}
                 </p>
               )}
@@ -325,7 +334,7 @@ export default function Product() {
                   href={whatsappLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-500"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-green-500"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -336,7 +345,7 @@ export default function Product() {
                   href={product.instagramLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-3 font-semibold text-white"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-3 font-semibold text-primary-foreground"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -347,37 +356,37 @@ export default function Product() {
             </div>
 
             {/* Trust badges */}
-            <div className="mt-8 grid grid-cols-1 gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
-              <div className="flex items-center gap-2 text-xs text-white/60">
+            <div className="mt-8 grid grid-cols-1 gap-3 border-t border-border pt-6 sm:grid-cols-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Truck className="h-4 w-4 flex-shrink-0 text-primary" />
                 Island-wide delivery
               </div>
-              <div className="flex items-center gap-2 text-xs text-white/60">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
                 Secure ordering
               </div>
-              <div className="flex items-center gap-2 text-xs text-white/60">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <RefreshCw className="h-4 w-4 flex-shrink-0 text-primary" />
                 7-day exchange
               </div>
             </div>
 
             {/* Accordion: details, materials, care, shipping */}
-            <div className="mt-8 divide-y divide-white/10 border-t border-white/10">
+            <div className="mt-8 divide-y divide-border border-t border-border">
               <AccordionItem
                 title="Details & Materials"
                 isOpen={openSection === 'details'}
                 onToggle={() => toggleSection('details')}
               >
-                <ul className="space-y-1.5 text-sm text-white/60">
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
                   <li>
-                    <span className="text-white/80">Material:</span> {product.material}
+                    <span className="text-muted">Material:</span> {product.material}
                   </li>
                   <li>
-                    <span className="text-white/80">Fit:</span> {product.fit}
+                    <span className="text-muted">Fit:</span> {product.fit}
                   </li>
                   <li>
-                    <span className="text-white/80">Available sizes:</span>{' '}
+                    <span className="text-muted">Available sizes:</span>{' '}
                     {product.sizes.join(', ')}
                   </li>
                 </ul>
@@ -388,7 +397,7 @@ export default function Product() {
                 isOpen={openSection === 'care'}
                 onToggle={() => toggleSection('care')}
               >
-                <ul className="list-inside list-disc space-y-1.5 text-sm text-white/60">
+                <ul className="list-inside list-disc space-y-1.5 text-sm text-muted-foreground">
                   {(product.careInstructions ?? []).map((instruction) => (
                     <li key={instruction}>{instruction}</li>
                   ))}
@@ -400,7 +409,7 @@ export default function Product() {
                 isOpen={openSection === 'shipping'}
                 onToggle={() => toggleSection('shipping')}
               >
-                <p className="text-sm leading-relaxed text-white/60">
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   Orders are dispatched within 1-2 business days and typically arrive within
                   2-4 business days island-wide. If a jersey doesn't fit right, reach out to us
                   on WhatsApp within 7 days of delivery to arrange a free size exchange.
@@ -413,7 +422,7 @@ export default function Product() {
         {/* Related products */}
         {relatedProducts.length > 0 && (
           <div className="mt-16">
-            <h2 className="font-display text-2xl text-white tracking-wide">
+            <h2 className="font-display text-2xl text-foreground tracking-wide">
               More from {product.collection}
             </h2>
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -429,25 +438,25 @@ export default function Product() {
       <AnimatePresence>
         {showSizeGuide && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/70 px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowSizeGuide(false)}
           >
             <motion.div
-              className="w-full max-w-md rounded-2xl border border-white/10 bg-background p-6"
+              className="w-full max-w-md rounded-2xl border border-border bg-background p-6"
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="font-display text-xl text-white tracking-wide">Size Guide</h3>
+                <h3 className="font-display text-xl text-foreground tracking-wide">Size Guide</h3>
                 <button
                   type="button"
                   onClick={() => setShowSizeGuide(false)}
-                  className="text-white/50 transition-colors hover:text-white"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
                   aria-label="Close size guide"
                 >
                   <X className="h-5 w-5" />
@@ -455,7 +464,7 @@ export default function Product() {
               </div>
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 text-white/50">
+                  <tr className="border-b border-border text-muted-foreground">
                     <th className="py-2 font-medium">Size</th>
                     <th className="py-2 font-medium">Chest</th>
                     <th className="py-2 font-medium">Length</th>
@@ -463,15 +472,15 @@ export default function Product() {
                 </thead>
                 <tbody>
                   {SIZE_GUIDE.map((row) => (
-                    <tr key={row.size} className="border-b border-white/5 text-white/70">
-                      <td className="py-2 font-medium text-white">{row.size}</td>
+                    <tr key={row.size} className="border-b border-border text-muted-foreground">
+                      <td className="py-2 font-medium text-foreground">{row.size}</td>
                       <td className="py-2">{row.chest}</td>
                       <td className="py-2">{row.length}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p className="mt-4 text-xs text-white/40">
+              <p className="mt-4 text-xs text-muted-foreground">
                 Measurements are approximate. Between sizes? Message us on WhatsApp and we'll
                 help you pick the right fit.
               </p>
@@ -501,9 +510,9 @@ function AccordionItem({
         onClick={onToggle}
         className="flex w-full items-center justify-between py-4 text-left"
       >
-        <span className="text-sm font-medium text-white">{title}</span>
+        <span className="text-sm font-medium text-foreground">{title}</span>
         <ChevronDown
-          className={`h-4 w-4 text-white/50 transition-transform ${
+          className={`h-4 w-4 text-muted-foreground transition-transform ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -529,7 +538,7 @@ function RelatedProductCard({ product }: { product: ProductType }) {
   return (
     <Link
       to={`/product/${product.slug}`}
-      className="group overflow-hidden rounded-xl border border-white/10 bg-white/5 transition-colors hover:border-white/30"
+      className="group overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-foreground"
     >
       <div className="aspect-square overflow-hidden bg-background">
         <img
@@ -539,7 +548,7 @@ function RelatedProductCard({ product }: { product: ProductType }) {
         />
       </div>
       <div className="p-3">
-        <p className="truncate text-sm font-medium text-white">{product.name}</p>
+        <p className="truncate text-sm font-medium text-foreground">{product.name}</p>
         <p className="mt-1 text-sm text-primary">{formatPrice(product.price)}</p>
       </div>
     </Link>

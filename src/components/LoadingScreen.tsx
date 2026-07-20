@@ -94,14 +94,14 @@ export default function LoadingScreen() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.8, duration: 0.5 }}
             >
-              <span className="font-display text-4xl tracking-wider text-white">COMIC</span>
+              <span className="font-display text-4xl tracking-wider text-foreground">COMIC</span>
               <span className="font-display text-4xl tracking-wider text-primary">CULTURE</span>
             </motion.div>
           </div>
 
           {/* Loading text */}
           <motion.p
-            className="absolute bottom-20 text-sm tracking-widest text-white/50 uppercase"
+            className="absolute bottom-20 text-sm tracking-widest text-muted uppercase"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 2 }}

@@ -1,7 +1,6 @@
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { useRef } from 'react';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { Product } from '../data/products';
 
 const MotionLink = motion.create(Link);
@@ -12,113 +11,64 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, index }: ProductCardProps) {
-  const ref = useRef<HTMLAnchorElement>(null);
-
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-
-  const xSpring = useSpring(x, { stiffness: 300, damping: 30 });
-  const ySpring = useSpring(y, { stiffness: 300, damping: 30 });
-
-  const rotateX = useTransform(ySpring, [-0.5, 0.5], [8, -8]);
-  const rotateY = useTransform(xSpring, [-0.5, 0.5], [-8, 8]);
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const xPos = (e.clientX - rect.left) / rect.width - 0.5;
-    const yPos = (e.clientY - rect.top) / rect.height - 0.5;
-    x.set(xPos);
-    y.set(yPos);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
   return (
     <MotionLink
-      ref={ref}
       to={`/product/${product.slug}`}
-      className="group perspective-1000 block cursor-pointer"
-      initial={{ opacity: 0, y: 30 }}
+      className="group block"
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
-      transition={{ delay: index * 0.1, duration: 0.6 }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      transition={{ delay: index * 0.08, duration: 0.5 }}
     >
-      <motion.div
-        className="relative preserve-3d overflow-hidden rounded-2xl border border-foreground/10 bg-surface transition-all duration-300 group-hover:border-primary/30"
-        style={{ rotateX, rotateY }}
-        whileHover={{ scale: 1.02 }}
-      >
-        {/* Glow effect */}
-        <motion.div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-primary/0 via-primary/40 to-secondary/0 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100" />
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated">
+        {/* Catalog label row */}
+        <div className="flex items-center justify-between px-5 pt-5">
+          <span className="font-display text-xs tracking-[0.25em] text-muted uppercase">
+            Issue №{String(index + 1).padStart(3, '0')}
+          </span>
+          <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+            {product.collection}
+          </span>
+        </div>
 
-        {/* Image container */}
-        <div className="relative aspect-[3/4] overflow-hidden">
-          <motion.img
+        {/* Product image — clean, no overlay */}
+        <div className="relative mt-4 aspect-[3/4] overflow-hidden bg-background">
+          <img
             src={product.image}
             alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />
 
-          {/* Comic dot texture + gradient overlay */}
-          <div className="absolute inset-0 halftone-overlay opacity-20" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent" />
-
-          {/* Issue number */}
-          <span className="absolute top-4 left-4 font-display text-xs tracking-[0.2em] text-foreground/60">
-            ISSUE №{String(index + 1).padStart(2, '0')}
-          </span>
-
-          {/* Featured badge */}
           {product.featured && (
-            <span className="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-primary/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
-              <Star className="h-3 w-3 fill-primary" />
-              Reader's Pick
+            <span className="absolute top-3 right-3 inline-flex items-center rounded-full border border-border bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">
+              Featured
             </span>
           )}
-
-          {/* Tagline ribbon */}
-          <div className="absolute bottom-4 left-4">
-            <span className="rounded-full border border-foreground/10 bg-background/60 px-3 py-1 text-xs font-medium text-foreground backdrop-blur-sm">
-              {product.tagline}
-            </span>
-          </div>
-
-          {/* Hover CTA */}
-          <motion.div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-            <span className="btn-primary text-sm">Open This Issue</span>
-          </motion.div>
         </div>
 
-        {/* Panel gutter divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        {/* Divider */}
+        <div className="h-px bg-border" />
 
         {/* Info */}
-        <div className="relative p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {product.collection}
-          </p>
-          <h3 className="mt-1 font-display text-xl tracking-wide text-foreground">
+        <div className="p-5">
+          <h3 className="font-display text-xl tracking-wide text-foreground">
             {product.name}
           </h3>
-          {product.lore && (
-            <p className="mt-2 text-sm italic text-muted leading-relaxed line-clamp-2">
-              "{product.lore}"
-            </p>
+          {product.tagline && (
+            <p className="mt-1 text-sm text-muted">{product.tagline}</p>
           )}
-          <div className="mt-4 flex items-center justify-between">
-            <p className="font-display text-2xl text-primary">Rs. {product.price}</p>
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Collector's Edition
+
+          <div className="mt-5 flex items-center justify-between">
+            <span className="font-display text-lg text-foreground">
+              Rs. {product.price}
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary transition-transform duration-300 group-hover:translate-x-1">
+              View Product
+              <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>
         </div>
-      </motion.div>
+      </div>
     </MotionLink>
   );
 }

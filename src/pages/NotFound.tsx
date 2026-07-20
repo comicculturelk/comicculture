@@ -9,10 +9,10 @@ export default function NotFound() {
 
       <div className="relative z-10">
         <p className="font-display text-8xl text-primary md:text-9xl">404</p>
-        <h1 className="mt-4 font-display text-3xl text-white tracking-wide md:text-4xl">
+        <h1 className="mt-4 font-display text-3xl text-foreground tracking-wide md:text-4xl">
           LOST IN THE <span className="text-gradient-red">SPIDER-VERSE</span>
         </h1>
-        <p className="mt-4 text-white/60">
+        <p className="mt-4 text-muted">
           This page doesn't exist in this universe. Let's get you back home.
         </p>
         <Link to="/" className="btn-primary mt-8 inline-flex">
