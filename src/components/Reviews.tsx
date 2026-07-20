@@ -70,7 +70,7 @@ export default function Reviews() {
             FAN TRANSMISSIONS
           </span>
           <h2 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            THE COMICCULTURE <span className="text-gradient-red">COMMUNITY</span>
+            THE COMICCULTURE <span className="text-primary">COMMUNITY</span>
           </h2>
           <p className="mt-4 text-lg text-muted">Real stories from real collectors.</p>
         </motion.div>
