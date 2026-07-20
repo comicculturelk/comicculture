@@ -69,6 +69,10 @@ export default function WhySection() {
                   transition={{ type: 'spring', stiffness: 300 }}
                 >
                     <feature.icon className="h-8 w-8 text-primary-foreground" />
+                </motion.div>
+
+                <h3 className="mt-6 font-display text-xl text-foreground">
+                  {feature.title}
                 </h3>
                 <p className="mt-3 text-sm text-muted leading-relaxed">
                   {feature.description}
