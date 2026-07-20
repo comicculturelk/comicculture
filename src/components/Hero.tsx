@@ -62,20 +62,7 @@ export default function Hero() {
         ))}
       </div>
 
-      {/* Comic cover masthead — indicia-style credits like a real issue */}
-      <motion.div
-        className="absolute top-6 left-0 right-0 z-10 hidden items-center justify-between px-8 sm:flex"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 2.4, duration: 0.6 }}
-      >
-        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40">
-          ComicCulture Presents
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40">
-          Issue №01 · Drop 01
-        </span>
-      </motion.div>
+     
 
       <CornerFrame className="hidden sm:block" />
 
@@ -85,18 +72,7 @@ export default function Hero() {
         style={{ y, opacity }}
       >
         {/* Glowing badge */}
-        <motion.div
-          className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.7, duration: 0.6 }}
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-          </span>
-          <span className="text-sm font-medium text-primary">Web-Slinger Saga NOW LIVE</span>
-        </motion.div>
+        
 
         {/* Main headline */}
         <motion.h1
