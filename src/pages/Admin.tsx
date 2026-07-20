@@ -53,7 +53,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${
-        STATUS_STYLES[status] ?? 'border-white/20 bg-white/10 text-white/60'
+        STATUS_STYLES[status] ?? 'border-border bg-surface text-muted-foreground'
       }`}
     >
       {status}
@@ -103,7 +103,7 @@ export default function Admin() {
   if (checkingSession) {
     return (
       <section className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-white/50">Loading...</p>
+        <p className="text-muted">Loading...</p>
       </section>
     );
   }
@@ -129,14 +129,14 @@ function AdminLogin() {
   return (
     <section className="flex min-h-screen items-center justify-center bg-background px-6">
       <form onSubmit={handleSubmit} className="glass w-full max-w-sm space-y-4 rounded-2xl p-8">
-        <h1 className="font-display text-2xl text-white tracking-wide">ADMIN LOGIN</h1>
+        <h1 className="font-display text-2xl text-foreground tracking-wide">ADMIN LOGIN</h1>
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-primary"
+          className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
         />
         <input
           type="password"
@@ -144,7 +144,7 @@ function AdminLogin() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-primary"
+          className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
         />
         {error && <p className="text-sm text-primary">{error}</p>}
         <button type="submit" disabled={loading} className="btn-primary w-full">
@@ -216,7 +216,7 @@ function AdminOrders() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <h1 className="font-display text-3xl text-white tracking-wide">ADMIN</h1>
+            <h1 className="font-display text-3xl text-foreground tracking-wide">ADMIN</h1>
             <div className="flex gap-2">
               {(['dashboard', 'orders', 'inventory'] as const).map((v) => (
                 <button
@@ -226,7 +226,7 @@ function AdminOrders() {
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
                     view === v
                       ? 'border-primary bg-primary/20 text-primary'
-                      : 'border-white/20 text-white/60 hover:border-white/40 hover:text-white'
+                      : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
                   }`}
                 >
                   {v}
@@ -239,7 +239,7 @@ function AdminOrders() {
           </button>
         </div>
 
-        {loading && view === 'orders' && <p className="text-white/50">Loading orders...</p>}
+        {loading && view === 'orders' && <p className="text-muted-foreground">Loading orders...</p>}
         {error && <p className="text-primary">{error}</p>}
 
         {view === 'orders' && (
@@ -253,7 +253,7 @@ function AdminOrders() {
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
                     statusFilter === s
                       ? 'border-primary bg-primary/20 text-primary'
-                      : 'border-white/20 text-white/60 hover:border-white/40 hover:text-white'
+                      : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
                   }`}
                 >
                   {s}
@@ -262,7 +262,7 @@ function AdminOrders() {
             </div>
 
             {!loading && filteredOrders.length === 0 && (
-              <p className="text-white/40">No orders match this filter.</p>
+              <p className="text-muted">No orders match this filter.</p>
             )}
 
             <div className="space-y-4">
@@ -272,20 +272,20 @@ function AdminOrders() {
                   <div key={order.id} className="glass rounded-2xl p-6">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <p className="font-display text-lg text-white tracking-wide">
+                        <p className="font-display text-lg text-foreground tracking-wide">
                           {order.order_reference}
                         </p>
-                        <p className="text-xs text-white/40">{formatDate(order.created_at)}</p>
+                        <p className="text-xs text-muted">{formatDate(order.created_at)}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className="text-xs uppercase tracking-wide text-white/40">Status</span>
+                          <span className="text-xs uppercase tracking-wide text-muted">Status</span>
                         <div className="flex items-center gap-2">
                           <StatusBadge status={order.status} />
                           <select
                             value={order.status}
                             disabled={updatingId === order.id}
                             onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                            className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-primary"
+                            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
                           >
                             {STATUSES.map((s) => (
                               <option key={s} value={s} className="bg-background">
@@ -299,8 +299,8 @@ function AdminOrders() {
 
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-4 text-sm">
                       <div>
-                        <p className="font-medium text-white">{order.full_name}</p>
-                        <p className="text-white/60">{order.phone}</p>
+                        <p className="font-medium text-foreground">{order.full_name}</p>
+                        <p className="text-muted">{order.phone}</p>
                       </div>
                       <p className="font-display text-lg text-primary">Rs. {order.total}</p>
                     </div>
@@ -308,24 +308,24 @@ function AdminOrders() {
                     <button
                       type="button"
                       onClick={() => toggleExpand(order.id)}
-                      className="mt-4 text-xs font-medium text-white/50 transition-colors hover:text-white"
+                      className="mt-4 text-xs font-medium text-muted transition-colors hover:text-foreground"
                     >
                       {isExpanded ? 'Hide Details' : 'View Details'}
                     </button>
 
                     {isExpanded && (
                       <>
-                        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-white/10 pt-4 text-sm sm:grid-cols-2">
+                        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 text-sm sm:grid-cols-2">
                           <div>
-                            <p className="text-xs uppercase tracking-wide text-white/40">Customer</p>
-                            <p className="mt-1 font-medium text-white">{order.full_name}</p>
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Customer</p>
+                            <p className="mt-1 font-medium text-foreground">{order.full_name}</p>
                             <div className="mt-1 flex items-center gap-2">
-                              <p className="text-white/70">{order.phone}</p>
+                              <p className="text-muted-foreground">{order.phone}</p>
                               <a
                                 href={toWhatsAppLink(order.phone, order.full_name, order.order_reference)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-green-500"
+                                  className="inline-flex items-center gap-1 rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-green-500"
                               >
                                 <MessageCircle className="h-3.5 w-3.5" />
                                 WhatsApp
@@ -333,29 +333,29 @@ function AdminOrders() {
                             </div>
                           </div>
                           <div>
-                            <p className="text-xs uppercase tracking-wide text-white/40">Address</p>
-                            <p className="mt-1 text-white/70">
+                            <p className="text-xs uppercase tracking-wide text-muted">Address</p>
+                            <p className="mt-1 text-muted-foreground">
                               {order.address_line1}
                               {order.address_line2 ? `, ${order.address_line2}` : ''}
                             </p>
-                            <p className="text-white/70">
+                            <p className="text-muted-foreground">
                               {order.city}, {order.district} {order.postal_code ?? ''}
                             </p>
                           </div>
                         </div>
 
-                        <div className="mt-4 border-t border-white/10 pt-4">
-                          <p className="mb-2 text-xs uppercase tracking-wide text-white/40">Items</p>
-                          <ul className="space-y-1 text-sm text-white/70">
+                        <div className="mt-4 border-t border-border pt-4">
+                          <p className="mb-2 text-xs uppercase tracking-wide text-muted">Items</p>
+                          <ul className="space-y-1 text-sm text-muted-foreground">
                             {order.order_items.map((item) => (
                               <li key={item.id} className="flex justify-between">
                                 <span>
                                   {item.name}{' '}
-                                  <span className="text-white/40">
+                                  <span className="text-muted">
                                     · Size {item.size} · Qty {item.quantity}
                                   </span>
                                 </span>
-                                <span className="text-white/60">Rs. {item.price}</span>
+                                <span className="text-muted">Rs. {item.price}</span>
                               </li>
                             ))}
                           </ul>
@@ -411,14 +411,14 @@ function AdminInventory() {
     setSavingId(null);
   };
 
-  if (loading) return <p className="text-white/50">Loading products...</p>;
+  if (loading) return <p className="text-muted-foreground">Loading products...</p>;
 
   return (
     <div className="space-y-4">
       {error && <p className="text-primary">{error}</p>}
       {products.map((product) => (
         <div key={product.id} className="glass rounded-2xl p-6">
-          <p className="font-display text-lg text-white tracking-wide">{product.name}</p>
+          <p className="font-display text-lg text-foreground tracking-wide">{product.name}</p>
           <div className="mt-4 flex flex-wrap gap-4">
             {product.sizes.map((size) => {
               const qty = draft[product.id]?.[size] ?? 0;
@@ -426,7 +426,7 @@ function AdminInventory() {
               return (
                 <label
                   key={size}
-                  className="flex flex-col items-center gap-1 text-xs uppercase tracking-wide text-white/50"
+                  className="flex flex-col items-center gap-1 text-xs uppercase tracking-wide text-muted"
                 >
                   {size}
                   <input
@@ -434,12 +434,12 @@ function AdminInventory() {
                     min={0}
                     value={qty}
                     onChange={(e) => handleStockChange(product.id, size, e.target.value)}
-                    className={`w-16 rounded-lg border bg-white/5 px-2 py-1.5 text-center text-sm outline-none focus:border-primary ${
+                    className={`w-16 rounded-lg border bg-surface px-2 py-1.5 text-center text-sm outline-none focus:border-primary ${
                       stockState === 'out'
                         ? 'border-red-500/60 text-red-400'
                         : stockState === 'low'
                           ? 'border-yellow-500/60 text-yellow-400'
-                          : 'border-white/20 text-white'
+                          : 'border-border text-foreground'
                     }`}
                   />
                   {stockState === 'out' && (
@@ -504,11 +504,11 @@ function DashboardCard({
 }) {
   return (
     <div className="glass rounded-2xl p-5">
-      <div className="flex items-center gap-2 text-white/50">
+      <div className="flex items-center gap-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
         <span className="text-xs uppercase tracking-wide">{label}</span>
       </div>
-      <p className="mt-2 font-display text-2xl text-white tracking-wide">{value}</p>
+      <p className="mt-2 font-display text-2xl text-foreground tracking-wide">{value}</p>
     </div>
   );
 }
@@ -558,7 +558,7 @@ function AdminDashboard() {
     };
   }, []);
 
-  if (loading) return <p className="text-white/50">Loading dashboard...</p>;
+  if (loading) return <p className="text-muted-foreground">Loading dashboard...</p>;
   if (error) return <p className="text-primary">{error}</p>;
 
   const today = new Date();
@@ -606,7 +606,7 @@ function AdminDashboard() {
       </div>
 
       <div>
-        <h2 className="mb-3 text-xs uppercase tracking-wide text-white/40">Inventory Overview</h2>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Inventory Overview</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <DashboardCard icon={AlertTriangle} label="Low Stock Sizes" value={lowStockCount} />
           <DashboardCard icon={PackageX} label="Out of Stock Sizes" value={outOfStockCount} />
@@ -614,7 +614,7 @@ function AdminDashboard() {
       </div>
 
       <div>
-        <h2 className="mb-3 text-xs uppercase tracking-wide text-white/40">Sales Insights</h2>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Sales Insights</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <DashboardCard icon={TrendingUp} label="Best Selling Product" value={bestSeller ?? 'No sales yet'} />
           <DashboardCard icon={ShoppingBag} label="Total Items Sold" value={totalItemsSold} />
@@ -622,9 +622,9 @@ function AdminDashboard() {
       </div>
 
       <div>
-        <h2 className="mb-3 text-xs uppercase tracking-wide text-white/40">Recent Activity</h2>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Recent Activity</h2>
         {recentOrders.length === 0 ? (
-          <p className="text-white/40">No orders yet.</p>
+          <p className="text-muted-foreground">No orders yet.</p>
         ) : (
           <div className="space-y-3">
             {recentOrders.map((order) => (
@@ -633,10 +633,10 @@ function AdminDashboard() {
                 className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
               >
                 <div>
-                  <p className="font-display text-sm text-white tracking-wide">{order.order_reference}</p>
-                  <p className="text-xs text-white/40">{formatDate(order.created_at)}</p>
+                  <p className="font-display text-sm text-foreground tracking-wide">{order.order_reference}</p>
+                  <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
                 </div>
-                <p className="text-sm text-white/70">{order.full_name}</p>
+                <p className="text-sm text-muted-foreground">{order.full_name}</p>
                 <p className="text-sm font-medium text-primary">Rs. {order.total}</p>
                 <StatusBadge status={order.status} />
               </div>

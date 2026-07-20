@@ -39,10 +39,10 @@ export default function WhySection() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-white tracking-wide">
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
             WHY <span className="text-gradient-red">COMICCULTURE</span>
           </h2>
-          <p className="mt-4 text-lg text-white/60 max-w-2xl mx-auto">
+          <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
             We don't just make jerseys. We create wearable art inspired by the stories you love.
           </p>
         </motion.div>
@@ -68,14 +68,9 @@ export default function WhySection() {
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   transition={{ type: 'spring', stiffness: 300 }}
                 >
-                  <feature.icon className="h-8 w-8 text-white" />
-                </motion.div>
-
-                {/* Content */}
-                <h3 className="mt-6 font-display text-xl text-white tracking-wide">
-                  {feature.title}
+                    <feature.icon className="h-8 w-8 text-primary-foreground" />
                 </h3>
-                <p className="mt-3 text-sm text-white/60 leading-relaxed">
+                <p className="mt-3 text-sm text-muted leading-relaxed">
                   {feature.description}
                 </p>
               </div>

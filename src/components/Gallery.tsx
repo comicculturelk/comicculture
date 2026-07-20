@@ -31,10 +31,10 @@ export default function Gallery() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-white tracking-wide">
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
             FOLLOW THE <span className="text-gradient-red">VERSE</span>
           </h2>
-          <p className="mt-4 text-lg text-white/60">
+          <p className="mt-4 text-lg text-muted">
             @ComicCulture.lk on Instagram
           </p>
         </motion.div>
@@ -62,11 +62,11 @@ export default function Gallery() {
               {/* Instagram overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60" />
               <div className="absolute inset-0 bg-background/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex items-center justify-center gap-8">
-                <div className="flex items-center gap-2 text-white">
-                  <Heart className="h-6 w-6" />
-                  <span className="font-medium">Like</span>
-                </div>
-                <div className="flex items-center gap-2 text-white">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <Heart className="h-6 w-6" />
+                    <span className="font-medium">Like</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-foreground">
                   <MessageCircle className="h-6 w-6" />
                   <span className="font-medium">View</span>
                 </div>
@@ -87,7 +87,7 @@ export default function Gallery() {
             href="https://instagram.com/comicculture.lk"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-3 font-semibold text-white"
+            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-3 font-semibold text-primary-foreground"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >

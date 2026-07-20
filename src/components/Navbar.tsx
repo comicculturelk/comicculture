@@ -43,15 +43,15 @@ export default function Navbar() {
             whileTap={{ scale: 0.98 }}
           >
             <div className="relative flex h-9 w-9 items-center justify-center">
-              <div className="absolute inset-0 bg-primary blur-md opacity-50" />
+              <div className="absolute inset-0 opacity-50" />
               <img
-                src="/images/logo/logo-white.svg"
+                src="/images/logo/logo-black.svg"
                 alt="ComicCulture"
                 className="relative h-8 w-8"
               />
             </div>
             <div className="hidden sm:flex flex-col">
-              <span className="font-display text-base text-white leading-none">COMIC</span>
+              <span className="font-display text-base text-foreground leading-none">COMIC</span>
               <span className="font-display text-base text-primary leading-none">CULTURE</span>
             </div>
           </MotionLink>
@@ -62,7 +62,7 @@ export default function Navbar() {
               <li key={link.to}>
                 <Link
                   to={link.to}
-                  className="relative text-sm font-medium text-white/70 transition-colors hover:text-white group"
+                  className="relative text-sm font-medium text-muted transition-colors hover:text-foreground group"
                 >
                   {link.label}
                   <span className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all group-hover:w-full" />
@@ -75,12 +75,12 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-4">
             <button
               onClick={openCart}
-              className="relative rounded-lg p-2 text-white/80 transition-colors hover:text-white"
+              className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
               aria-label="Open cart"
             >
               <ShoppingCart className="h-5 w-5" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                   {totalItems}
                 </span>
               )}
@@ -100,18 +100,18 @@ export default function Navbar() {
           <div className="flex items-center gap-1 lg:hidden">
             <button
               onClick={openCart}
-              className="relative p-2 text-white"
+              className="relative p-2 text-foreground"
               aria-label="Open cart"
             >
               <ShoppingCart className="h-5 w-5" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                   {totalItems}
                 </span>
               )}
             </button>
             <motion.button
-              className="p-2 text-white"
+              className="p-2 text-foreground"
               onClick={() => setMobileOpen(!mobileOpen)}
               whileTap={{ scale: 0.9 }}
               aria-label="Toggle menu"
@@ -133,13 +133,13 @@ export default function Navbar() {
           >
             {/* Backdrop */}
             <motion.div
-              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+              className="absolute inset-0 bg-background/80 backdrop-blur-xl"
               onClick={() => setMobileOpen(false)}
             />
 
             {/* Menu Content */}
             <motion.nav
-              className="absolute top-20 left-0 right-0 bg-background border-t border-white/10 px-6 py-8"
+              className="absolute top-20 left-0 right-0 bg-background border-t border-border px-6 py-8"
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
@@ -149,7 +149,7 @@ export default function Navbar() {
                   <li key={link.to}>
                     <Link
                       to={link.to}
-                      className="block rounded-lg px-4 py-3 text-lg font-medium text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+                      className="block rounded-lg px-4 py-3 text-lg font-medium text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
                       onClick={() => setMobileOpen(false)}
                     >
                       {link.label}
@@ -158,7 +158,7 @@ export default function Navbar() {
                 ))}
               </ul>
 
-              <div className="mt-6 pt-6 border-t border-white/10">
+              <div className="mt-6 pt-6 border-t border-border">
                 <Link
                   to="/shop"
                   className="btn-primary w-full justify-center"

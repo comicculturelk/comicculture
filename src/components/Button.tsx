@@ -8,10 +8,10 @@ interface ButtonProps extends HTMLMotionProps<'button'> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-primary text-white hover:bg-primary-hover',
-  secondary: 'bg-white/10 text-white hover:bg-white/20',
-  outline: 'border border-white/20 text-white hover:bg-white/10',
-  ghost: 'text-white/70 hover:text-white hover:bg-white/10',
+  primary: 'bg-primary text-primary-foreground hover:bg-primary-hover',
+  secondary: 'bg-surface/75 text-foreground hover:bg-surface-hover',
+  outline: 'border border-border text-foreground hover:bg-surface-hover',
+  ghost: 'text-muted-foreground hover:text-foreground hover:bg-surface-hover',
 };
 
 export default function Button({ variant = 'primary', className = '', children, ...props }: ButtonProps) {

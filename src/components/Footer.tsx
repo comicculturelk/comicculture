@@ -3,7 +3,7 @@ import { Instagram, MessageCircle, Heart } from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer className="relative border-t border-white/5 bg-background">
+    <footer className="relative border-t border-border bg-background">
       {/* Animated top line */}
       <motion.div
         className="absolute top-0 left-0 h-px bg-primary"
@@ -20,13 +20,13 @@ export default function Footer() {
             <div className="relative flex h-9 w-9 items-center justify-center">
               <div className="absolute inset-0 blur-md opacity-50" />
               <img
-                src="/images/logo/logo-white.svg"
+                src="/images/logo/logo-black.svg"
                 alt="ComicCulture"
                 className="relative h-10 w-10"
               />
             </div>
             <div className="flex flex-col">
-              <span className="font-display text-base text-white leading-none">COMIC</span>
+              <span className="font-display text-base text-foreground leading-none">COMIC</span>
               <span className="font-display text-base text-primary leading-none">CULTURE</span>
             </div>
           </motion.div>
@@ -37,7 +37,7 @@ export default function Footer() {
               href="https://instagram.com/comicculture.lk"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-white/60 transition-colors hover:text-white"
+              className="flex items-center gap-2 text-muted transition-colors hover:text-foreground"
               whileHover={{ y: -2 }}
             >
               <Instagram className="h-5 w-5" />
@@ -47,7 +47,7 @@ export default function Footer() {
               href="https://wa.me/94787756338"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-white/60 transition-colors hover:text-white"
+              className="flex items-center gap-2 text-muted transition-colors hover:text-foreground"
               whileHover={{ y: -2 }}
             >
               <MessageCircle className="h-5 w-5" />
@@ -57,14 +57,14 @@ export default function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="mt-8 pt-8 border-t border-white/5 text-center">
-          <p className="text-sm text-white/50 flex items-center justify-center gap-1">
+        <div className="mt-8 pt-8 border-t border-border text-center">
+          <p className="text-sm text-muted flex items-center justify-center gap-1">
             Made with <Heart className="h-4 w-4 text-primary" /> in Sri Lanka
           </p>
-          <p className="mt-2 text-xs text-white/30">
+          <p className="mt-2 text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} ComicCulture. All rights reserved.
           </p>
-          <p className="mt-2 text-xs text-white/20">
+          <p className="mt-2 text-xs text-muted-foreground">
             Fan-inspired designs. Not affiliated with Marvel, Sony, or DC.
           </p>
         </div>

@@ -27,10 +27,10 @@ export default function Timeline() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-white tracking-wide">
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
             BEHIND THE <span className="text-gradient-blue">DESIGN</span>
           </h2>
-          <p className="mt-4 text-lg text-white/60 max-w-2xl mx-auto">
+          <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
             Every jersey goes through our meticulous 6-step process before reaching you.
           </p>
         </motion.div>
@@ -60,15 +60,15 @@ export default function Timeline() {
                 </motion.div>
 
                 {/* Label */}
-                <p className="mt-4 font-display text-lg text-white tracking-wide">
+                <p className="mt-4 font-display text-lg text-foreground tracking-wide">
                   {step.label}
                 </p>
-                <p className="mt-1 text-xs text-white/50">
+                <p className="mt-1 text-xs text-muted">
                   {step.description}
                 </p>
 
                 {/* Step number */}
-                <div className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                <div className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                   {index + 1}
                 </div>
               </motion.div>
