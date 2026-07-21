@@ -65,7 +65,7 @@ export default function Collections() {
           transition={{ duration: 0.6 }}
         >
           <motion.span
-            className="inline-block rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary"
+            className="inline-block border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-medium text-primary"
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -86,7 +86,7 @@ export default function Collections() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {universes.map((universe, index) => {
             const isLive = universe.status === 'live';
-            const cardClasses = `group relative flex aspect-[3/4] flex-col justify-end overflow-hidden rounded-2xl border border-foreground/10 ${
+            const cardClasses = `group relative flex aspect-[3/4] flex-col justify-end overflow-hidden border border-foreground/10 ${
               isLive ? 'cursor-pointer' : 'cursor-default'
             }`;
 
@@ -114,8 +114,8 @@ export default function Collections() {
 
                 {/* Status pill */}
                 <span
-                  className={`absolute top-4 right-4 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                    isLive ? 'bg-primary/20 text-primary' : 'bg-surface-hover text-muted'
+                  className={`absolute top-4 right-4 inline-flex items-center gap-1 border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                    isLive ? 'border-primary/30 bg-primary/20 text-primary' : 'border-border bg-surface-hover text-muted'
                   }`}
                 >
                   {!isLive && <Lock className="h-3 w-3" />}

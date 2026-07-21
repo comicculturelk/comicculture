@@ -3,16 +3,16 @@ import { BookOpen } from 'lucide-react';
 
 const values = [
   {
-    label: 'Premium Material',
-    detail: 'Jersey-grade fabric built to move and last, not just look good in a photo.',
+    label: 'No Reprints',
+    detail: "Once a print run ends, it's retired for good. Scarcity isn't a marketing tactic here — it's the model.",
   },
   {
-    label: 'Limited Runs',
-    detail: "Every issue is printed in limited numbers. Once it's gone, it's gone.",
+    label: 'Source Over Trend',
+    detail: "Every graphic is pulled from real continuity, not whatever's trending this week.",
   },
   {
-    label: 'True To Source',
-    detail: 'Every design is rooted in real lore, not a random graphic thrown on cotton.',
+    label: 'Built To Move',
+    detail: 'Jersey-grade fabric chosen for how it wears in over time, not just how it photographs.',
   },
 ];
 
@@ -26,7 +26,7 @@ export default function BrandStory() {
 
       <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
         <motion.div
-          className="inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-surface px-4 py-2"
+          className="inline-flex items-center gap-2 border border-foreground/10 bg-surface px-4 py-2"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -45,9 +45,9 @@ export default function BrandStory() {
           viewport={{ once: true }}
           transition={{ delay: 0.1, duration: 0.6 }}
         >
-          EVERY DESIGN IS A <span className="text-gradient-red">CHAPTER</span>.
+          BUILT LIKE A <span className="text-gradient-red">FIRST ISSUE</span>.
           <br />
-          EVERY SHIRT HAS A <span className="text-gradient-blue">STORY</span>.
+          WORN LIKE A <span className="text-gradient-blue">SECOND SKIN</span>.
         </motion.h2>
 
         <motion.p
@@ -57,9 +57,10 @@ export default function BrandStory() {
           viewport={{ once: true }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          We don't print graphics on shirts — we print chapters. Every ComicCulture piece is
-          drawn from a world you already know, cut from jersey-grade fabric, and released in
-          numbers small enough to stay rare. This isn't fandom merch. It's wearable canon.
+          ComicCulture exists for people who never grew out of their favorite universe — they
+          just started dressing like they belong in it. We treat every release the way a
+          publisher treats a first print: considered, numbered, and never reissued the same
+          way twice. This isn't fan merchandise. It's canon you can wear.
         </motion.p>
 
         <motion.div

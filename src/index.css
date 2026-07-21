@@ -6,17 +6,17 @@
 
 @layer base {
   :root {
-    /* Premium editorial light theme — Phase 1
-       Approx balance: 75% off-white/white, 15% charcoal/black,
-       8% ComicCulture red, 2% accent (secondary kept as-is). */
+    /* Premium editorial light theme — Phase 2 (luxury/streetwear pass)
+       Approx balance: 85% white/light neutrals, 12% black/charcoal,
+       3% accent (deep red + secondary blue, both used sparingly). */
     --color-background: #FAFAFA;
     --color-surface: #F8F8F6;
     --color-surface-hover: rgba(17, 17, 17, 0.04);
     --color-foreground: #111111;
     --color-muted: #666666;
     --color-muted-foreground: #8C8C8C;
-    --color-primary: #D62839;
-    --color-primary-hover: #B71C31;
+    --color-primary: #8C1F2E;
+    --color-primary-hover: #6E1824;
     --color-primary-foreground: #FFFFFF;
     --color-secondary: #2563EB;
     --color-secondary-glow: #3B82F6;
@@ -32,7 +32,7 @@
     --shadow-primary-glow: 0 0 30px rgba(var(--color-primary-rgb), 0.4);
     --shadow-secondary-glow: 0 0 30px rgba(var(--color-secondary-rgb), 0.4);
 
-    --color-primary-rgb: 214 40 57;
+    --color-primary-rgb: 140 31 46;
     --color-secondary-rgb: 37 99 235;
     --color-foreground-rgb: 17 17 17;
   }
