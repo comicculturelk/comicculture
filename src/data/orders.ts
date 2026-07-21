@@ -26,6 +26,7 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
       size: item.size,
       quantity: item.quantity,
     })),
+    order_reference: input.orderReference,
   });
 
   if (stockError) {
