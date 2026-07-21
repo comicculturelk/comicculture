@@ -24,7 +24,7 @@ export default function ProductShowcase() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <span className="inline-block rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+          <span className="inline-block border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
             LIMITED EDITION
           </span>
           <h2 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">

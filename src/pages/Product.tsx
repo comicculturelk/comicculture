@@ -23,11 +23,12 @@ import { generateWhatsAppMessage, formatPrice, getStockForSize, isSizeInStock } 
 import type { Product as ProductType } from '../data/products';
 
 const SIZE_GUIDE = [
-  { size: 'S', chest: '36-38"', length: '27"' },
-  { size: 'M', chest: '39-41"', length: '28"' },
-  { size: 'L', chest: '42-44"', length: '29"' },
-  { size: 'XL', chest: '45-47"', length: '30"' },
-  { size: 'XXL', chest: '48-50"', length: '31"' },
+  { size: 'XS', chest: '18"', length: '26"', sleeve: '7¼"' },
+  { size: 'S', chest: '19"', length: '27"', sleeve: '7¾"' },
+  { size: 'M', chest: '20"', length: '28"', sleeve: '8¼"' },
+  { size: 'L', chest: '21"', length: '29"', sleeve: '8¾"' },
+  { size: 'XL', chest: '22"', length: '30"', sleeve: '9¼"' },
+  { size: 'XXL', chest: '23"', length: '31"', sleeve: '9¾"' },
 ];
 
 type AccordionKey = 'description' | 'details' | 'care' | 'shipping';
@@ -142,7 +143,7 @@ export default function Product() {
         </Link>
 
         <motion.div
-          className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface lg:flex-row"
+          className="flex flex-col overflow-hidden border border-border bg-surface lg:flex-row"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -165,7 +166,7 @@ export default function Product() {
               <span className="pointer-events-none absolute bottom-4 left-4 h-6 w-6 border-b border-l border-foreground/20" />
 
               {product.featured && (
-                <span className="absolute left-4 top-4 rounded-full border border-border bg-background/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">
+                <span className="absolute left-4 top-4 border border-border bg-background/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">
                   Featured
                 </span>
               )}
@@ -538,7 +539,7 @@ function RelatedProductCard({ product }: { product: ProductType }) {
   return (
     <Link
       to={`/product/${product.slug}`}
-      className="group overflow-hidden rounded-xl border border-border bg-surface transition-colors hover:border-foreground"
+      className="group overflow-hidden border border-border bg-surface transition-colors hover:border-foreground/40"
     >
       <div className="aspect-square overflow-hidden bg-background">
         <img
