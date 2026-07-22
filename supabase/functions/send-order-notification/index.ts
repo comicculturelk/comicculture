@@ -258,6 +258,11 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
   const border = '#E5E5E5';
   const surface = '#F8F8F6';
 
+  // Falls back to the production domain if SITE_URL isn't set as a secret
+  // yet, so this never breaks a deploy that hasn't added it.
+  const siteUrl = (Deno.env.get('SITE_URL') || 'https://comicculture.lk').replace(/\/$/, '');
+  const trackOrderUrl = `${siteUrl}/track-order`;
+
   const itemsRows = order.order_items
     .map(
       (item) => `
@@ -342,6 +347,25 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
                   <tr>
                     <td style="padding:10px 0 0;color:${foreground};font-size:15px;font-weight:700;border-top:1px solid ${border};">Total</td>
                     <td style="padding:10px 0 0;color:${primary};font-size:18px;font-weight:700;text-align:right;border-top:1px solid ${border};">${formatMoney(order.total)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:24px 32px 0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${border};border-radius:12px;">
+                  <tr>
+                    <td style="padding:20px;text-align:center;">
+                      <p style="margin:0 0 4px;color:${foreground};font-size:14px;font-weight:700;">Track Your Order</p>
+                      <p style="margin:0 0 14px;color:${muted};font-size:13px;line-height:1.6;">
+                        Your order has been received. You can check your order status anytime using
+                        your Order Reference.
+                      </p>
+                      <a href="${trackOrderUrl}" style="display:inline-block;background-color:${primary};color:#FFFFFF;font-size:13px;font-weight:600;text-decoration:none;padding:12px 24px;border-radius:8px;">
+                        Track Order
+                      </a>
+                    </td>
                   </tr>
                 </table>
               </td>

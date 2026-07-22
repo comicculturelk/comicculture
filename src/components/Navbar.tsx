@@ -10,6 +10,7 @@ const navLinks = [
   { label: 'Home', to: '/' },
   { label: 'Shop', to: '/shop' },
   { label: 'About', to: '/about' },
+  { label: 'Track Order', to: '/track-order' },
   { label: 'FAQ', to: '/faq' },
   { label: 'Contact', to: '/contact' },
 ];
