@@ -58,13 +58,19 @@ export default function OrderSuccess() {
         )}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Link to="/shop" className="btn-primary">
+          <Link to="/track-order" className="btn-primary">
+            Track Your Order
+          </Link>
+          <Link to="/shop" className="btn-outline">
             Continue Shopping
           </Link>
           <Link to="/" className="btn-outline">
             Back to Home
           </Link>
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Use your order reference and email/phone to check your delivery status anytime.
+        </p>
       </motion.div>
     </section>
   );
