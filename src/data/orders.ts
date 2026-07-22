@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { CartItem } from '../context/CartContext';
+import { notifyAdminOfNewOrder } from './notifications';
 
 export interface CreateOrderInput {
   orderReference: string;
@@ -15,6 +16,8 @@ export interface CreateOrderInput {
   deliveryFee: number;
   total: number;
   items: CartItem[];
+  /** Optional until Checkout.tsx collects it; included in the admin email when present. */
+  paymentMethod?: string;
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<void> {
@@ -49,6 +52,7 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
     subtotal: input.subtotal,
     delivery_fee: input.deliveryFee,
     total: input.total,
+    payment_method: input.paymentMethod?.trim() || null,
   });
 
   if (orderError) {
@@ -73,4 +77,8 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
     // easy to find/fix from the Supabase dashboard if it ever happens.
     throw new Error(`Order ${input.orderReference} was created, but saving items failed: ${itemsError.message}`);
   }
+
+  // Fire-and-forget: the order is fully saved at this point, so a failure
+  // to email the admin should never surface as a checkout error.
+  void notifyAdminOfNewOrder(orderId);
 }
