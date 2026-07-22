@@ -14,6 +14,7 @@ import FAQ from './pages/FAQ';
 import Contact from './pages/Contact';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
+import TrackOrder from './pages/TrackOrder';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success" element={<OrderSuccess />} />
+          <Route path="/track-order" element={<TrackOrder />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
