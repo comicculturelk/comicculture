@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import {
   MessageCircle,
@@ -6,10 +6,11 @@ import {
   Clock,
   AlertTriangle,
   Wallet,
-  PackageX,
   TrendingUp,
   PackagePlus,
   SlidersHorizontal,
+  CheckCircle2,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -383,7 +384,7 @@ function AdminOrders() {
         )}
 
         {view === 'inventory' && <AdminInventory />}
-        {view === 'dashboard' && <AdminDashboard />}
+        {view === 'dashboard' && <AdminDashboard onViewOrders={() => setView('orders')} />}
         {view === 'history' && <AdminHistory />}
       </div>
     </section>
@@ -715,14 +716,26 @@ function isSameDay(iso: string, reference: Date): boolean {
   );
 }
 
+type CardAccent = 'default' | 'warning' | 'danger';
+
+const CARD_ACCENT_STYLES: Record<CardAccent, string> = {
+  default: 'text-foreground',
+  warning: 'text-yellow-400',
+  danger: 'text-red-400',
+};
+
 function DashboardCard({
   icon: Icon,
   label,
   value,
+  subtext,
+  accent = 'default',
 }: {
   icon: LucideIcon;
   label: string;
   value: string | number;
+  subtext?: string;
+  accent?: CardAccent;
 }) {
   return (
     <div className="glass rounded-2xl p-5">
@@ -730,12 +743,42 @@ function DashboardCard({
         <Icon className="h-4 w-4" />
         <span className="text-xs uppercase tracking-wide">{label}</span>
       </div>
-      <p className="mt-2 font-display text-2xl text-foreground tracking-wide">{value}</p>
+      <p className={`mt-2 font-display text-2xl tracking-wide ${CARD_ACCENT_STYLES[accent]}`}>{value}</p>
+      {subtext && <p className="mt-1 text-xs text-muted">{subtext}</p>}
     </div>
   );
 }
 
-function AdminDashboard() {
+function DashboardSection({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: { label: string; onClick: () => void };
+  children: ReactNode;
+}) {
+  return (
+    <div className="glass rounded-2xl p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-xs uppercase tracking-wide text-muted-foreground">{title}</h2>
+        {action && (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {action.label}
+            <ArrowRight className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function AdminDashboard({ onViewOrders }: { onViewOrders?: () => void }) {
   const [orders, setOrders] = useState<DashboardOrderRow[]>([]);
   const [orderItems, setOrderItems] = useState<DashboardOrderItemRow[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -787,18 +830,25 @@ function AdminDashboard() {
   const totalOrders = orders.length;
   const ordersToday = orders.filter((o) => isSameDay(o.created_at, today)).length;
   const pendingOrders = orders.filter((o) => o.status === 'pending').length;
-  const totalRevenue = orders
-    .filter((o) => o.status !== 'cancelled')
-    .reduce((sum, o) => sum + Number(o.total), 0);
+  const completedOrders = orders.filter((o) => o.status === 'delivered').length;
+  const nonCancelledOrders = orders.filter((o) => o.status !== 'cancelled');
+  const totalRevenue = nonCancelledOrders.reduce((sum, o) => sum + Number(o.total), 0);
+  const avgOrderValue = nonCancelledOrders.length > 0 ? totalRevenue / nonCancelledOrders.length : 0;
+  const completedShare = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
 
-  let lowStockCount = 0;
+  // Products that have at least one size at or below the low-stock threshold,
+  // with the specific sizes that need attention — reused for both the KPI
+  // card and the "Needs Restocking" panel below.
   let outOfStockCount = 0;
+  const attentionProducts: { product: Product; sizes: { size: string; qty: number }[] }[] = [];
   for (const product of products) {
+    const flaggedSizes: { size: string; qty: number }[] = [];
     for (const size of product.sizes) {
       const qty = getStockForSize(product, size);
       if (qty <= 0) outOfStockCount += 1;
-      else if (qty <= LOW_STOCK_THRESHOLD) lowStockCount += 1;
+      if (qty <= LOW_STOCK_THRESHOLD) flaggedSizes.push({ size, qty });
     }
+    if (flaggedSizes.length > 0) attentionProducts.push({ product, sizes: flaggedSizes });
   }
 
   const salesByName = new Map<string, number>();
@@ -816,55 +866,131 @@ function AdminDashboard() {
     }
   }
 
-  const recentOrders = orders.slice(0, 5);
+  const recentOrders = orders.slice(0, 6);
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard icon={ShoppingBag} label="Total Orders" value={totalOrders} />
-        <DashboardCard icon={Clock} label="Orders Today" value={ordersToday} />
-        <DashboardCard icon={AlertTriangle} label="Pending Orders" value={pendingOrders} />
-        <DashboardCard icon={Wallet} label="Total Revenue" value={`Rs. ${totalRevenue.toLocaleString()}`} />
+      <div>
+        <h1 className="font-display text-xl text-foreground tracking-wide">Overview</h1>
+        <p className="mt-1 text-sm text-muted-foreground">A snapshot of how the store is doing right now.</p>
       </div>
 
-      <div>
-        <h2 className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Inventory Overview</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <DashboardCard icon={AlertTriangle} label="Low Stock Sizes" value={lowStockCount} />
-          <DashboardCard icon={PackageX} label="Out of Stock Sizes" value={outOfStockCount} />
-        </div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <DashboardCard
+          icon={ShoppingBag}
+          label="Total Orders"
+          value={totalOrders}
+          subtext={ordersToday > 0 ? `${ordersToday} today` : 'No orders today'}
+        />
+        <DashboardCard
+          icon={Clock}
+          label="Pending Orders"
+          value={pendingOrders}
+          subtext={pendingOrders > 0 ? 'Needs confirmation' : 'All caught up'}
+          accent={pendingOrders > 0 ? 'warning' : 'default'}
+        />
+        <DashboardCard
+          icon={CheckCircle2}
+          label="Completed Orders"
+          value={completedOrders}
+          subtext={`${completedShare}% of total`}
+        />
+        <DashboardCard
+          icon={Wallet}
+          label="Revenue"
+          value={`Rs. ${totalRevenue.toLocaleString()}`}
+          subtext={`Rs. ${Math.round(avgOrderValue).toLocaleString()} avg order`}
+        />
+        <DashboardCard
+          icon={AlertTriangle}
+          label="Low Stock Products"
+          value={attentionProducts.length}
+          subtext={outOfStockCount > 0 ? `${outOfStockCount} sizes out of stock` : 'Nothing out of stock'}
+          accent={outOfStockCount > 0 ? 'danger' : attentionProducts.length > 0 ? 'warning' : 'default'}
+        />
       </div>
 
-      <div>
-        <h2 className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Sales Insights</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <DashboardCard icon={TrendingUp} label="Best Selling Product" value={bestSeller ?? 'No sales yet'} />
-          <DashboardCard icon={ShoppingBag} label="Total Items Sold" value={totalItemsSold} />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Recent Activity</h2>
-        {recentOrders.length === 0 ? (
-          <p className="text-muted-foreground">No orders yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {recentOrders.map((order) => (
-              <div
-                key={order.order_reference}
-                className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
-              >
-                <div>
-                  <p className="font-display text-sm text-foreground tracking-wide">{order.order_reference}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">{order.full_name}</p>
-                <p className="text-sm font-medium text-primary">Rs. {order.total}</p>
-                <StatusBadge status={order.status} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DashboardSection
+            title="Recent Orders"
+            action={onViewOrders ? { label: 'View all', onClick: onViewOrders } : undefined}
+          >
+            {recentOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No orders yet.</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {recentOrders.map((order) => (
+                  <div
+                    key={order.order_reference}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-[120px]">
+                      <p className="font-display text-sm text-foreground tracking-wide">
+                        {order.order_reference}
+                      </p>
+                      <p className="text-xs text-muted">{formatDate(order.created_at)}</p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{order.full_name}</p>
+                    <p className="text-sm font-medium text-primary">Rs. {order.total}</p>
+                    <StatusBadge status={order.status} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+          </DashboardSection>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <DashboardSection title="Needs Restocking">
+            {attentionProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">All stock levels look healthy.</p>
+            ) : (
+              <div className="space-y-3">
+                {attentionProducts.slice(0, 5).map(({ product, sizes }) => (
+                  <div key={product.id}>
+                    <p className="text-sm font-medium text-foreground">{product.name}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {sizes.map(({ size, qty }) => (
+                        <span
+                          key={size}
+                          className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${
+                            qty <= 0
+                              ? 'border-red-500/40 bg-red-500/10 text-red-400'
+                              : 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400'
+                          }`}
+                        >
+                          {size} · {qty <= 0 ? 'out' : qty}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {attentionProducts.length > 5 && (
+                  <p className="text-xs text-muted">+{attentionProducts.length - 5} more products</p>
+                )}
+              </div>
+            )}
+          </DashboardSection>
+
+          <DashboardSection title="Best Seller">
+            {bestSeller ? (
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-primary/10 p-2 text-primary">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-display text-sm text-foreground tracking-wide">{bestSeller}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {bestSellerQty} sold · {totalItemsSold} items sold in total
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No sales yet.</p>
+            )}
+          </DashboardSection>
+        </div>
       </div>
     </div>
   );
