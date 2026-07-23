@@ -24,6 +24,7 @@ import {
   type MovementType,
   type AdjustmentReason,
 } from '../data/inventory';
+import AdminProducts from '../components/admin/AdminProducts';
 
 const STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
 
@@ -175,7 +176,9 @@ function AdminOrders() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | (typeof STATUSES)[number]>('all');
-  const [view, setView] = useState<'dashboard' | 'orders' | 'inventory' | 'history'>('orders');
+  const [view, setView] = useState<'dashboard' | 'orders' | 'products' | 'inventory' | 'history'>(
+    'orders'
+  );
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleExpand = (id: string) => {
@@ -232,7 +235,7 @@ function AdminOrders() {
           <div className="flex items-center gap-4">
             <h1 className="font-display text-3xl text-foreground tracking-wide">ADMIN</h1>
             <div className="flex gap-2">
-              {(['dashboard', 'orders', 'inventory', 'history'] as const).map((v) => (
+              {(['dashboard', 'orders', 'products', 'inventory', 'history'] as const).map((v) => (
                 <button
                   key={v}
                   type="button"
@@ -383,6 +386,7 @@ function AdminOrders() {
           </>
         )}
 
+        {view === 'products' && <AdminProducts />}
         {view === 'inventory' && <AdminInventory />}
         {view === 'dashboard' && <AdminDashboard onViewOrders={() => setView('orders')} />}
         {view === 'history' && <AdminHistory />}

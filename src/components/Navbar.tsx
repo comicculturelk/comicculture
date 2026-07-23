@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ShoppingBag, ShoppingCart } from 'lucide-react';
+import { Menu, X, ShoppingBag, ShoppingCart, Search } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
+import SearchOverlay from './SearchOverlay';
 
 const MotionLink = motion.create(Link);
 
@@ -18,6 +19,7 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { totalItems, openCart } = useCart();
 
   useEffect(() => {
@@ -25,6 +27,11 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleOpenSearch = () => {
+    setMobileOpen(false);
+    setSearchOpen(true);
+  };
 
   return (
     <>
@@ -76,6 +83,13 @@ export default function Navbar() {
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-4">
             <button
+              onClick={handleOpenSearch}
+              className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
+              aria-label="Open search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+            <button
               onClick={openCart}
               className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
               aria-label="Open cart"
@@ -98,8 +112,15 @@ export default function Navbar() {
             </MotionLink>
           </div>
 
-          {/* Mobile: Cart + Menu Toggle */}
+          {/* Mobile: Search + Cart + Menu Toggle */}
           <div className="flex items-center gap-1 lg:hidden">
+            <button
+              onClick={handleOpenSearch}
+              className="relative p-2 text-foreground"
+              aria-label="Open search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
             <button
               onClick={openCart}
               className="relative p-2 text-foreground"
@@ -173,6 +194,11 @@ export default function Navbar() {
             </motion.nav>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Search Overlay */}
+      <AnimatePresence>
+        {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
       </AnimatePresence>
     </>
   );

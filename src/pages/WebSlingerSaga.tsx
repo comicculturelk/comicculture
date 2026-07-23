@@ -1,8 +1,11 @@
-import { motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
+import ProductFilters from '../components/ProductFilters';
 import { useProducts } from '../hooks/useProducts';
+import { filterProducts, getUniqueSizes, getPriceBounds } from '../data/products';
 
 // Confirmed against Supabase: products.collection = 'Web-Slinger Saga'
 const COLLECTION_NAME = 'Web-Slinger Saga';
@@ -14,6 +17,40 @@ export default function WebSlingerSaga() {
     (product) =>
       product.collection.trim().toLowerCase() === COLLECTION_NAME.trim().toLowerCase()
   );
+
+  const sizes = useMemo(() => getUniqueSizes(collectionProducts), [collectionProducts]);
+  const priceBounds = useMemo(() => getPriceBounds(collectionProducts), [collectionProducts]);
+
+  const [search, setSearch] = useState('');
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [priceLimit, setPriceLimit] = useState<number | null>(null);
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+
+  const effectivePriceLimit = priceLimit ?? priceBounds.max;
+
+  const filteredProducts = useMemo(
+    () =>
+      filterProducts(collectionProducts, {
+        search,
+        size: selectedSize,
+        maxPrice: priceLimit !== null ? priceLimit : null,
+        featuredOnly,
+      }),
+    [collectionProducts, search, selectedSize, priceLimit, featuredOnly]
+  );
+
+  const hasActiveFilters =
+    search.trim() !== '' ||
+    selectedSize !== null ||
+    (priceLimit !== null && priceLimit < priceBounds.max) ||
+    featuredOnly;
+
+  const handleReset = () => {
+    setSearch('');
+    setSelectedSize(null);
+    setPriceLimit(null);
+    setFeaturedOnly(false);
+  };
 
   return (
     <section className="relative py-32 lg:py-40">
@@ -62,20 +99,56 @@ export default function WebSlingerSaga() {
           </p>
         )}
 
-        {/* Empty state */}
+        {/* Search & filters */}
+        {!loading && !error && collectionProducts.length > 0 && (
+          <ProductFilters
+            search={search}
+            onSearchChange={setSearch}
+            sizes={sizes}
+            selectedSize={selectedSize}
+            onSizeChange={setSelectedSize}
+            priceBounds={priceBounds}
+            priceLimit={effectivePriceLimit}
+            onPriceLimitChange={setPriceLimit}
+            featuredOnly={featuredOnly}
+            onFeaturedChange={setFeaturedOnly}
+            onReset={handleReset}
+            hasActiveFilters={hasActiveFilters}
+          />
+        )}
+
+        {/* Empty state — no products in collection at all */}
         {!loading && !error && collectionProducts.length === 0 && (
           <p className="text-center text-muted">
             No jerseys found in this collection yet.
           </p>
         )}
 
+        {/* Empty state — filters/search matched nothing */}
+        {!loading && !error && collectionProducts.length > 0 && filteredProducts.length === 0 && (
+          <p className="text-center text-muted">
+            No jerseys match your search or filters.
+          </p>
+        )}
+
         {/* Product grid */}
-        {!loading && !error && collectionProducts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
-            {collectionProducts.map((product, index) => (
-              <ProductCard key={product.id} product={product} index={index} />
-            ))}
-          </div>
+        {!loading && !error && filteredProducts.length > 0 && (
+          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+            <AnimatePresence mode="popLayout">
+              {filteredProducts.map((product, index) => (
+                <motion.div
+                  key={product.id}
+                  layout
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <ProductCard product={product} index={index} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
     </section>
