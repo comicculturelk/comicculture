@@ -410,6 +410,13 @@ export default function Checkout() {
             <p className="text-center text-xs text-muted-foreground">
               No payment is collected now — we'll contact you to confirm delivery.
             </p>
+            <p className="text-center text-xs text-muted-foreground">
+              By placing your order, you agree to our{' '}
+              <Link to="/return-policy" className="text-primary transition-colors hover:underline">
+                Return &amp; Exchange Policy
+              </Link>
+              .
+            </p>
           </motion.div>
         </form>
       </div>

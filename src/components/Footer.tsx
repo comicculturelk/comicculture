@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Instagram, MessageCircle, Heart } from 'lucide-react';
 
 export default function Footer() {
@@ -60,6 +61,11 @@ export default function Footer() {
         <div className="mt-8 pt-8 border-t border-border text-center">
           <p className="text-sm text-muted flex items-center justify-center gap-1">
             Made with <Heart className="h-4 w-4 text-primary" /> in Sri Lanka
+          </p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            <Link to="/return-policy" className="transition-colors hover:text-foreground">
+              Return &amp; Exchange Policy
+            </Link>
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} ComicCulture. All rights reserved.
