@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -9,11 +9,17 @@ import {
   Tag,
   Loader2,
   ShoppingBag,
+  Wallet,
+  Landmark,
+  Info,
+  Upload,
+  AlertCircle,
 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { createOrder } from '../data/orders';
+import { uploadFile } from '../lib/storage';
 
-const DELIVERY_FEE = 350;
+const RECEIPT_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
 const DISTRICTS = [
   'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle',
@@ -47,6 +53,8 @@ const EMPTY_FORM: CheckoutForm = {
 
 type FormErrors = Partial<Record<keyof CheckoutForm, string>>;
 
+type PaymentMethod = 'COD' | 'BANK_TRANSFER';
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9+\-\s]{9,15}$/;
 
@@ -57,10 +65,16 @@ export default function Checkout() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [promoCode, setPromoCode] = useState('');
   const [promoNote, setPromoNote] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
+  const [receiptPath, setReceiptPath] = useState<string | null>(null);
+  const [receiptUploading, setReceiptUploading] = useState(false);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
 
-  const deliveryFee = items.length > 0 ? DELIVERY_FEE : 0;
+  // Delivery is already included in the product price — no separate fee.
+  const deliveryFee = 0;
   const total = totalPrice + deliveryFee;
 
   const handleChange = (field: keyof CheckoutForm, value: string) => {
@@ -87,17 +101,57 @@ export default function Checkout() {
     return next;
   };
 
+  const handleReceiptChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file after an error
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setReceiptError('Please upload an image of your receipt (JPG, PNG, etc.)');
+      return;
+    }
+    if (file.size > RECEIPT_MAX_BYTES) {
+      setReceiptError('Receipt image must be under 5MB');
+      return;
+    }
+
+    setReceiptError(null);
+    setReceiptPath(null);
+    setReceiptFileName(file.name);
+    setReceiptUploading(true);
+
+    try {
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { path: uploadedPath } = await uploadFile('payment-receipts', path, file, 'private');
+      setReceiptPath(uploadedPath);
+    } catch (err) {
+      setReceiptError(
+        err instanceof Error ? err.message : 'Failed to upload receipt. Please try again.'
+      );
+      setReceiptFileName(null);
+    } finally {
+      setReceiptUploading(false);
+    }
+  };
+
   const handleApplyPromo = (e: FormEvent) => {
     e.preventDefault();
     if (!promoCode.trim()) return;
     setPromoNote("Promo codes aren't available just yet — check back soon!");
   };
 
+  // Bank Transfer requires a successfully uploaded receipt before the order
+  // can be placed at all — there's no "place now, upload later" path.
+  const receiptRequired = paymentMethod === 'BANK_TRANSFER';
+  const receiptBlocksSubmit = receiptRequired && (receiptUploading || !receiptPath);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+    if (receiptBlocksSubmit) return;
 
     setSubmitError(null);
     setIsSubmitting(true);
@@ -119,6 +173,8 @@ export default function Checkout() {
         deliveryFee,
         total,
         items,
+        paymentMethod,
+        receiptPath: receiptPath ?? undefined,
       });
 
       clearCart();
@@ -128,6 +184,11 @@ export default function Checkout() {
           customerName: form.fullName,
           totalItems,
           total,
+          paymentMethod,
+          // OrderSuccess.tsx should check this and render "Payment
+          // Verification Required" instead of "Order Confirmed" for
+          // Bank Transfer orders — see note in chat reply.
+          requiresPaymentVerification: paymentMethod === 'BANK_TRANSFER',
         },
       });
     } catch (err) {
@@ -314,12 +375,116 @@ export default function Checkout() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-primary">
-                    Rs. {DELIVERY_FEE}
-                  </span>
+                  <span className="text-sm font-medium text-primary">FREE</span>
                   <CheckCircle2 className="h-4 w-4 text-primary" />
                 </div>
               </div>
+            </div>
+
+            {/* Payment method */}
+            <div>
+              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">
+                PAYMENT METHOD
+              </h2>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('COD')}
+                  className={paymentOptionClass(paymentMethod === 'COD')}
+                >
+                  <Wallet className="h-5 w-5 flex-shrink-0 text-primary" />
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-foreground">Cash on Delivery</p>
+                    <p className="text-xs text-muted-foreground">Pay in cash when it arrives</p>
+                  </div>
+                  {paymentMethod === 'COD' && (
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-primary" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('BANK_TRANSFER')}
+                  className={paymentOptionClass(paymentMethod === 'BANK_TRANSFER')}
+                >
+                  <Landmark className="h-5 w-5 flex-shrink-0 text-primary" />
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-foreground">Bank Transfer</p>
+                    <p className="text-xs text-muted-foreground">Transfer &amp; submit receipt</p>
+                  </div>
+                  {paymentMethod === 'BANK_TRANSFER' && (
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-primary" />
+                  )}
+                </button>
+              </div>
+
+              {paymentMethod === 'COD' && (
+                <div className="mt-4 flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                  <p className="text-sm text-muted-foreground">Pay when your order arrives.</p>
+                </div>
+              )}
+
+              {paymentMethod === 'BANK_TRANSFER' && (
+                <div className="mt-4 space-y-4 rounded-lg border border-border bg-surface px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                    <p className="text-sm text-muted-foreground">
+                      Complete your payment using bank transfer. After transferring the amount,
+                      you will be able to submit your payment receipt in the next step.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 border-t border-border pt-4 text-sm sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Bank Name</p>
+                      <p className="font-medium text-foreground">Sampath Bank</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Account Name</p>
+                      <p className="font-medium text-foreground">ComicCulture (Pvt) Ltd</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Account Number</p>
+                      <p className="font-medium text-foreground">0001 2345 6789</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border pt-4">
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Payment Receipt <span className="text-primary">*</span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-background px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/40">
+                      <Upload className="h-4 w-4 flex-shrink-0" />
+                      {receiptFileName ?? 'Choose receipt image (JPG, PNG — max 5MB)'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleReceiptChange}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {receiptUploading && (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Uploading receipt...
+                      </p>
+                    )}
+                    {receiptError && (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-primary">
+                        <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                        {receiptError}
+                      </p>
+                    )}
+                    {receiptPath && !receiptUploading && (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-green-400">
+                        <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                        Receipt uploaded — ready to submit
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Promo code */}
@@ -382,8 +547,8 @@ export default function Checkout() {
                 <span>Rs. {totalPrice}</span>
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
-                <span>Delivery fee</span>
-                <span>Rs. {deliveryFee}</span>
+                <span>Delivery</span>
+                <span className="font-medium text-primary">FREE</span>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2 font-display text-lg text-foreground">
                 <span>Total</span>
@@ -397,7 +562,11 @@ export default function Checkout() {
               </p>
             )}
 
-            <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
+            <button
+              type="submit"
+              disabled={isSubmitting || receiptBlocksSubmit}
+              className="btn-primary w-full"
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -407,9 +576,16 @@ export default function Checkout() {
                 'Place Order'
               )}
             </button>
-            <p className="text-center text-xs text-muted-foreground">
-              No payment is collected now — we'll contact you to confirm delivery.
-            </p>
+            {receiptRequired && !receiptPath && !isSubmitting && (
+              <p className="text-center text-xs text-muted-foreground">
+                Upload your payment receipt above to place this order.
+              </p>
+            )}
+            {!receiptRequired && (
+              <p className="text-center text-xs text-muted-foreground">
+                No payment is collected now — we'll contact you to confirm delivery.
+              </p>
+            )}
             <p className="text-center text-xs text-muted-foreground">
               By placing your order, you agree to our{' '}
               <Link to="/return-policy" className="text-primary transition-colors hover:underline">
@@ -422,6 +598,14 @@ export default function Checkout() {
       </div>
     </section>
   );
+}
+
+function paymentOptionClass(active: boolean) {
+  return `flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors ${
+    active
+      ? 'border-primary bg-primary/20'
+      : 'border-border bg-surface hover:border-primary/40'
+  }`;
 }
 
 function inputClass(hasError: boolean) {
