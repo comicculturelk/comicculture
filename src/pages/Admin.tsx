@@ -11,9 +11,12 @@ import {
   SlidersHorizontal,
   CheckCircle2,
   ArrowRight,
+  XCircle,
+  ImageOff,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getSignedUrl } from '../lib/storage';
 import { fetchProducts, getStockForSize, type Product } from '../data/products';
 import {
   fetchInventoryMovements,
@@ -76,6 +79,40 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const PAYMENT_STATUS_STYLES: Record<string, string> = {
+  pending: 'border-yellow-500/40 bg-yellow-500/20 text-yellow-400',
+  awaiting_payment: 'border-orange-500/40 bg-orange-500/20 text-orange-400',
+  awaiting_verification: 'border-blue-500/40 bg-blue-500/20 text-blue-400',
+  paid: 'border-green-500/40 bg-green-500/20 text-green-400',
+  failed: 'border-red-500/40 bg-red-500/20 text-red-400',
+};
+
+function formatPaymentStatus(status: string): string {
+  return status
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function formatPaymentMethod(method: string): string {
+  return method === 'BANK_TRANSFER' ? 'Bank Transfer' : method === 'COD' ? 'Cash on Delivery' : method;
+}
+
+// Payment status is normally changed only via handleVerifyPayment below
+// (Confirm/Reject Payment on a Bank Transfer order awaiting verification),
+// never edited freely like order status.
+function PaymentStatusBadge({ status }: { status: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+        PAYMENT_STATUS_STYLES[status] ?? 'border-border bg-surface text-muted-foreground'
+      }`}
+    >
+      {formatPaymentStatus(status)}
+    </span>
+  );
+}
+
 interface OrderItemRow {
   id: string;
   name: string;
@@ -96,6 +133,9 @@ interface OrderRow {
   postal_code: string | null;
   total: number;
   status: string;
+  payment_method: string | null;
+  payment_status: string;
+  receipt_url: string | null;
   created_at: string;
   order_items: OrderItemRow[];
 }
@@ -180,14 +220,51 @@ function AdminOrders() {
     'orders'
   );
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
+  const [receiptLoadFailed, setReceiptLoadFailed] = useState<Set<string>>(new Set());
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
-  const toggleExpand = (id: string) => {
+  const loadReceiptUrl = async (order: OrderRow) => {
+    if (!order.receipt_url || receiptUrls[order.id]) return;
+    try {
+      const url = await getSignedUrl('payment-receipts', order.receipt_url);
+      setReceiptUrls((prev) => ({ ...prev, [order.id]: url }));
+    } catch {
+      // Signed URL generation failed (e.g. file missing) — show a fallback
+      // in the UI rather than a broken image.
+      setReceiptLoadFailed((prev) => new Set(prev).add(order.id));
+    }
+  };
+
+  const toggleExpand = (order: OrderRow) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(order.id)) next.delete(order.id);
+      else next.add(order.id);
       return next;
     });
+    if (order.payment_method === 'BANK_TRANSFER') void loadReceiptUrl(order);
+  };
+
+  const handleVerifyPayment = async (orderId: string, outcome: 'paid' | 'failed') => {
+    setVerifyingId(orderId);
+    // Confirming payment also advances the order workflow to "confirmed" —
+    // status stays independent of payment_status everywhere else in the
+    // app, but this one action deliberately moves both together, since a
+    // verified Bank Transfer order is, by definition, ready to be packed.
+    // Rejecting only flips payment_status; the order workflow is untouched
+    // so an admin can decide how to handle it (contact customer, cancel, etc).
+    const updates =
+      outcome === 'paid'
+        ? { payment_status: 'paid', status: 'confirmed' }
+        : { payment_status: 'failed' };
+
+    const { error: updateError } = await supabase.from('orders').update(updates).eq('id', orderId);
+
+    if (!updateError) {
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)));
+    }
+    setVerifyingId(null);
   };
 
   const loadOrders = async () => {
@@ -294,22 +371,35 @@ function AdminOrders() {
                         </p>
                         <p className="text-xs text-muted">{formatDate(order.created_at)}</p>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex flex-wrap items-start gap-6">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-xs uppercase tracking-wide text-muted">Payment</span>
+                          <div className="flex items-center gap-2">
+                            <PaymentStatusBadge status={order.payment_status} />
+                            {order.payment_method && (
+                              <span className="text-xs text-muted-foreground">
+                                {formatPaymentMethod(order.payment_method)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
                           <span className="text-xs uppercase tracking-wide text-muted">Status</span>
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={order.status} />
-                          <select
-                            value={order.status}
-                            disabled={updatingId === order.id}
-                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
-                          >
-                            {STATUSES.map((s) => (
-                              <option key={s} value={s} className="bg-background">
-                                {s}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={order.status} />
+                            <select
+                              value={order.status}
+                              disabled={updatingId === order.id}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+                            >
+                              {STATUSES.map((s) => (
+                                <option key={s} value={s} className="bg-background">
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -324,7 +414,7 @@ function AdminOrders() {
 
                     <button
                       type="button"
-                      onClick={() => toggleExpand(order.id)}
+                      onClick={() => toggleExpand(order)}
                       className="mt-4 text-xs font-medium text-muted transition-colors hover:text-foreground"
                     >
                       {isExpanded ? 'Hide Details' : 'View Details'}
@@ -377,6 +467,61 @@ function AdminOrders() {
                             ))}
                           </ul>
                         </div>
+
+                        {order.payment_method === 'BANK_TRANSFER' && (
+                          <div className="mt-4 border-t border-border pt-4">
+                            <p className="mb-2 text-xs uppercase tracking-wide text-muted">
+                              Payment Receipt
+                            </p>
+
+                            {receiptUrls[order.id] ? (
+                              <a
+                                href={receiptUrls[order.id]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block"
+                              >
+                                <img
+                                  src={receiptUrls[order.id]}
+                                  alt="Payment receipt"
+                                  className="h-40 w-auto rounded-lg border border-border object-cover transition-opacity hover:opacity-80"
+                                />
+                              </a>
+                            ) : receiptLoadFailed.has(order.id) ? (
+                              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <ImageOff className="h-4 w-4 flex-shrink-0" />
+                                Couldn't load receipt preview
+                              </p>
+                            ) : order.receipt_url ? (
+                              <p className="text-sm text-muted-foreground">Loading receipt...</p>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No receipt uploaded</p>
+                            )}
+
+                            {order.payment_status === 'awaiting_verification' && (
+                              <div className="mt-3 flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={verifyingId === order.id}
+                                  onClick={() => handleVerifyPayment(order.id, 'paid')}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/20 px-3 py-1.5 text-xs font-medium text-green-400 transition-colors hover:bg-green-500/30 disabled:opacity-50"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  Confirm Payment
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={verifyingId === order.id}
+                                  onClick={() => handleVerifyPayment(order.id, 'failed')}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/30 disabled:opacity-50"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  Reject Payment
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
