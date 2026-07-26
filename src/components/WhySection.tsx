@@ -4,20 +4,20 @@ import { Star, Sparkles, Clock } from 'lucide-react';
 const features = [
   {
     icon: Star,
-    title: 'Premium Jersey Material',
-    description: 'High-quality breathable fabric designed for comfort and durability. Perfect for sports or streetwear.',
+    title: 'Premium Quality Fabrics',
+    description: 'Carefully selected materials designed for comfort, durability, and a premium feel. Crafted for everyday wear, whether you\'re styling it casually or making a statement.',
     color: 'from-primary to-primary-hover',
   },
   {
     icon: Sparkles,
-    title: 'Unique Spider-Verse Designs',
-    description: 'Each jersey is inspired by iconic Spider-Man variants across the multiverse. Stand out from the crowd.',
+    title: 'Unique fan-inspired Designs',
+    description: 'Inspired by iconic characters, stories, and universes across comics and pop culture. Each piece is designed for fans who want to showcase what they love in their own style.',
     color: 'from-secondary to-secondary-glow',
   },
   {
     icon: Clock,
-    title: 'Limited Drops',
-    description: 'Every collection is released in limited quantities. Once they\'re gone, they\'re gone forever.',
+    title: 'Growing Collections',
+    description: 'Explore a constantly evolving range of designs inspired by comics, characters, and pop culture. Discover new styles made for every kind of fan.',
     color: 'from-purple-500 to-pink-500',
   },
 ];

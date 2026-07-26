@@ -437,15 +437,15 @@ export default function Checkout() {
                   <div className="grid grid-cols-1 gap-3 border-t border-border pt-4 text-sm sm:grid-cols-3">
                     <div>
                       <p className="text-xs text-muted-foreground">Bank Name</p>
-                      <p className="font-medium text-foreground">Sampath Bank</p>
+                      <p className="font-medium text-foreground">Commercial bank - Dehiwala</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Account Name</p>
-                      <p className="font-medium text-foreground">ComicCulture (Pvt) Ltd</p>
+                      <p className="font-medium text-foreground">R A NEWZAN</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Account Number</p>
-                      <p className="font-medium text-foreground">0001 2345 6789</p>
+                      <p className="font-medium text-foreground">8015022901</p>
                     </div>
                   </div>
 
