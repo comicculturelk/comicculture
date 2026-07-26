@@ -95,14 +95,14 @@ export default function Contact() {
                 <MapPin className="h-6 w-6 text-primary" />
               </div>
               <div>
-                  <p className="text-sm text-muted uppercase tracking-wider">Based in</p>
+                  <p className="text-sm text-muted uppercase tracking-wider">Based in Colombo</p>
                   <p className="mt-1 font-display text-xl text-foreground tracking-wide">
                 </p>
               </div>
             </div>
 
             <div className="text-center md:text-right">
-              <p className="text-sm text-muted mb-3">Ships worldwide from</p>
+              <p className="text-sm text-muted mb-3">Ships islandwide from</p>
               <p className="font-display text-lg text-foreground">Colombo, Sri Lanka</p>
             </div>
           </div>
