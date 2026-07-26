@@ -18,6 +18,7 @@ import {
 import { useCart } from '../hooks/useCart';
 import { createOrder } from '../data/orders';
 import { uploadFile } from '../lib/storage';
+import { STORE_CONFIG } from '../config/store';
 
 const RECEIPT_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -73,8 +74,7 @@ export default function Checkout() {
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
 
-  // Delivery is already included in the product price — no separate fee.
-  const deliveryFee = 0;
+  const deliveryFee = STORE_CONFIG.deliveryFee;
   const total = totalPrice + deliveryFee;
 
   const handleChange = (field: keyof CheckoutForm, value: string) => {
@@ -375,7 +375,7 @@ export default function Checkout() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-primary">FREE</span>
+                  <span className="text-sm font-medium text-primary">Rs. {deliveryFee}</span>
                   <CheckCircle2 className="h-4 w-4 text-primary" />
                 </div>
               </div>
@@ -548,7 +548,7 @@ export default function Checkout() {
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>Delivery</span>
-                <span className="font-medium text-primary">FREE</span>
+                <span>Rs. {deliveryFee}</span>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2 font-display text-lg text-foreground">
                 <span>Total</span>
