@@ -3,28 +3,28 @@ import { BadgeCheck, Instagram } from 'lucide-react';
 
 const letters = [
   {
-    name: 'Kasun Perera',
-    location: 'Colombo, Sri Lanka',
-    text: 'The Classic Red jersey is absolutely stunning. The quality exceeded my expectations. Premium fabric and perfect fit!',
+    name: 'Vidhoosh Thangaraj',
+    location: 'Kandy, Sri Lanka',
+    text: 'The tshirt looks way more awesome rather than seeing it on the picture. And fits perfectly. Both the tshirt and your packaging is just 🔥. Will order more in the future. Do let me know when your Avengers drop launches',
     product: 'The Classic Red',
   },
   {
-    name: 'Sarah Williams',
-    location: 'London, UK',
-    text: 'Love the attention to detail on my Symbiotic Suit. The matte black finish is gorgeous. Ordering via WhatsApp was seamless!',
+    name: 'Shankesh',
+    location: 'Colombo, Sri Lanka',
+    text: 'Yoooo, Just got the package. Love It, Love The Design, Love the packaging, Love the cards included in it as well... Would definitely come back for the other design soon.. Amazing Delivery as well. Thank You',
+    product: 'The Upgraded Black',
+  },
+  {
+    name: 'Thesanya',
+    location: 'Makola, Sri Lanka',
+    text: "Hello I got the shirt!! Rlly happy with the shirt and it looks fire. Definitely coming back for more Thank you so much",
+    product: 'The Upgraded Black',
+  },
+  {
+    name: 'Winston Reginold',
+    location: 'Colombo, Sri Lanka',
+    text: 'Received the package and the design is  so cool ill recommend this page to my friends definitely ✨️🤌and the package box looks so cool ✨️🤌🤍',
     product: 'The Symbiotic Suit',
-  },
-  {
-    name: 'David Chen',
-    location: 'Singapore',
-    text: "Finally a brand that understands the culture! The Volt Spider design turns heads everywhere I go. Will buy again.",
-    product: 'The Volt Spider',
-  },
-  {
-    name: 'Amala Fernando',
-    location: 'Kandy, Sri Lanka',
-    text: 'The Gwen design is beautiful! Love how unique it is. Fast shipping and great customer service on Instagram.',
-    product: 'The Classic Gwen',
   },
 ];
 
