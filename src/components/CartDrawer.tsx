@@ -1,13 +1,21 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { X, Minus, Plus, Trash2, MessageCircle } from 'lucide-react';
+import { X, Minus, Plus, Trash2, MessageCircle, Info } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
+import { useProducts } from '../hooks/useProducts';
+import { getPreorderMessage } from '../data/products';
 
 const WHATSAPP_NUMBER = '94787756338';
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalItems, totalPrice } =
     useCart();
+  const { products } = useProducts();
+
+  const hasPreorderItems = items.some((item) => {
+    const product = products.find((p) => p.id === item.productId);
+    return product ? !!getPreorderMessage(product) : false;
+  });
 
   const lines = items.map(
     (item) => `- ${item.name} (Size: ${item.size}) x${item.quantity} — Rs. ${item.price * item.quantity}`
@@ -62,7 +70,17 @@ export default function CartDrawer() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {items.map((item) => (
+                  {hasPreorderItems && (
+                    <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-xs text-primary">
+                      <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                      Your cart includes a pre-order item. It will be fulfilled on a
+                      different timeline than in-stock items.
+                    </div>
+                  )}
+                  {items.map((item) => {
+                    const product = products.find((p) => p.id === item.productId);
+                    const preorderMessage = product ? getPreorderMessage(product) : null;
+                    return (
                     <div
                       key={`${item.productId}-${item.size}`}
                       className="glass flex gap-4 rounded-xl p-4"
@@ -93,6 +111,16 @@ export default function CartDrawer() {
                           </button>
                         </div>
                         <p className="text-xs text-muted">Size: {item.size}</p>
+                        {preorderMessage && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                              Pre-Order
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {preorderMessage}
+                            </span>
+                          </div>
+                        )}
                         <p className="mt-1 font-display text-primary">Rs. {item.price}</p>
 
                         <div className="mt-auto flex items-center gap-3 pt-2">
@@ -118,7 +146,8 @@ export default function CartDrawer() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

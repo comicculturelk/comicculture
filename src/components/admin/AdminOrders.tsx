@@ -62,6 +62,17 @@ interface OrderItemRow {
   size: string;
   quantity: number;
   price: number;
+  is_preorder: boolean;
+  preorder_days: number | null;
+}
+
+// Item-level pre-order snapshot is the source of truth for historical
+// display — never re-derived from the live products table, since a
+// product's pre-order status can change after the order was placed.
+function preorderMessage(item: Pick<OrderItemRow, 'is_preorder' | 'preorder_days'>): string | null {
+  if (!item.is_preorder) return null;
+  const days = item.preorder_days;
+  return days && days > 0 ? `Delivery within ${days} day${days === 1 ? '' : 's'}` : null;
 }
 
 interface OrderRow {
@@ -206,9 +217,16 @@ export default function AdminOrders() {
             <div key={order.id} className="glass rounded-2xl p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="font-display text-lg text-foreground tracking-wide">
-                    {order.order_reference}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-display text-lg text-foreground tracking-wide">
+                      {order.order_reference}
+                    </p>
+                    {order.order_items.some((item) => item.is_preorder) && (
+                      <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        Pre-Order
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted">{formatDate(order.created_at)}</p>
                 </div>
                 <div className="flex flex-wrap items-start gap-6">
@@ -295,14 +313,21 @@ export default function AdminOrders() {
                     <p className="mb-2 text-xs uppercase tracking-wide text-muted">Items</p>
                     <ul className="space-y-1 text-sm text-muted-foreground">
                       {order.order_items.map((item) => (
-                        <li key={item.id} className="flex justify-between">
-                          <span>
-                            {item.name}{' '}
-                            <span className="text-muted">
-                              · Size {item.size} · Qty {item.quantity}
+                        <li key={item.id} className="flex flex-col gap-0.5">
+                          <div className="flex justify-between">
+                            <span>
+                              {item.name}{' '}
+                              <span className="text-muted">
+                                · Size {item.size} · Qty {item.quantity}
+                              </span>
                             </span>
-                          </span>
-                          <span className="text-muted">Rs. {item.price}</span>
+                            <span className="text-muted">Rs. {item.price}</span>
+                          </div>
+                          {item.is_preorder && (
+                            <span className="inline-flex w-fit items-center gap-1 rounded-full border border-primary/40 bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                              Pre-Order{preorderMessage(item) ? ` — ${preorderMessage(item)}` : ''}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
