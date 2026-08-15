@@ -30,6 +30,8 @@ interface OrderItemRow {
   size: string;
   quantity: number;
   price: number;
+  is_preorder: boolean;
+  preorder_days: number | null;
 }
 
 interface OrderRow {
@@ -77,6 +79,35 @@ function formatDate(iso: string): string {
 
 function formatMoney(amount: number): string {
   return `Rs. ${Number(amount).toLocaleString('en-LK')}`;
+}
+
+// Item-level pre-order snapshot is the source of truth for this email —
+// never re-derived from the current products table, since a product's
+// pre-order status can change after the order was placed. Guards against
+// null/0/undefined so we never render "Delivery within null days".
+function preorderMessage(item: Pick<OrderItemRow, 'is_preorder' | 'preorder_days'>): string | null {
+  if (!item.is_preorder) return null;
+  const days = item.preorder_days;
+  return days && days > 0 ? `Delivery within ${days} day${days === 1 ? '' : 's'}` : 'Pre-Order';
+}
+
+/**
+ * Order-level pre-order notice copy. Only meaningful when at least one
+ * item is a pre-order (checked by the caller). If every pre-order item
+ * shares the same timeframe, states it directly; otherwise (mixed
+ * timeframes, or a null timeframe on any item) falls back to generic
+ * wording rather than guessing or hardcoding one item's value.
+ */
+function preorderNoticeText(items: OrderItemRow[]): string {
+  const preorderDays = items.filter((i) => i.is_preorder).map((i) => i.preorder_days);
+  const uniqueDays = new Set(preorderDays);
+  if (uniqueDays.size === 1) {
+    const days = preorderDays[0];
+    if (days && days > 0) {
+      return `Your order contains a pre-order item. This item will be delivered within ${days} day${days === 1 ? '' : 's'}.`;
+    }
+  }
+  return 'Your order contains pre-order items. Delivery times are shown for each item above.';
 }
 
 interface ResendSendParams {
@@ -264,21 +295,47 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
   const trackOrderUrl = `${siteUrl}/track-order`;
 
   const itemsRows = order.order_items
-    .map(
-      (item) => `
+    .map((item) => {
+      const preorderNote = preorderMessage(item);
+      const preorderBadge = preorderNote
+        ? `<div style="margin-top:6px;">
+             <span style="display:inline-block;background-color:${primary};color:#FFFFFF;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:3px 8px;border-radius:999px;">
+               Pre-Order
+             </span>
+             <span style="margin-left:6px;color:${muted};font-size:12px;">${escapeHtml(preorderNote)}</span>
+           </div>`
+        : '';
+      return `
         <tr>
           <td style="padding:12px 0;border-bottom:1px solid ${border};color:${foreground};font-size:14px;font-weight:600;">
             ${escapeHtml(item.name)}
             <div style="margin-top:2px;color:${muted};font-size:12px;font-weight:400;text-transform:uppercase;letter-spacing:0.5px;">
               Size ${escapeHtml(item.size)} &middot; Qty ${item.quantity}
             </div>
+            ${preorderBadge}
           </td>
           <td style="padding:12px 0;border-bottom:1px solid ${border};color:${foreground};font-size:14px;text-align:right;white-space:nowrap;vertical-align:top;">
             ${formatMoney(item.price * item.quantity)}
           </td>
-        </tr>`
-    )
+        </tr>`;
+    })
     .join('');
+
+  const hasPreorderItem = order.order_items.some((item) => item.is_preorder);
+  const preorderNoticeBlock = hasPreorderItem
+    ? `<tr>
+         <td style="padding:20px 32px 0;">
+           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FBEEEF;border:1px solid ${primary};border-radius:12px;">
+             <tr>
+               <td style="padding:14px 18px;">
+                 <p style="margin:0 0 4px;color:${primary};font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Pre-Order Notice</p>
+                 <p style="margin:0;color:${foreground};font-size:13px;line-height:1.6;">${escapeHtml(preorderNoticeText(order.order_items))}</p>
+               </td>
+             </tr>
+           </table>
+         </td>
+       </tr>`
+    : '';
 
   const addressLine2 = order.address_line2 ? `${escapeHtml(order.address_line2)}<br/>` : '';
   const postalCode = order.postal_code ? ` ${escapeHtml(order.postal_code)}` : '';
@@ -332,6 +389,8 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
                 </table>
               </td>
             </tr>
+
+            ${preorderNoticeBlock}
 
             <tr>
               <td style="padding:16px 32px 0;">
