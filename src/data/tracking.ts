@@ -5,6 +5,8 @@ export interface TrackedOrderItem {
   size: string;
   quantity: number;
   price: number;
+  is_preorder: boolean;
+  preorder_days: number | null;
 }
 
 export interface TrackedOrder {

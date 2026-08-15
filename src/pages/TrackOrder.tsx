@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, PackageSearch, CheckCircle2, Package, Truck, Home as HomeIcon, XCircle } from 'lucide-react';
 import { trackOrder } from '../data/tracking';
-import type { TrackedOrder } from '../data/tracking';
+import type { TrackedOrder, TrackedOrderItem } from '../data/tracking';
 
 type ContactMethod = 'email' | 'phone';
 
@@ -21,6 +21,32 @@ function formatDate(iso: string) {
     month: 'long',
     day: 'numeric',
   });
+}
+
+// Item-level pre-order snapshot is the source of truth here — never
+// re-derived from the current products table, since a product's pre-order
+// setting can change after the order was placed. Guards against null/0
+// so we never render "Delivery within null days".
+function preorderMessage(item: Pick<TrackedOrderItem, 'is_preorder' | 'preorder_days'>): string | null {
+  if (!item.is_preorder) return null;
+  const days = item.preorder_days;
+  return days && days > 0 ? `Delivery within ${days} day${days === 1 ? '' : 's'}` : 'Pre-Order';
+}
+
+/**
+ * Order-level pre-order summary. Only meaningful when at least one item is
+ * a pre-order (checked by the caller). States a shared timeframe when every
+ * pre-order item has the same valid preorder_days; otherwise falls back to
+ * generic wording rather than combining differing timeframes.
+ */
+function preorderSummary(items: TrackedOrderItem[]): string {
+  const days = items.filter((i) => i.is_preorder).map((i) => i.preorder_days);
+  const uniqueDays = new Set(days);
+  if (uniqueDays.size === 1) {
+    const d = days[0];
+    if (d && d > 0) return `Delivery within ${d} day${d === 1 ? '' : 's'}`;
+  }
+  return 'Delivery times are shown per item below.';
 }
 
 export default function TrackOrder() {
@@ -62,6 +88,7 @@ export default function TrackOrder() {
 
   const currentStepIndex = result ? STEPS.findIndex((s) => s.key === result.status) : -1;
   const isCancelled = result?.status === 'cancelled';
+  const hasPreorderItem = result ? result.items.some((item) => item.is_preorder) : false;
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-background px-6 py-24">
@@ -158,15 +185,31 @@ export default function TrackOrder() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted">Order Reference</p>
-                  <p className="font-display text-lg text-foreground tracking-wide">
-                    {result.order_reference}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-display text-lg text-foreground tracking-wide">
+                      {result.order_reference}
+                    </p>
+                    {hasPreorderItem && (
+                      <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        Pre-Order
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-wide text-muted">Placed On</p>
                   <p className="text-sm text-foreground">{formatDate(result.created_at)}</p>
                 </div>
               </div>
+
+              {hasPreorderItem && (
+                <div className="mt-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">Pre-Order Notice</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Your order contains a pre-order item. {preorderSummary(result.items)}
+                  </p>
+                </div>
+              )}
 
               {isCancelled ? (
                 <div className="mt-6 flex items-center gap-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
@@ -219,6 +262,11 @@ export default function TrackOrder() {
                       <p className="text-xs text-muted-foreground">
                         Size {item.size} · Qty {item.quantity}
                       </p>
+                      {preorderMessage(item) && (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          Pre-Order — {preorderMessage(item)}
+                        </span>
+                      )}
                     </div>
                     <p className="text-foreground">Rs. {item.price * item.quantity}</p>
                   </div>
