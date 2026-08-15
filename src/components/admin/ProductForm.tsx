@@ -52,6 +52,10 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         ? [product.image]
         : []
   );
+  const [isPreorder, setIsPreorder] = useState(product?.isPreorder ?? false);
+  const [preorderDays, setPreorderDays] = useState(
+    product?.preorderDays != null ? String(product.preorderDays) : '14'
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +99,10 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     if (!priceValue || priceValue <= 0) return setError('Enter a valid price.');
     if (sizes.length === 0) return setError('Add at least one size.');
     if (images.length === 0) return setError('Upload at least one product image.');
+    const preorderDaysValue = Number(preorderDays);
+    if (isPreorder && (!preorderDaysValue || preorderDaysValue <= 0)) {
+      return setError('Enter a valid pre-order delivery period (a positive number of days).');
+    }
 
     setSubmitting(true);
     try {
@@ -133,6 +141,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
           .map((line) => line.trim())
           .filter(Boolean),
         stock,
+        isPreorder,
+        preorderDays: isPreorder ? preorderDaysValue : null,
       };
 
       const saved =
@@ -284,6 +294,40 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
           />
           <span className="text-sm text-foreground">Featured product</span>
         </label>
+      </div>
+
+      {/* Pre-Order */}
+      <div className="space-y-3 border-t border-border pt-6">
+        <span className={fieldLabelClass()}>Pre-Order</span>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isPreorder}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setIsPreorder(checked);
+              if (checked && (!preorderDays || Number(preorderDays) <= 0)) {
+                setPreorderDays('14');
+              }
+            }}
+            className="h-4 w-4 rounded border-border accent-primary"
+          />
+          <span className="text-sm text-foreground">This product is available for pre-order</span>
+        </label>
+
+        {isPreorder && (
+          <label className="flex flex-col gap-1.5 sm:w-48">
+            <span className={fieldLabelClass()}>Pre-order delivery period (days)</span>
+            <input
+              type="number"
+              min="1"
+              value={preorderDays}
+              onChange={(e) => setPreorderDays(e.target.value)}
+              className={inputClass()}
+              placeholder="14"
+            />
+          </label>
+        )}
       </div>
 
       {/* Sizes + stock */}

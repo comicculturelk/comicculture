@@ -16,7 +16,9 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
+import { useProducts } from '../hooks/useProducts';
 import { createOrder } from '../data/orders';
+import { getPreorderMessage } from '../data/products';
 import { uploadFile } from '../lib/storage';
 import { STORE_CONFIG } from '../config/store';
 
@@ -62,6 +64,7 @@ const PHONE_REGEX = /^[0-9+\-\s]{9,15}$/;
 export default function Checkout() {
   const navigate = useNavigate();
   const { items, totalItems, totalPrice, clearCart } = useCart();
+  const { products } = useProducts();
   const [form, setForm] = useState<CheckoutForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [promoCode, setPromoCode] = useState('');
@@ -73,9 +76,25 @@ export default function Checkout() {
   const [receiptPath, setReceiptPath] = useState<string | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [preorderAck, setPreorderAck] = useState(false);
 
   const deliveryFee = STORE_CONFIG.deliveryFee;
   const total = totalPrice + deliveryFee;
+
+  // Cross-reference cart items against loaded products to find which ones
+  // are pre-orders, and their delivery timeframe. Cart items themselves
+  // don't carry pre-order data — this keeps CartContext/cart storage
+  // untouched.
+  const preorderLines = items.reduce<{ item: (typeof items)[number]; message: string }[]>(
+    (acc, item) => {
+      const product = products.find((p) => p.id === item.productId);
+      const message = product ? getPreorderMessage(product) : null;
+      if (message) acc.push({ item, message });
+      return acc;
+    },
+    []
+  );
+  const hasPreorderItems = preorderLines.length > 0;
 
   const handleChange = (field: keyof CheckoutForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -145,6 +164,7 @@ export default function Checkout() {
   // can be placed at all — there's no "place now, upload later" path.
   const receiptRequired = paymentMethod === 'BANK_TRANSFER';
   const receiptBlocksSubmit = receiptRequired && (receiptUploading || !receiptPath);
+  const preorderBlocksSubmit = hasPreorderItems && !preorderAck;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -152,6 +172,7 @@ export default function Checkout() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     if (receiptBlocksSubmit) return;
+    if (preorderBlocksSubmit) return;
 
     setSubmitError(null);
     setIsSubmitting(true);
@@ -381,6 +402,46 @@ export default function Checkout() {
               </div>
             </div>
 
+            {/* Pre-order notice */}
+            {hasPreorderItems && (
+              <div>
+                <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">
+                  PRE-ORDER NOTICE
+                </h2>
+                <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                    <p className="text-sm text-foreground">
+                      {preorderLines.length === 1
+                        ? 'Your order includes a pre-order item.'
+                        : `Your order includes ${preorderLines.length} pre-order items.`}{' '}
+                      These are fulfilled on a different timeline than in-stock items:
+                    </p>
+                  </div>
+                  <ul className="ml-7 space-y-1 text-sm text-muted-foreground">
+                    {preorderLines.map(({ item, message }) => (
+                      <li key={`${item.productId}-${item.size}`}>
+                        <span className="font-medium text-foreground">{item.name}</span>{' '}
+                        ({item.size}) — {message}
+                      </li>
+                    ))}
+                  </ul>
+                  <label className="flex items-start gap-2 border-t border-primary/20 pt-3">
+                    <input
+                      type="checkbox"
+                      checked={preorderAck}
+                      onChange={(e) => setPreorderAck(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-border accent-primary"
+                    />
+                    <span className="text-sm text-foreground">
+                      I understand that my pre-order item will be delivered within the stated
+                      timeframe.
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* Payment method */}
             <div>
               <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">
@@ -523,7 +584,10 @@ export default function Checkout() {
             <h2 className="font-display text-xl text-foreground tracking-wide">ORDER SUMMARY</h2>
 
             <div className="space-y-4">
-              {items.map((item) => (
+              {items.map((item) => {
+                const product = products.find((p) => p.id === item.productId);
+                const preorderMessage = product ? getPreorderMessage(product) : null;
+                return (
                 <div key={`${item.productId}-${item.size}`} className="flex gap-3">
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-background">
                     <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
@@ -533,12 +597,18 @@ export default function Checkout() {
                     <p className="text-xs text-muted-foreground">
                       Size: {item.size} · Qty: {item.quantity}
                     </p>
+                    {preorderMessage && (
+                      <p className="mt-0.5 text-[11px] font-medium text-primary">
+                        Pre-Order · {preorderMessage}
+                      </p>
+                    )}
                   </div>
                   <p className="self-center text-sm font-medium text-muted">
                     Rs. {item.price * item.quantity}
                   </p>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="space-y-2 border-t border-border pt-4 text-sm">
@@ -564,7 +634,7 @@ export default function Checkout() {
 
             <button
               type="submit"
-              disabled={isSubmitting || receiptBlocksSubmit}
+              disabled={isSubmitting || receiptBlocksSubmit || preorderBlocksSubmit}
               className="btn-primary w-full"
             >
               {isSubmitting ? (
@@ -579,6 +649,11 @@ export default function Checkout() {
             {receiptRequired && !receiptPath && !isSubmitting && (
               <p className="text-center text-xs text-muted-foreground">
                 Upload your payment receipt above to place this order.
+              </p>
+            )}
+            {preorderBlocksSubmit && !isSubmitting && (
+              <p className="text-center text-xs text-muted-foreground">
+                Please confirm the pre-order acknowledgement above to place this order.
               </p>
             )}
             {!receiptRequired && (

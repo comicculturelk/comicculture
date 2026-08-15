@@ -19,7 +19,7 @@ import { useEffect, useState } from 'react';
 import { useProduct } from '../hooks/useProduct';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
-import { generateWhatsAppMessage, formatPrice, getStockForSize, isSizeInStock } from '../data/products';
+import { generateWhatsAppMessage, formatPrice, getStockForSize, isSizeInStock, getPreorderMessage } from '../data/products';
 import type { Product as ProductType } from '../data/products';
 
 const SIZE_GUIDE = [
@@ -95,6 +95,7 @@ export default function Product() {
 
   const availableStock = getStockForSize(product, selectedSize);
   const maxQuantity = Math.max(1, Math.min(10, availableStock));
+  const preorderMessage = getPreorderMessage(product);
 
   const handleAddToCart = () => {
     addItem(
@@ -168,6 +169,12 @@ export default function Product() {
               {product.featured && (
                 <span className="absolute left-4 top-4 border border-border bg-background/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">
                   Featured
+                </span>
+              )}
+
+              {product.isPreorder && (
+                <span className="absolute right-4 top-4 border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">
+                  Pre-Order
                 </span>
               )}
             </div>
@@ -314,6 +321,14 @@ export default function Product() {
               )}
             </div>
 
+            {/* Pre-order notice */}
+            {preorderMessage && (
+              <div className="mt-6 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-medium text-primary">
+                <Truck className="h-4 w-4 flex-shrink-0" />
+                Pre-Order — {preorderMessage}
+              </div>
+            )}
+
             {/* CTA buttons */}
             <div className="mt-8">
               <motion.button
@@ -325,7 +340,11 @@ export default function Product() {
                 whileTap={{ scale: 0.98 }}
               >
                 <ShoppingBag className="h-5 w-5" />
-                {availableStock === 0 ? 'Sold Out' : 'Add to Cart'}
+                {availableStock === 0
+                  ? 'Sold Out'
+                  : product.isPreorder
+                    ? 'Pre-Order Now'
+                    : 'Add to Cart'}
               </motion.button>
               {stockMessage && (
                 <p className="mt-2 text-xs text-primary">{stockMessage}</p>

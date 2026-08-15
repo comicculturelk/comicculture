@@ -20,6 +20,8 @@ export interface Product {
   careInstructions?: string[];
   sku: string;
   stock?: Record<string, number>;
+  isPreorder: boolean;
+  preorderDays?: number | null;
 }
 
 // Shape of a row as it comes back from Supabase (snake_case column names)
@@ -42,6 +44,8 @@ interface ProductRow {
   care_instructions: string[] | null;
   sku: string;
   stock: Record<string, number> | null;
+  is_preorder: boolean;
+  preorder_days: number | null;
 }
 
 const DEFAULT_CARE_INSTRUCTIONS = [
@@ -76,6 +80,8 @@ function mapRowToProduct(row: ProductRow): Product {
         : DEFAULT_CARE_INSTRUCTIONS,
     sku: row.sku,
     stock: row.stock ?? {},
+    isPreorder: row.is_preorder,
+    preorderDays: row.preorder_days ?? undefined,
   };
 }
 
@@ -108,6 +114,37 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
 
 export function formatPrice(price: number): string {
   return `Rs. ${price}`;
+}
+
+/**
+ * Human-readable pre-order delivery message, e.g. "Delivery within 14 days".
+ * Returns null when the product isn't a pre-order, or has no valid
+ * timeframe set — callers should never render null/0/undefined to customers.
+ */
+export function getPreorderMessage(
+  product: Pick<Product, 'isPreorder' | 'preorderDays'>
+): string | null {
+  if (!product.isPreorder) return null;
+  const days = product.preorderDays;
+  if (!days || days <= 0) return null;
+  return `Delivery within ${days} day${days === 1 ? '' : 's'}`;
+}
+
+/**
+ * Normalizes raw pre-order fields into a consistent DB-ready pair —
+ * preorder_days is always forced to null when is_preorder is false,
+ * mirroring the products/order_items CHECK constraints. Shared by any
+ * write path (admin product form, order item snapshotting) so this rule
+ * lives in one place.
+ */
+export function derivePreorderSnapshot(
+  isPreorder: boolean,
+  preorderDays: number | null | undefined
+): { is_preorder: boolean; preorder_days: number | null } {
+  return {
+    is_preorder: isPreorder,
+    preorder_days: isPreorder ? (preorderDays ?? null) : null,
+  };
 }
 
 export function generateWhatsAppMessage(product: Product, size: string, quantity = 1): string {
@@ -200,6 +237,8 @@ export interface ProductInput {
   fit?: string;
   careInstructions?: string[];
   stock?: Record<string, number>;
+  isPreorder?: boolean;
+  preorderDays?: number | null;
 }
 
 function mapProductInputToRow(input: ProductInput) {
@@ -223,6 +262,11 @@ function mapProductInputToRow(input: ProductInput) {
     fit: input.fit ?? null,
     care_instructions: input.careInstructions ?? null,
     stock: input.stock ?? {},
+    is_preorder: input.isPreorder ?? false,
+    // Defensive: mirrors the DB check constraint (preorder_days must be
+    // null unless is_preorder is true) so a stale value can never slip
+    // through even if the caller passes one by mistake.
+    preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
   };
 }
 

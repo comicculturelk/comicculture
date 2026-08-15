@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { CartItem } from '../context/CartContext';
 import { notifyAdminOfNewOrder } from './notifications';
+import { derivePreorderSnapshot } from './products';
 
 export type PaymentMethod = 'COD' | 'BANK_TRANSFER';
 export type PaymentStatus =
@@ -45,6 +46,52 @@ export interface CreateOrderInput {
 function paymentStatusFor(method: PaymentMethod, hasReceipt: boolean): PaymentStatus {
   if (method !== 'BANK_TRANSFER') return 'pending';
   return hasReceipt ? 'awaiting_verification' : 'awaiting_payment';
+}
+
+/**
+ * Builds order_items rows, snapshotting each item's pre-order status from
+ * a fresh read of `products` (not from the cart) so historical orders
+ * don't depend on — and can't be spoofed by — client-held cart data, and
+ * remain accurate even if the product's pre-order settings change later.
+ */
+async function buildOrderItemsWithPreorderSnapshot(orderId: string, items: CartItem[]) {
+  const productIds = [...new Set(items.map((item) => item.productId))];
+
+  const preorderById = new Map<string, { is_preorder: boolean; preorder_days: number | null }>();
+  if (productIds.length > 0) {
+    const { data: preorderRows, error: preorderError } = await supabase
+      .from('products')
+      .select('id, is_preorder, preorder_days')
+      .in('id', productIds);
+
+    if (preorderError) {
+      throw new Error(preorderError.message);
+    }
+
+    for (const row of preorderRows ?? []) {
+      preorderById.set(row.id, { is_preorder: row.is_preorder, preorder_days: row.preorder_days });
+    }
+  }
+
+  return items.map((item) => {
+    const current = preorderById.get(item.productId);
+    const snapshot = derivePreorderSnapshot(
+      current?.is_preorder ?? false,
+      current?.preorder_days ?? null
+    );
+    return {
+      order_id: orderId,
+      product_id: item.productId,
+      slug: item.slug,
+      name: item.name,
+      image: item.image,
+      price: item.price,
+      size: item.size,
+      quantity: item.quantity,
+      is_preorder: snapshot.is_preorder,
+      preorder_days: snapshot.preorder_days,
+    };
+  });
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<void> {
@@ -93,16 +140,7 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
     throw new Error(orderError.message);
   }
 
-  const orderItems = input.items.map((item) => ({
-    order_id: orderId,
-    product_id: item.productId,
-    slug: item.slug,
-    name: item.name,
-    image: item.image,
-    price: item.price,
-    size: item.size,
-    quantity: item.quantity,
-  }));
+  const orderItems = await buildOrderItemsWithPreorderSnapshot(orderId, input.items);
 
   const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
