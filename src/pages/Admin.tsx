@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import AdminProducts from '../components/admin/AdminProducts';
+import AdminCollections from '../components/admin/AdminCollections';
 import AdminDashboard from '../components/admin/AdminDashboard';
 import AdminHistory from '../components/admin/AdminHistory';
 import AdminInventory from '../components/admin/AdminInventory';
@@ -115,9 +116,9 @@ function AdminLogin() {
 }
 
 function AdminPanel() {
-  const [view, setView] = useState<'dashboard' | 'orders' | 'products' | 'inventory' | 'history'>(
-    'orders'
-  );
+  const [view, setView] = useState<
+    'dashboard' | 'orders' | 'products' | 'collections' | 'inventory' | 'history'
+  >('orders');
 
   const handleSignOut = () => supabase.auth.signOut();
 
@@ -128,7 +129,9 @@ function AdminPanel() {
           <div className="flex items-center gap-4">
             <h1 className="font-display text-3xl text-foreground tracking-wide">ADMIN</h1>
             <div className="flex gap-2">
-              {(['dashboard', 'orders', 'products', 'inventory', 'history'] as const).map((v) => (
+              {(
+                ['dashboard', 'orders', 'products', 'collections', 'inventory', 'history'] as const
+              ).map((v) => (
                 <button
                   key={v}
                   type="button"
@@ -151,6 +154,7 @@ function AdminPanel() {
 
         {view === 'orders' && <AdminOrders />}
         {view === 'products' && <AdminProducts />}
+        {view === 'collections' && <AdminCollections />}
         {view === 'inventory' && <AdminInventory />}
         {view === 'dashboard' && <AdminDashboard onViewOrders={() => setView('orders')} />}
         {view === 'history' && <AdminHistory />}

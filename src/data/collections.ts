@@ -151,10 +151,18 @@ export async function updateCollection(id: string, input: CollectionInput): Prom
  * Deletes a collection row. Does not touch products referencing this
  * collection — `products.collection_id` is a nullable FK with no cascade
  * configured in the schema, so this is intentionally a plain delete.
+ * If products still reference this collection, Postgres rejects the
+ * delete with a foreign-key-violation (23503); that's translated into a
+ * clear, actionable message instead of a raw DB error.
  */
 export async function deleteCollection(id: string): Promise<void> {
   const { error } = await supabase.from('collections').delete().eq('id', id);
   if (error) {
+    if (error.code === '23503') {
+      throw new Error(
+        'This collection still has products assigned to it. Reassign or delete those products before deleting the collection.'
+      );
+    }
     throw new Error(`Failed to delete collection: ${error.message}`);
   }
 }
