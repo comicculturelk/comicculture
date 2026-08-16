@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   createProduct,
   updateProduct,
@@ -7,6 +7,7 @@ import {
   type Product,
   type ProductInput,
 } from '../../data/products';
+import { fetchCollections, type Collection } from '../../data/collections';
 import { slugify } from '../../lib/slug';
 import ImageManager from './ImageManager';
 
@@ -31,7 +32,10 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   const [slugTouched, setSlugTouched] = useState(mode === 'edit');
   const [sku, setSku] = useState(product?.sku ?? '');
   const [skuTouched, setSkuTouched] = useState(mode === 'edit');
-  const [collection, setCollection] = useState(product?.collection ?? '');
+  const [collectionId, setCollectionId] = useState(product?.collectionId ?? '');
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(true);
+  const [collectionsError, setCollectionsError] = useState<string | null>(null);
   const [tagline, setTagline] = useState(product?.tagline ?? '');
   const [description, setDescription] = useState(product?.description ?? '');
   const [lore, setLore] = useState(product?.lore ?? '');
@@ -59,6 +63,26 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCollectionsLoading(true);
+    fetchCollections()
+      .then((data) => {
+        if (!cancelled) setCollections(data);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setCollectionsError(e instanceof Error ? e.message : 'Failed to load collections');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCollectionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -94,7 +118,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     if (!name.trim()) return setError('Name is required.');
     if (!slug.trim()) return setError('Slug is required.');
     if (!sku.trim()) return setError('SKU is required.');
-    if (!collection.trim()) return setError('Collection is required.');
+    if (!collectionId) return setError('Select a collection.');
     const priceValue = Number(price);
     if (!priceValue || priceValue <= 0) return setError('Enter a valid price.');
     if (sizes.length === 0) return setError('Add at least one size.');
@@ -126,7 +150,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         name: name.trim(),
         slug: slug.trim(),
         sku: sku.trim(),
-        collection: collection.trim(),
+        collectionId,
         tagline: tagline.trim(),
         description: description.trim(),
         lore: lore.trim(),
@@ -204,12 +228,33 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
 
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Collection</span>
-          <input
-            value={collection}
-            onChange={(e) => setCollection(e.target.value)}
+          <select
+            value={collectionId}
+            onChange={(e) => setCollectionId(e.target.value)}
+            disabled={collectionsLoading || collections.length === 0}
             className={inputClass()}
-            placeholder="Web-Slinger Saga"
-          />
+          >
+            <option value="" disabled>
+              {collectionsLoading
+                ? 'Loading collections...'
+                : collections.length === 0
+                  ? 'No collections yet'
+                  : 'Select a collection'}
+            </option>
+            {collections.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {collectionsError && (
+            <span className="text-xs text-primary">{collectionsError}</span>
+          )}
+          {!collectionsLoading && collections.length === 0 && !collectionsError && (
+            <span className="text-xs text-muted">
+              Create a collection first under Admin → Collections.
+            </span>
+          )}
         </label>
 
         <label className="flex flex-col gap-1.5">

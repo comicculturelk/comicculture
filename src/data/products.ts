@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
+import { fetchCollectionById } from './collections';
 
 export interface Product {
   id: string;
@@ -228,7 +229,14 @@ export interface ProductInput {
   name: string;
   slug: string;
   sku: string;
-  collection: string;
+  /**
+   * Relational source of truth — the id of an existing `collections` row.
+   * Free-text collection names are no longer accepted from callers; the
+   * legacy `products.collection` text column (still NOT NULL in the DB)
+   * is derived server-side from the selected collection's canonical name,
+   * never taken from client input.
+   */
+  collectionId: string;
   tagline: string;
   description: string;
   lore: string;
@@ -244,12 +252,26 @@ export interface ProductInput {
   preorderDays?: number | null;
 }
 
-function mapProductInputToRow(input: ProductInput) {
+/**
+ * Resolves the write-side row shape from admin input. Async because the
+ * legacy `products.collection` text column (still NOT NULL in the DB) is
+ * derived here from the selected collection's canonical name — looked up
+ * server-side via collectionId, never trusted from the client — rather
+ * than accepting arbitrary typed text. `collection_id` is the new source
+ * of truth; `collection` is written only for backward compatibility.
+ */
+async function mapProductInputToRow(input: ProductInput) {
+  const collection = await fetchCollectionById(input.collectionId);
+  if (!collection) {
+    throw new Error('Selected collection could not be found. Please re-select a collection.');
+  }
+
   return {
     name: input.name,
     slug: input.slug,
     sku: input.sku,
-    collection: input.collection,
+    collection_id: input.collectionId,
+    collection: collection.name,
     tagline: input.tagline,
     description: input.description,
     lore: input.lore,
@@ -296,11 +318,8 @@ export async function isSkuTaken(sku: string, excludeId?: string): Promise<boole
 }
 
 export async function createProduct(input: ProductInput): Promise<Product> {
-  const { data, error } = await supabase
-    .from('products')
-    .insert(mapProductInputToRow(input))
-    .select()
-    .single();
+  const row = await mapProductInputToRow(input);
+  const { data, error } = await supabase.from('products').insert(row).select().single();
 
   if (error) {
     throw new Error(`Failed to create product: ${error.message}`);
@@ -309,9 +328,10 @@ export async function createProduct(input: ProductInput): Promise<Product> {
 }
 
 export async function updateProduct(id: string, input: ProductInput): Promise<Product> {
+  const row = await mapProductInputToRow(input);
   const { data, error } = await supabase
     .from('products')
-    .update(mapProductInputToRow(input))
+    .update(row)
     .eq('id', id)
     .select()
     .single();
@@ -348,12 +368,17 @@ export async function deleteProduct(
 
 /** Creates a copy of an existing product with a new slug/SKU and a "(Copy)" name suffix. Reuses existing image URLs (no re-upload). */
 export async function duplicateProduct(product: Product): Promise<Product> {
+  if (!product.collectionId) {
+    throw new Error(
+      'This product has no collection assigned and cannot be duplicated. Edit it and select a collection first.'
+    );
+  }
   const suffix = Date.now().toString(36);
   return createProduct({
     name: `${product.name} (Copy)`,
     slug: `${product.slug}-copy-${suffix}`,
     sku: `${product.sku}-COPY-${suffix.toUpperCase()}`,
-    collection: product.collection,
+    collectionId: product.collectionId,
     tagline: product.tagline,
     description: product.description,
     lore: product.lore,
