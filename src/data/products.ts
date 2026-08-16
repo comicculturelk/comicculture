@@ -344,6 +344,11 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
 
 /**
  * Deletes a product row, then best-effort cleans up its images from Storage.
+ * Uses delete + select so the deleted row's id comes back — with RLS
+ * enabled, a missing/misconfigured DELETE policy causes Postgres to match
+ * zero rows rather than raise an error, which would otherwise look
+ * identical to a successful delete. Image cleanup only runs once we've
+ * confirmed a row was actually deleted.
  * Image cleanup failures are swallowed (via allSettled) since the product
  * row is already gone by that point — an orphaned file is a minor issue,
  * a stuck delete flow is worse.
@@ -351,9 +356,18 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
 export async function deleteProduct(
   product: Pick<Product, 'id' | 'image' | 'images'>
 ): Promise<void> {
-  const { error } = await supabase.from('products').delete().eq('id', product.id);
+  const { data, error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', product.id)
+    .select('id');
   if (error) {
     throw new Error(`Failed to delete product: ${error.message}`);
+  }
+  if (!data || data.length === 0) {
+    throw new Error(
+      'Product could not be deleted. Check permissions or verify that the product still exists.'
+    );
   }
 
   const urls =
