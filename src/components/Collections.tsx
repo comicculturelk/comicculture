@@ -26,6 +26,14 @@ const universes: Universe[] = [
     to: '/collections/web-slinger-saga',
   },
   {
+    name: 'Doomsday',
+    tagline: 'Next Arc',
+    description:
+      'A new ComicCulture arc inspired by the upcoming Doomsday era — our own take on the collision of worlds, not an official tie-in.',
+    status: 'live',
+    to: '/collections/doomsday',
+  },
+  {
     name: 'Shadow City Files',
     tagline: 'Next Arc',
     description: 'Gritty vigilante energy for the next chapter. Dark tones, sharper lines.',
