@@ -1,60 +1,36 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Lock, ArrowUpRight } from 'lucide-react';
-
-interface Universe {
-  name: string;
-  tagline: string;
-  description: string;
-  image?: string;
-  status: 'live' | 'soon';
-  to?: string;
-}
-
-// Only "Web-Slinger Saga" is live today (Drop 01). The rest are placeholders
-// for future collections — flip `status` to 'live', add an `image`, and set
-// `to` once a real collection exists for it. No backend change needed to
-// add more of these; they're purely presentational until then.
-const universes: Universe[] = [
-  {
-    name: 'Web-Slinger Saga',
-    tagline: 'Drop 01 · Live Now',
-    description:
-      "Six issues. One web. Our debut arc, inspired by the masked hero everyone grew up swinging alongside.",
-    image: '/images/products/classic-red/carousel.webp',
-    status: 'live',
-    to: '/collections/web-slinger-saga',
-  },
-  {
-    name: 'Doomsday',
-    tagline: 'Next Arc',
-    description:
-      'A new ComicCulture arc inspired by the upcoming Doomsday era — our own take on the collision of worlds, not an official tie-in.',
-    status: 'live',
-    to: '/collections/doomsday',
-  },
-  {
-    name: 'Shadow City Files',
-    tagline: 'Next Arc',
-    description: 'Gritty vigilante energy for the next chapter. Dark tones, sharper lines.',
-    image: '/images/products/noir-spider/coming-soon-noir.webp',
-    status: 'soon',
-  },
-  {
-    name: 'Anime Arcs',
-    tagline: 'Coming Soon',
-    description: 'Ink, speed lines, and legendary showdowns from the East.',
-    status: 'soon',
-  },
-  {
-    name: 'Original Universe',
-    tagline: 'Coming Soon',
-    description: 'Concepts born entirely in the ComicCulture studio — no source material, just imagination.',
-    status: 'soon',
-  },
-];
+import { fetchCollections, type Collection } from '../data/collections';
 
 export default function Collections() {
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchCollections()
+      .then((data) => {
+        if (!cancelled) {
+          setCollections(data);
+          setLoading(false);
+        }
+      })
+      .catch((err: Error) => {
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section id="universe" className="relative py-24 lg:py-32">
       {/* Background */}
@@ -90,83 +66,104 @@ export default function Collections() {
           </p>
         </motion.div>
 
+        {/* Loading state */}
+        {loading && <p className="text-center text-muted">Loading collections...</p>}
+
+        {/* Error state */}
+        {error && !loading && (
+          <p className="text-center text-primary">
+            Couldn't load collections right now. Please refresh the page.
+          </p>
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && collections.length === 0 && (
+          <p className="text-center text-muted">No collections yet — check back soon.</p>
+        )}
+
         {/* Universe grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {universes.map((universe, index) => {
-            const isLive = universe.status === 'live';
-            const cardClasses = `group relative flex aspect-[3/4] flex-col justify-end overflow-hidden border border-foreground/10 ${
-              isLive ? 'cursor-pointer' : 'cursor-default'
-            }`;
+        {!loading && !error && collections.length > 0 && (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {collections.map((collection, index) => {
+              const isLive = collection.status === 'live';
+              const cardClasses = `group relative flex aspect-[3/4] flex-col justify-end overflow-hidden border border-foreground/10 ${
+                isLive ? 'cursor-pointer' : 'cursor-default'
+              }`;
+              const badgeText =
+                collection.tagline || (isLive ? 'Live Now' : 'Coming Soon');
 
-            const content = (
-              <>
-                {/* Background */}
-                <div className="absolute inset-0 bg-surface">
-                  {universe.image && (
-                    <img
-                      src={universe.image}
-                      alt={universe.name}
-                      className={`h-full w-full object-cover transition-transform duration-500 ${
-                        isLive ? 'group-hover:scale-105' : 'grayscale opacity-40'
-                      }`}
-                    />
-                  )}
-                  <div className="absolute inset-0 halftone-overlay opacity-30" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-                </div>
+              const content = (
+                <>
+                  {/* Background */}
+                  <div className="absolute inset-0 bg-surface">
+                    {collection.coverImage && (
+                      <img
+                        src={collection.coverImage}
+                        alt={collection.name}
+                        className={`h-full w-full object-cover transition-transform duration-500 ${
+                          isLive ? 'group-hover:scale-105' : 'grayscale opacity-40'
+                        }`}
+                      />
+                    )}
+                    <div className="absolute inset-0 halftone-overlay opacity-30" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+                  </div>
 
-                {/* Issue number */}
-                <span className="absolute top-4 left-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground/50">
-                  №0{index + 1}
-                </span>
+                  {/* Issue number */}
+                  <span className="absolute top-4 left-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground/50">
+                    №0{index + 1}
+                  </span>
 
-                {/* Status pill */}
-                <span
-                  className={`absolute top-4 right-4 inline-flex items-center gap-1 border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                    isLive ? 'border-primary/30 bg-primary/20 text-primary' : 'border-border bg-surface-hover text-muted'
-                  }`}
+                  {/* Status pill */}
+                  <span
+                    className={`absolute top-4 right-4 inline-flex items-center gap-1 border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                      isLive ? 'border-primary/30 bg-primary/20 text-primary' : 'border-border bg-surface-hover text-muted'
+                    }`}
+                  >
+                    {!isLive && <Lock className="h-3 w-3" />}
+                    {badgeText}
+                  </span>
+
+                  {/* Content */}
+                  <div className="relative z-10 p-5">
+                    <h3 className="font-display text-2xl tracking-wide text-foreground">
+                      {collection.name}
+                    </h3>
+                    {collection.description && (
+                      <p className="mt-2 text-sm text-muted leading-relaxed">
+                        {collection.description}
+                      </p>
+                    )}
+                    {isLive && (
+                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                        Enter This World
+                        <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </span>
+                    )}
+                  </div>
+                </>
+              );
+
+              return (
+                <motion.div
+                  key={collection.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1, duration: 0.5 }}
                 >
-                  {!isLive && <Lock className="h-3 w-3" />}
-                  {universe.tagline}
-                </span>
-
-                {/* Content */}
-                <div className="relative z-10 p-5">
-                  <h3 className="font-display text-2xl tracking-wide text-foreground">
-                    {universe.name}
-                  </h3>
-                  <p className="mt-2 text-sm text-muted leading-relaxed">
-                    {universe.description}
-                  </p>
-                  {isLive && (
-                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
-                      Enter This World
-                      <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                    </span>
+                  {isLive ? (
+                    <Link to={`/collections/${collection.slug}`} className={cardClasses}>
+                      {content}
+                    </Link>
+                  ) : (
+                    <div className={cardClasses}>{content}</div>
                   )}
-                </div>
-              </>
-            );
-
-            return (
-              <motion.div
-                key={universe.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
-              >
-                {isLive ? (
-                  <Link to={universe.to!} className={cardClasses}>
-                    {content}
-                  </Link>
-                ) : (
-                  <div className={cardClasses}>{content}</div>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
