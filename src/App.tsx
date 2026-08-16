@@ -9,8 +9,7 @@ import Home from './pages/Home';
 import Shop from './pages/Shop';
 import Product from './pages/Product';
 import About from './pages/About';
-import WebSlingerSaga from './pages/WebSlingerSaga';
-import Doomsday from './pages/Doomsday';
+import CollectionPage from './pages/CollectionPage';
 import FAQ from './pages/FAQ';
 import Contact from './pages/Contact';
 import Checkout from './pages/Checkout';
@@ -31,8 +30,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/product/:slug" element={<Product />} />
-          <Route path="/collections/web-slinger-saga" element={<WebSlingerSaga />} />
-          <Route path="/collections/doomsday" element={<Doomsday />} />
+          <Route path="/collections/:slug" element={<CollectionPage />} />
           <Route path="/about" element={<About />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/contact" element={<Contact />} />

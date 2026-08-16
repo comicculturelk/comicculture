@@ -6,6 +6,7 @@ export interface Product {
   name: string;
   slug: string;
   collection: string;
+  collectionId: string | null;
   tagline: string;
   description: string;
   lore: string;
@@ -30,6 +31,7 @@ interface ProductRow {
   name: string;
   slug: string;
   collection: string;
+  collection_id: string | null;
   tagline: string;
   description: string;
   lore: string;
@@ -63,6 +65,7 @@ function mapRowToProduct(row: ProductRow): Product {
     name: row.name,
     slug: row.slug,
     collection: row.collection,
+    collectionId: row.collection_id ?? null,
     tagline: row.tagline,
     description: row.description,
     lore: row.lore,
