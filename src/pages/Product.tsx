@@ -21,6 +21,24 @@ import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { generateWhatsAppMessage, formatPrice, getStockForSize, isSizeInStock, getPreorderMessage } from '../data/products';
 import type { Product as ProductType } from '../data/products';
+import { fetchCollectionById } from '../data/collections';
+import SEO, { type JsonLdBlock } from '../components/SEO';
+
+const SITE_URL = 'https://comicculture.lk';
+
+/**
+ * Builds a concise, unique meta description from real product data only —
+ * no invented claims (e.g. "limited edition"). Falls back through
+ * description -> tagline -> a plain collection-based sentence, and trims
+ * to a search-snippet-friendly length.
+ */
+function buildProductMetaDescription(product: ProductType): string {
+  const source =
+    product.description?.trim() ||
+    product.tagline?.trim() ||
+    `${product.name} from ComicCulture's ${product.collection} collection.`;
+  return source.length > 160 ? `${source.slice(0, 157).trimEnd()}…` : source;
+}
 
 const SIZE_GUIDE = [
   { size: 'XS', chest: '18"', length: '26"', sleeve: '7¼"' },
@@ -43,6 +61,7 @@ export default function Product() {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [openSection, setOpenSection] = useState<AccordionKey | null>('description');
+  const [collectionSlug, setCollectionSlug] = useState<string | null>(null);
 
   // Reset per-product UI state whenever the loaded product changes
   useEffect(() => {
@@ -54,6 +73,27 @@ export default function Product() {
       setQuantity(1);
     }
   }, [product]);
+
+  // Resolve the product's collection slug (for the internal collection link)
+  // from the relational collection_id, since `product.collection` is only a
+  // display name. Legacy products with no collectionId simply get no link.
+  useEffect(() => {
+    let cancelled = false;
+    if (!product?.collectionId) {
+      setCollectionSlug(null);
+      return;
+    }
+    fetchCollectionById(product.collectionId)
+      .then((collection) => {
+        if (!cancelled) setCollectionSlug(collection?.slug ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setCollectionSlug(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.collectionId]);
 
   if (loading) {
     return (
@@ -97,6 +137,42 @@ export default function Product() {
   const maxQuantity = Math.max(1, Math.min(10, availableStock));
   const preorderMessage = getPreorderMessage(product);
 
+  const canonicalUrl = `${SITE_URL}/product/${product.slug}`;
+  const metaDescription = buildProductMetaDescription(product);
+  const isInStock = product.sizes.some((size) => isSizeInStock(product, size));
+
+  const productJsonLd: JsonLdBlock = {
+    id: 'product',
+    data: {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description: metaDescription,
+      image: product.image,
+      sku: product.sku,
+      offers: {
+        '@type': 'Offer',
+        url: canonicalUrl,
+        price: product.price,
+        priceCurrency: 'LKR',
+        availability: isInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      },
+    },
+  };
+
+  const breadcrumbJsonLd: JsonLdBlock = {
+    id: 'breadcrumb',
+    data: {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+        { '@type': 'ListItem', position: 2, name: 'Shop', item: `${SITE_URL}/shop` },
+        { '@type': 'ListItem', position: 3, name: product.name, item: canonicalUrl },
+      ],
+    },
+  };
+
   const handleAddToCart = () => {
     addItem(
       {
@@ -118,10 +194,19 @@ export default function Product() {
   };
 
   return (
-    <section className="relative min-h-screen bg-background py-24 lg:py-32">
-      <div className="absolute inset-0 bg-web-pattern opacity-10" />
+    <>
+      <SEO
+        title={`${product.name} | ComicCulture`}
+        description={metaDescription}
+        canonical={canonicalUrl}
+        ogType="product"
+        image={product.image}
+        jsonLd={[productJsonLd, breadcrumbJsonLd]}
+      />
+      <section className="relative min-h-screen bg-background py-24 lg:py-32">
+        <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6">
+        <div className="relative z-10 mx-auto max-w-6xl px-6">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
           <Link to="/" className="transition-colors hover:text-foreground">
@@ -204,9 +289,18 @@ export default function Product() {
           <div className="relative flex flex-1 flex-col p-6 lg:p-10">
             {/* Collection label + SKU */}
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                {product.collection}
-              </span>
+              {collectionSlug ? (
+                <Link
+                  to={`/collections/${collectionSlug}`}
+                  className="text-xs font-semibold uppercase tracking-[0.2em] text-primary hover:underline"
+                >
+                  {product.collection}
+                </Link>
+              ) : (
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                  {product.collection}
+                </span>
+              )}
               {product.sku && (
                 <span className="font-mono text-xs uppercase tracking-wide text-muted">
                   {product.sku}
@@ -227,9 +321,6 @@ export default function Product() {
               <p className="font-display text-4xl text-foreground">
                 {formatPrice(product.price)}
               </p>
-              <span className="text-[11px] font-medium uppercase tracking-widest text-muted">
-                Limited Drop
-              </span>
             </div>
 
             {/* Description */}
@@ -509,6 +600,7 @@ export default function Product() {
         )}
       </AnimatePresence>
     </section>
+    </>
   );
 }
 
