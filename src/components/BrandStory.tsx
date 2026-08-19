@@ -4,15 +4,15 @@ import { BookOpen } from 'lucide-react';
 const values = [
   {
     label: 'No Reprints',
-    detail: "Once a print run ends, it's retired for good. Scarcity isn't a marketing tactic here — it's the model.",
+    detail: "Once it's gone, it's gone — no reissues.",
   },
   {
     label: 'Source Over Trend',
-    detail: "Every graphic is pulled from real continuity, not whatever's trending this week.",
+    detail: 'Pulled from real continuity, not trends.',
   },
   {
     label: 'Built To Move',
-    detail: 'Jersey-grade fabric chosen for how it wears in over time, not just how it photographs.',
+    detail: 'Jersey-grade fabric, built to wear in.',
   },
 ];
 
@@ -57,10 +57,7 @@ export default function BrandStory() {
           viewport={{ once: true }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          ComicCulture exists for people who never grew out of their favorite universe — they
-          just started dressing like they belong in it. We treat every release the way a
-          publisher treats a first print: considered, numbered, and never reissued the same
-          way twice. This isn't fan merchandise. It's canon you can wear.
+          Wearable art for people who never grew out of their favorite universe.
         </motion.p>
 
         <motion.div
