@@ -120,7 +120,7 @@ export default function Hero() {
           animate={{ opacity: 1 }}
           transition={{ delay: 3.1, duration: 0.6 }}
         >
-          Every design is a chapter. Every shirt has a story.
+          Wearable art for fans, in limited runs.
         </motion.p>
 
         {/* CTA Buttons */}
@@ -150,27 +150,18 @@ export default function Hero() {
           </motion.a>
         </motion.div>
 
-        {/* Stats */}
+        {/* Compact value row — single line, mobile-hidden to keep hero uncluttered */}
         <motion.div
-          className="mt-16 flex items-center gap-12 text-center"
+          className="mt-10 hidden items-center gap-3 text-xs uppercase tracking-[0.15em] text-muted sm:flex"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 3.6, duration: 0.6 }}
         >
-          <div>
-            <p className="font-display text-3xl text-foreground">6</p>
-            <p className="text-sm text-muted">Unique Designs</p>
-          </div>
-          <div className="h-12 w-px bg-foreground/10" />
-          <div>
-            <p className="font-display text-3xl text-foreground">LIMITED</p>
-            <p className="text-sm text-muted">Edition</p>
-          </div>
-          <div className="h-12 w-px bg-foreground/10" />
-          <div>
-            <p className="font-display text-3xl text-primary">JERSEY</p>
-            <p className="text-sm text-muted">Grade Fabric</p>
-          </div>
+          <span>6 Designs</span>
+          <span className="h-1 w-1 rounded-full bg-foreground/20" />
+          <span>Limited Edition</span>
+          <span className="h-1 w-1 rounded-full bg-foreground/20" />
+          <span className="text-primary">Jersey Fabric</span>
         </motion.div>
 
         {/* Scroll indicator */}

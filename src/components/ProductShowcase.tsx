@@ -30,9 +30,8 @@ export default function ProductShowcase() {
           <h2 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
             DROP 01 — BRAND NEW DAY
           </h2>
-          <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-            Six issues, six stories. Each jersey is crafted in premium materials and printed
-            in limited quantities — once they're gone, that chapter closes.
+          <p className="mt-4 text-lg text-muted">
+            Six designs. Once they're gone, they're gone.
           </p>
         </motion.div>
 
