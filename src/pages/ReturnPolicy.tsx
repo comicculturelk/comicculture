@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
+  ChevronRight,
   PackageX,
   RefreshCw,
   Ruler,
@@ -13,6 +14,9 @@ import {
   Sparkles,
   Info,
 } from 'lucide-react';
+import SEO, { type JsonLdBlock } from '../components/SEO';
+
+const SITE_URL = 'https://comicculture.lk';
 
 interface PolicySection {
   icon: typeof PackageX;
@@ -102,17 +106,39 @@ const SECTIONS: PolicySection[] = [
   },
   {
     icon: Sparkles,
-    title: '9. Limited Edition Products',
+    title: '9. Product-Specific Return Restrictions',
     points: [
-      'Due to the limited nature of some ComicCulture releases, certain products or collections may have restricted return or exchange availability.',
+      'Certain products or collections may have restricted return or exchange availability based on their specific terms.',
       'Any such restrictions will be clearly communicated before purchase.',
     ],
   },
 ];
 
 export default function ReturnPolicy() {
+  const canonicalUrl = `${SITE_URL}/return-policy`;
+
+  const breadcrumbJsonLd: JsonLdBlock = {
+    id: 'breadcrumb',
+    data: {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+        { '@type': 'ListItem', position: 2, name: 'Return & Exchange Policy', item: canonicalUrl },
+      ],
+    },
+  };
+
   return (
-    <section className="relative min-h-screen bg-background py-24 lg:py-32">
+    <>
+      <SEO
+        title="Return & Exchange Policy | ComicCulture"
+        description="ComicCulture's return and exchange policy, covering order changes, size exchanges, damaged items, refunds, and how to start a request."
+        canonical={canonicalUrl}
+        ogType="website"
+        jsonLd={[breadcrumbJsonLd]}
+      />
+      <section className="relative min-h-screen bg-background py-24 lg:py-32">
       <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
       <div className="relative z-10 mx-auto max-w-4xl px-6">
@@ -121,7 +147,7 @@ export default function ReturnPolicy() {
           <Link to="/" className="transition-colors hover:text-foreground">
             Home
           </Link>
-          <span>/</span>
+          <ChevronRight className="h-3.5 w-3.5" />
           <span className="text-muted">Return & Exchange Policy</span>
         </nav>
 
@@ -205,10 +231,10 @@ export default function ReturnPolicy() {
             <Info className="h-5 w-5 flex-shrink-0 text-primary" />
             <div>
               <h2 className="mb-2 font-display text-lg text-foreground tracking-wide">
-                10. Important Note About Limited Stock
+                10. Important Note About Stock Availability
               </h2>
               <p className="text-sm text-muted-foreground">
-                ComicCulture products are available in limited quantities. Some sizes and
+                Stock availability for ComicCulture products may vary. Some sizes and
                 designs may require special stock arrangements from our suppliers. We kindly
                 request customers to confirm their order details, sizes, and designs before
                 completing their purchase.
@@ -222,5 +248,6 @@ export default function ReturnPolicy() {
         </p>
       </div>
     </section>
+    </>
   );
 }
