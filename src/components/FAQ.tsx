@@ -5,7 +5,7 @@ import { Plus, Minus } from 'lucide-react';
 const faqs = [
   {
     question: 'What products do you sell?',
-    answer: 'ComicCulture offers limited-edition, premium jersey-material T-shirts inspired by comics, anime, and pop culture. Each print is made in limited quantities, so once it sells out, it won\'t be restocked.',
+    answer: 'ComicCulture offers premium jersey-material T-shirts inspired by comics, anime, and pop culture. Availability depends on current stock, so some designs may sell out from time to time.',
   },
   {
     question: 'How do I place an order?',
@@ -45,7 +45,7 @@ const faqs = [
   },
   {
     question: 'Are products limited edition?',
-    answer: 'Yes. Every design is a limited-edition print — availability is tied to stock, and once a print is gone, it won\'t come back.',
+    answer: 'No, our designs aren\'t limited edition. Stock is finite, so a size or design may sell out from time to time, but you can check the product page for current availability.',
   },
   {
     question: 'Are these officially licensed products?',

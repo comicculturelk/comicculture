@@ -5,7 +5,7 @@ const steps = [
   { icon: Pencil, label: 'Sketch', description: 'Initial concept art' },
   { icon: Lightbulb, label: 'Concept', description: 'Design refinement' },
   { icon: Palette, label: 'Design', description: 'Final artwork creation' },
-  { icon: Printer, label: 'Printing', description: 'Premium fabric印刷' },
+  { icon: Printer, label: 'Printing', description: 'Premium fabric printing' },
   { icon: CheckCircle, label: 'Quality Check', description: 'Perfection guaranteed' },
   { icon: Truck, label: 'Delivery', description: 'Shipped to your door' },
 ];
