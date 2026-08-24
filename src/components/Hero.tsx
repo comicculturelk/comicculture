@@ -1,181 +1,197 @@
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef } from 'react';
-import { ArrowDown, Compass, ShoppingBag } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { ArrowDown, ShoppingBag } from 'lucide-react';
 import CornerFrame from './CornerFrame';
+import type { Collection } from '../data/collections';
 
-export default function Hero() {
-  const ref = useRef(null);
+interface HeroProps {
+  collections: Collection[];
+}
+
+interface Slide {
+  key: string;
+  label: string;
+  headline: string;
+  subline: string;
+  image: string | null;
+  ctaLabel: string;
+  ctaHref: string;
+}
+
+const AUTOPLAY_MS = 5000;
+
+// Used only when there are no live collections with a cover image yet —
+// keeps the hero from breaking rather than inventing fake collection data.
+const FALLBACK_SLIDE: Slide = {
+  key: 'fallback',
+  label: 'ComicCulture',
+  headline: 'WEAR YOUR UNIVERSE',
+  subline: 'Wearable art for fans, in limited runs.',
+  image: null,
+  ctaLabel: 'Shop All',
+  ctaHref: '/shop',
+};
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max).trimEnd()}…`;
+}
+
+export default function Hero({ collections }: HeroProps) {
   const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 500], [0, 150]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
-  return (
-    <section ref={ref} id="home" className="relative min-h-screen overflow-hidden">
-      {/* Animated background layers */}
-      <div className="absolute inset-0">
-        {/* Base gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
+  const slides: Slide[] = useMemo(() => {
+    const live = collections.filter((c) => c.status === 'live' && c.coverImage);
+    if (live.length === 0) return [FALLBACK_SLIDE];
+    return live.map((c) => ({
+      key: c.id,
+      label: c.tagline || 'Now Live',
+      headline: c.name.toUpperCase(),
+      subline: c.description ? truncate(c.description, 90) : 'Shop the latest drop.',
+      image: c.coverImage,
+      ctaLabel: 'Shop Collection',
+      ctaHref: `/collections/${c.slug}`,
+    }));
+  }, [collections]);
 
-        {/* Animated gradient orbs */}
+  const [index, setIndex] = useState(0);
+
+  // Reset to the first slide whenever the live collection set changes size
+  // (e.g. once the async fetch resolves) so we never land on a stale index.
+  useEffect(() => {
+    setIndex(0);
+  }, [slides.length]);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % slides.length);
+    }, AUTOPLAY_MS);
+    return () => clearInterval(id);
+  }, [slides.length]);
+
+  const current = slides[index] ?? FALLBACK_SLIDE;
+  const isMultiSlide = slides.length > 1;
+
+  return (
+    <section id="home" className="relative min-h-screen overflow-hidden">
+      {/* Base background */}
+      <div className="absolute inset-0 bg-background">
+        <div className="absolute inset-0 halftone-overlay opacity-30" />
         <motion.div
-          className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-primary/20 blur-3xl"
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
+          className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-primary/15 blur-3xl"
+          animate={{ opacity: [0.3, 0.45, 0.3] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         />
-        <motion.div
-          className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-secondary/20 blur-3xl"
-          animate={{
-            scale: [1.3, 1, 1.3],
-            opacity: [0.2, 0.4, 0.2],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-        />
-
-        {/* Web pattern overlay */}
-        <div className="absolute inset-0 bg-web-pattern opacity-30" />
-
-        {/* Halftone overlay */}
-        <div className="absolute inset-0 halftone-overlay opacity-40" />
-
-        {/* Floating particles — trimmed from 20 to 12 for a more restrained, cinematic feel */}
-        {[...Array(12)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute h-1 w-1 rounded-full bg-foreground/20"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0.2, 0.5, 0.2],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 3,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }}
-          />
-        ))}
       </div>
 
-      {/* Comic cover masthead — indicia-style credits like a real issue.
-          top-20 keeps it clear of the fixed Navbar's compact mobile/tablet
-          layout (sm–md); lg: reverts to the original top-6 so desktop is
-          unchanged from before. */}
+      {/* Slide image */}
+      <div className="absolute inset-0">
+        <AnimatePresence mode="wait">
+          {current.image && (
+            <motion.img
+              key={current.key}
+              src={current.image}
+              alt={current.headline}
+              className="h-full w-full object-cover"
+              initial={{ opacity: 0, scale: 1.03 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1 }}
+            />
+          )}
+        </AnimatePresence>
+        {current.image && (
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
+        )}
+      </div>
+
+      {/* Masthead */}
       <motion.div
         className="absolute top-20 2xl:top-6 left-0 right-0 z-10 hidden items-center justify-between px-8 sm:flex"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 2.4, duration: 0.6 }}
+        transition={{ delay: 1.2, duration: 0.6 }}
       >
         <span className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40">
           ComicCulture Presents
         </span>
-        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40">
-          Issue NO01 · Drop 01
-        </span>
+        {isMultiSlide && (
+          <span
+            className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40"
+            aria-live="polite"
+          >
+            {String(index + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+          </span>
+        )}
       </motion.div>
 
       <CornerFrame className="hidden sm:block" />
 
       {/* Content */}
       <motion.div
-        className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6"
-        style={{ y, opacity }}
+        className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center"
+        style={{ opacity }}
       >
-        {/* Glowing badge */}
-        <motion.div
-          className="mb-8 inline-flex items-center gap-2 border border-primary/30 bg-primary/10 px-4 py-2"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.7, duration: 0.6 }}
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-          </span>
-          <span className="text-sm font-medium text-primary">Web-Slinger Saga NOW LIVE</span>
-        </motion.div>
-
-        {/* Main headline */}
-        <motion.h1
-          className="font-display text-center text-6xl sm:text-7xl md:text-8xl lg:text-9xl tracking-wider leading-none"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.8, duration: 0.8 }}
-        >
-          <span className="text-foreground">WEAR YOUR</span>
-          <br />
-          <span className="text-gradient-red">UNIVERSE</span>
-        </motion.h1>
-
-        {/* Subtitle — the brand line */}
-        <motion.p
-          className="mt-6 max-w-xl text-balance text-center text-lg md:text-xl text-muted"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 3.1, duration: 0.6 }}
-        >
-          Wearable art for fans, in limited runs.
-        </motion.p>
-
-        {/* CTA Buttons */}
-        <motion.div
-          className="mt-10 flex flex-col sm:flex-row gap-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 3.3, duration: 0.6 }}
-        >
-          <motion.a
-            href="#collection"
-            className="btn-primary"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current.key}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.6 }}
           >
-            <ShoppingBag className="h-5 w-5" />
-            Read The Collection
-          </motion.a>
-          <motion.a
-            href="#universe"
-            className="btn-outline"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Compass className="h-5 w-5" />
-            Enter The Universe
-          </motion.a>
-        </motion.div>
+            <span className="inline-block text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+              {current.label}
+            </span>
 
-        {/* Compact value row — single line, mobile-hidden to keep hero uncluttered */}
-        <motion.div
-          className="mt-10 hidden items-center gap-3 text-xs uppercase tracking-[0.15em] text-muted sm:flex"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 3.6, duration: 0.6 }}
-        >
-          <span>6 Designs</span>
-          <span className="h-1 w-1 rounded-full bg-foreground/20" />
-          <span>Limited Edition</span>
-          <span className="h-1 w-1 rounded-full bg-foreground/20" />
-          <span className="text-primary">Jersey Fabric</span>
-        </motion.div>
+            <h1 className="mt-4 font-display text-center text-6xl sm:text-7xl md:text-8xl tracking-wider leading-none text-foreground">
+              {current.headline}
+            </h1>
+
+            <p className="mx-auto mt-6 max-w-xl text-balance text-lg md:text-xl text-muted">
+              {current.subline}
+            </p>
+
+            <div className="mt-10 flex justify-center">
+              <Link to={current.ctaHref} className="btn-primary">
+                <ShoppingBag className="h-5 w-5" />
+                {current.ctaLabel}
+              </Link>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Slide indicators */}
+        {isMultiSlide && (
+          <div className="mt-12 flex items-center gap-2" role="tablist" aria-label="Hero slides">
+            {slides.map((slide, i) => (
+              <button
+                key={slide.key}
+                role="tab"
+                onClick={() => setIndex(i)}
+                aria-label={`Show slide ${i + 1}: ${slide.headline}`}
+                aria-selected={i === index}
+                tabIndex={i === index ? 0 : -1}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? 'w-8 bg-primary' : 'w-1.5 bg-foreground/20'
+                }`}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Scroll indicator */}
         <motion.div
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 4 }}
+          transition={{ delay: 1.4 }}
         >
           <span className="text-xs uppercase tracking-widest text-muted">Scroll</span>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-          >
+          <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
             <ArrowDown className="h-5 w-5 text-muted" />
           </motion.div>
         </motion.div>

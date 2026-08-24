@@ -2,6 +2,14 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Instagram, MessageCircle, Heart } from 'lucide-react';
 
+const infoLinks = [
+  { label: 'About', to: '/about' },
+  { label: 'FAQ', to: '/faq' },
+  { label: 'Contact', to: '/contact' },
+  { label: 'Track Order', to: '/track-order' },
+  { label: 'Return & Exchange Policy', to: '/return-policy' },
+];
+
 export default function Footer() {
   return (
     <footer className="relative border-t border-border bg-background">
@@ -57,15 +65,23 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Informational nav */}
+        <nav className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-border pt-8">
+          {infoLinks.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
         {/* Bottom */}
         <div className="mt-8 pt-8 border-t border-border text-center">
           <p className="text-sm text-muted flex items-center justify-center gap-1">
             Made with <Heart className="h-4 w-4 text-primary" /> in Sri Lanka
-          </p>
-          <p className="mt-3 text-xs text-muted-foreground">
-            <Link to="/return-policy" className="transition-colors hover:text-foreground">
-              Return &amp; Exchange Policy
-            </Link>
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} ComicCulture. All rights reserved.

@@ -7,13 +7,21 @@ import SearchOverlay from './SearchOverlay';
 
 const MotionLink = motion.create(Link);
 
+// Primary nav is deliberately e-commerce-oriented. The logo covers "Home",
+// and informational pages live in secondaryLinks (mobile drawer) + Footer
+// instead of competing for primary nav space.
 const navLinks = [
-  { label: 'Home', to: '/' },
   { label: 'Shop', to: '/shop' },
+  { label: 'Collections', to: '/#collections' },
+  { label: 'New Arrivals', to: '/#new-arrivals' },
+];
+
+const secondaryLinks = [
   { label: 'About', to: '/about' },
-  { label: 'Track Order', to: '/track-order' },
   { label: 'FAQ', to: '/faq' },
   { label: 'Contact', to: '/contact' },
+  { label: 'Track Order', to: '/track-order' },
+  { label: 'Return Policy', to: '/return-policy' },
 ];
 
 export default function Navbar() {
@@ -41,10 +49,10 @@ export default function Navbar() {
         }`}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        transition={{ duration: 0.5, delay: 2.5 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
       >
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-6">
-          {/* Logo */}
+          {/* Logo — serves as the Home link */}
           <MotionLink
             to="/"
             className="flex items-center gap-2"
@@ -162,7 +170,7 @@ export default function Navbar() {
 
             {/* Menu Content */}
             <motion.nav
-              className="absolute top-20 left-0 right-0 bg-background border-t border-border px-6 py-8"
+              className="absolute top-20 left-0 right-0 max-h-[calc(100vh-5rem)] overflow-y-auto bg-background border-t border-border px-6 py-8"
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
@@ -190,6 +198,23 @@ export default function Navbar() {
                   <ShoppingBag className="h-5 w-5" />
                   Shop Now
                 </Link>
+              </div>
+
+              {/* Secondary / informational links */}
+              <div className="mt-6 pt-6 border-t border-border">
+                <ul className="flex flex-col gap-1">
+                  {secondaryLinks.map((link) => (
+                    <li key={link.to}>
+                      <Link
+                        to={link.to}
+                        className="block rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </motion.nav>
           </motion.div>

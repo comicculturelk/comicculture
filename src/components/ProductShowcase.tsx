@@ -1,72 +1,62 @@
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import ProductCard from './ProductCard';
-import { useProducts } from '../hooks/useProducts';
+import type { Product } from '../data/products';
 
-export default function ProductShowcase() {
-  const { products, loading, error } = useProducts();
+interface ProductShowcaseProps {
+  title: string;
+  viewAllHref: string;
+  products: Product[];
+  loading: boolean;
+  error: string | null;
+  sectionId?: string;
+}
 
+export default function ProductShowcase({
+  title,
+  viewAllHref,
+  products,
+  loading,
+  error,
+  sectionId,
+}: ProductShowcaseProps) {
   return (
-    <section id="collection" className="relative py-24 lg:py-32">
-      {/* Background */}
+    <section id={sectionId} className="relative py-20 lg:py-28">
       <div className="absolute inset-0 bg-background">
-        <div className="absolute inset-0 halftone-overlay opacity-20" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-6">
-        {/* Section header */}
-        <motion.div
-          className="text-center mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <span className="inline-block border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-            LIMITED EDITION
-          </span>
-          <h2 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            DROP 01 — BRAND NEW DAY
+        <div className="flex items-end justify-between mb-10">
+          <h2 className="font-display text-3xl md:text-4xl text-foreground tracking-wide">
+            {title}
           </h2>
-          <p className="mt-4 text-lg text-muted">
-            Six designs. Once they're gone, they're gone.
-          </p>
-        </motion.div>
+          <Link
+            to={viewAllHref}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary transition-transform hover:translate-x-0.5"
+          >
+            View All
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
 
-        {/* Loading state */}
-        {loading && <p className="text-center text-muted">Loading collection...</p>}
+        {loading && <p className="text-muted">Loading products...</p>}
 
-        {/* Error state */}
         {error && !loading && (
-          <p className="text-center text-primary">
-            Couldn't load products right now. Please refresh the page.
-          </p>
+          <p className="text-primary">Couldn't load products right now. Please refresh the page.</p>
         )}
 
-        {/* Product grid — each product framed as a collectible issue */}
-        {!loading && !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+        {!loading && !error && products.length === 0 && (
+          <p className="text-muted">Nothing here yet — check back soon.</p>
+        )}
+
+        {!loading && !error && products.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {products.map((product, index) => (
               <ProductCard key={product.id} product={product} index={index} />
             ))}
           </div>
         )}
-
-        {/* Explore CTA */}
-        <motion.div
-          className="mt-16 text-center"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
-        >
-          <Link to="/shop" className="btn-outline">
-            View Full Collection
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </motion.div>
       </div>
     </section>
   );
