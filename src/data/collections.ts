@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
 
 export type CollectionStatus = 'live' | 'soon';
 
@@ -165,4 +166,60 @@ export async function deleteCollection(id: string): Promise<void> {
     }
     throw new Error(`Failed to delete collection: ${error.message}`);
   }
+}
+
+// --- Admin: cover image upload ---
+//
+// Reuses the existing `product-images` public bucket (confirmed via
+// `select * from storage.buckets`) rather than creating a new one, but
+// scopes collection covers under their own `collections/` prefix so they
+// don't mix with product image paths. No schema or storage config change:
+// `cover_image` already stores a plain public URL string.
+
+const COLLECTION_IMAGES_BUCKET = 'product-images';
+const COLLECTION_IMAGES_FOLDER = 'collections';
+
+function safePathSegment(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function uniqueSuffix(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * Uploads a collection cover image to the existing `product-images` bucket
+ * under `collections/`. `slugHint` is normally the collection's slug (or
+ * name-in-progress for a not-yet-saved collection) — it's only used to keep
+ * the filename readable; uniqueness comes from a generated suffix, not the
+ * hint, so it's safe even when the collection doesn't have a slug yet.
+ */
+export async function uploadCollectionCoverImage(slugHint: string, file: File): Promise<string> {
+  const extMatch = file.name.match(/\.([a-zA-Z0-9]+)$/);
+  const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+  const base = safePathSegment(slugHint) || 'collection';
+  const path = `${COLLECTION_IMAGES_FOLDER}/${base}-${uniqueSuffix()}.${ext}`;
+
+  const { publicUrl } = await uploadFile(COLLECTION_IMAGES_BUCKET, path, file, 'public');
+  return publicUrl;
+}
+
+/**
+ * Deletes a collection cover image previously uploaded via
+ * `uploadCollectionCoverImage`. No-ops for URLs that aren't from the
+ * `product-images` bucket (e.g. a legacy manually-pasted URL from before
+ * this feature existed) — those were never ours to delete.
+ */
+export async function deleteCollectionCoverImage(url: string): Promise<void> {
+  const path = getPathFromPublicUrl(COLLECTION_IMAGES_BUCKET, url);
+  if (!path) return;
+  await deleteFile(COLLECTION_IMAGES_BUCKET, path);
 }

@@ -12,6 +12,7 @@ import {
 } from '../../data/collections';
 import { slugify } from '../../lib/slug';
 import ConfirmAction from './ConfirmAction';
+import CollectionCoverUpload from './CollectionCoverUpload';
 
 type View = 'list' | 'create' | 'edit';
 
@@ -325,15 +326,14 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className={fieldLabelClass()}>Cover Image URL</span>
-          <input
-            value={coverImage}
-            onChange={(e) => setCoverImage(e.target.value)}
-            className={inputClass()}
-            placeholder="https://..."
+        <div className="sm:col-span-2">
+          <CollectionCoverUpload
+            slugHint={slug || 'collection'}
+            value={coverImage || null}
+            onChange={(url) => setCoverImage(url ?? '')}
+            disabled={submitting}
           />
-        </label>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 border-t border-border pt-6">
