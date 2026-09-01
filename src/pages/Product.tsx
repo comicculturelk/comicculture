@@ -26,6 +26,57 @@ import SEO, { type JsonLdBlock } from '../components/SEO';
 
 const SITE_URL = 'https://comicculture.lk';
 
+// --- Merchant Listings structured data: store-wide policy constants ---
+// These describe ComicCulture's actual, already-published policies (see
+// ReturnPolicy.tsx and the "Shipping & Returns" accordion below) — not
+// per-product data, so they're defined once here and reused for every
+// product's JSON-LD automatically.
+
+/**
+ * Mirrors ReturnPolicy.tsx section 2 ("Change of Mind Returns"): a 3-day
+ * contact window, and the customer covers return delivery charges. This
+ * intentionally represents the general/default policy — ReturnPolicy.tsx's
+ * carve-outs (e.g. damaged/defective items, where ComicCulture arranges a
+ * free resolution) aren't expressible in this single structured field.
+ */
+const RETURN_POLICY_JSONLD = {
+  '@type': 'MerchantReturnPolicy',
+  returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+  merchantReturnDays: 3,
+  returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility',
+  applicableCountry: 'LK',
+} as const;
+
+/**
+ * Mirrors the "Shipping & Returns" accordion text below: dispatch within
+ * 1-2 business days, arrival within 2-4 business days, island-wide
+ * (Sri Lanka only — the site has no other delivery region anywhere).
+ * `shippingRate` is deliberately omitted: no delivery fee is defined
+ * anywhere in the codebase, so it isn't set here rather than guessed.
+ */
+const SHIPPING_DETAILS_JSONLD = {
+  '@type': 'OfferShippingDetails',
+  shippingDestination: {
+    '@type': 'DefinedRegion',
+    addressCountry: 'LK',
+  },
+  deliveryTime: {
+    '@type': 'ShippingDeliveryTime',
+    handlingTime: {
+      '@type': 'QuantitativeValue',
+      minValue: 1,
+      maxValue: 2,
+      unitCode: 'DAY',
+    },
+    transitTime: {
+      '@type': 'QuantitativeValue',
+      minValue: 2,
+      maxValue: 4,
+      unitCode: 'DAY',
+    },
+  },
+} as const;
+
 /**
  * Builds a concise, unique meta description from real product data only —
  * no invented claims (e.g. "limited edition"). Falls back through
@@ -150,12 +201,18 @@ export default function Product() {
       description: metaDescription,
       image: product.image,
       sku: product.sku,
+      brand: {
+        '@type': 'Brand',
+        name: 'ComicCulture',
+      },
       offers: {
         '@type': 'Offer',
         url: canonicalUrl,
         price: product.price,
         priceCurrency: 'LKR',
         availability: isInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        hasMerchantReturnPolicy: RETURN_POLICY_JSONLD,
+        shippingDetails: SHIPPING_DETAILS_JSONLD,
       },
     },
   };
