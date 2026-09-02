@@ -1,8 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MessageCircle, Instagram, Minus, Plus } from 'lucide-react';
+import { X, Minus, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { Product } from '../data/products';
-import { generateWhatsAppMessage, getStockForSize, isSizeInStock } from '../data/products';
+import { getStockForSize, isSizeInStock } from '../data/products';
 
 interface ProductModalProps {
   product: Product | null;
@@ -25,7 +25,6 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
 
   const soldOut = !product.sizes.some((size) => isSizeInStock(product, size));
   const maxQuantity = selectedSize ? Math.max(1, getStockForSize(product, selectedSize)) : 1;
-  const whatsappLink = `https://wa.me/94787756338?text=${generateWhatsAppMessage(product, selectedSize, quantity)}`;
 
   return (
     <AnimatePresence>
@@ -206,38 +205,6 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                   </div>
                 </div>
               )}
-
-              {/* CTA buttons */}
-              <div className="mt-auto pt-8 flex flex-col sm:flex-row gap-3">
-                {soldOut ? (
-                  <span className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-6 py-3 font-semibold text-muted-foreground cursor-not-allowed">
-                    Sold Out
-                  </span>
-                ) : (
-                  <motion.a
-                    href={whatsappLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-primary-foreground shadow-soft transition-colors hover:bg-green-500"
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <MessageCircle className="h-5 w-5" />
-                    Order on WhatsApp
-                  </motion.a>
-                )}
-                <motion.a
-                  href={product.instagramLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-3 font-semibold text-primary-foreground"
-                  whileHover={{ scale: 1.02, y: -1 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Instagram className="h-5 w-5" />
-                  View on Instagram
-                </motion.a>
-              </div>
             </div>
           </motion.div>
         </motion.div>

@@ -1,11 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { X, Minus, Plus, Trash2, MessageCircle, Info } from 'lucide-react';
+import { X, Minus, Plus, Trash2, Info } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import { getPreorderMessage } from '../data/products';
-
-const WHATSAPP_NUMBER = '94787756338';
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalItems, totalPrice } =
@@ -16,14 +14,6 @@ export default function CartDrawer() {
     const product = products.find((p) => p.id === item.productId);
     return product ? !!getPreorderMessage(product) : false;
   });
-
-  const lines = items.map(
-    (item) => `- ${item.name} (Size: ${item.size}) x${item.quantity} — Rs. ${item.price * item.quantity}`
-  );
-  const whatsappMessage = encodeURIComponent(
-    `Hi! I'd like to order the following from ComicCulture:\n\n${lines.join('\n')}\n\nTotal: Rs. ${totalPrice}`
-  );
-  const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`;
 
   return (
     <AnimatePresence>
@@ -164,17 +154,6 @@ export default function CartDrawer() {
                 <Link to="/checkout" onClick={closeCart} className="btn-primary w-full">
                   Proceed to Checkout
                 </Link>
-                <motion.a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-green-500"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  Or Order on WhatsApp
-                </motion.a>
                 <p className="mt-3 text-center text-xs text-muted-foreground">
                   No payment is collected online yet — we'll confirm delivery with you directly.
                 </p>

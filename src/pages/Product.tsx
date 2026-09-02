@@ -1,8 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
 import {
-  MessageCircle,
-  Instagram,
   ArrowLeft,
   ShoppingBag,
   ChevronRight,
@@ -19,7 +17,7 @@ import { useEffect, useState } from 'react';
 import { useProduct } from '../hooks/useProduct';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
-import { generateWhatsAppMessage, formatPrice, getStockForSize, isSizeInStock, getPreorderMessage } from '../data/products';
+import { formatPrice, getStockForSize, isSizeInStock, getPreorderMessage } from '../data/products';
 import type { Product as ProductType } from '../data/products';
 import { fetchCollectionById } from '../data/collections';
 import SEO, { type JsonLdBlock } from '../components/SEO';
@@ -166,12 +164,6 @@ export default function Product() {
       </section>
     );
   }
-
-  const whatsappLink = `https://wa.me/94787756338?text=${generateWhatsAppMessage(
-    product,
-    selectedSize,
-    quantity
-  )}`;
 
   const galleryImages =
     product.images && product.images.length > 0
@@ -497,30 +489,6 @@ export default function Product() {
               {stockMessage && (
                 <p className="mt-2 text-xs text-primary">{stockMessage}</p>
               )}
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                <motion.a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-green-500"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  Order on WhatsApp
-                </motion.a>
-                <motion.a
-                  href={product.instagramLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-3 font-semibold text-primary-foreground"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Instagram className="h-5 w-5" />
-                  Instagram
-                </motion.a>
-              </div>
             </div>
 
             {/* Trust badges */}
