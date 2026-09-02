@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { CartItem } from '../context/CartContext';
 import { notifyAdminOfNewOrder } from './notifications';
-import { derivePreorderSnapshot } from './products';
 
 export type PaymentMethod = 'COD' | 'BANK_TRANSFER';
 export type PaymentStatus =
@@ -21,6 +20,13 @@ export interface CreateOrderInput {
   city: string;
   district: string;
   postalCode: string;
+  /**
+   * subtotal/deliveryFee/total are intentionally NOT sent to the server —
+   * see createOrder() below. They're kept here only so existing callers
+   * (Checkout.tsx) don't need to change; the values actually charged and
+   * stored are always computed authoritatively by the create_order RPC
+   * from real product prices + the server-side delivery fee.
+   */
   subtotal: number;
   deliveryFee: number;
   total: number;
@@ -48,109 +54,58 @@ function paymentStatusFor(method: PaymentMethod, hasReceipt: boolean): PaymentSt
   return hasReceipt ? 'awaiting_verification' : 'awaiting_payment';
 }
 
-/**
- * Builds order_items rows, snapshotting each item's pre-order status from
- * a fresh read of `products` (not from the cart) so historical orders
- * don't depend on — and can't be spoofed by — client-held cart data, and
- * remain accurate even if the product's pre-order settings change later.
- */
-async function buildOrderItemsWithPreorderSnapshot(orderId: string, items: CartItem[]) {
-  const productIds = [...new Set(items.map((item) => item.productId))];
-
-  const preorderById = new Map<string, { is_preorder: boolean; preorder_days: number | null }>();
-  if (productIds.length > 0) {
-    const { data: preorderRows, error: preorderError } = await supabase
-      .from('products')
-      .select('id, is_preorder, preorder_days')
-      .in('id', productIds);
-
-    if (preorderError) {
-      throw new Error(preorderError.message);
-    }
-
-    for (const row of preorderRows ?? []) {
-      preorderById.set(row.id, { is_preorder: row.is_preorder, preorder_days: row.preorder_days });
-    }
-  }
-
-  return items.map((item) => {
-    const current = preorderById.get(item.productId);
-    const snapshot = derivePreorderSnapshot(
-      current?.is_preorder ?? false,
-      current?.preorder_days ?? null
-    );
-    return {
-      order_id: orderId,
-      product_id: item.productId,
-      slug: item.slug,
-      name: item.name,
-      image: item.image,
-      price: item.price,
-      size: item.size,
-      quantity: item.quantity,
-      is_preorder: snapshot.is_preorder,
-      preorder_days: snapshot.preorder_days,
-    };
-  });
+interface CreateOrderRpcRow {
+  order_id: string;
+  subtotal: number;
+  delivery_fee: number;
+  total: number;
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<void> {
-  // Validate + reserve stock atomically before creating the order.
-  // Throws (and aborts) if any item is out of stock or oversold.
-  const { error: stockError } = await supabase.rpc('decrement_stock_for_order', {
-    items: input.items.map((item) => ({
-      product_id: item.productId,
-      size: item.size,
-      quantity: item.quantity,
-    })),
-    order_reference: input.orderReference,
-  });
-
-  if (stockError) {
-    throw new Error(stockError.message);
-  }
-
-  const orderId = crypto.randomUUID();
-
   // Order workflow status is untouched — it stays at the table default
   // ('pending') regardless of payment method. Payment status is tracked
   // separately and must never influence or be inferred from order status.
   const paymentStatus = paymentStatusFor(input.paymentMethod, !!input.receiptPath);
 
-  const { error: orderError } = await supabase.from('orders').insert({
-    id: orderId,
-    order_reference: input.orderReference,
-    full_name: input.fullName,
-    phone: input.phone,
-    email: input.email.trim() || null,
-    address_line1: input.addressLine1,
-    address_line2: input.addressLine2.trim() || null,
-    city: input.city,
-    district: input.district,
-    postal_code: input.postalCode.trim() || null,
-    subtotal: input.subtotal,
-    delivery_fee: input.deliveryFee,
-    total: input.total,
-    payment_method: input.paymentMethod,
-    payment_status: paymentStatus,
-    receipt_url: input.receiptPath ?? null,
+  // Single server-side RPC does everything that touches money or stock:
+  // validates + decrements stock, looks up each item's real price from
+  // `products`, computes subtotal/delivery_fee/total itself (ignoring any
+  // client-supplied numbers — they're not even passed as parameters), and
+  // inserts the order + order_items rows atomically. See
+  // supabase/migrations/20260903010000_create_order_server_side_pricing.sql.
+  const { data, error } = await supabase.rpc('create_order', {
+    p_order_reference: input.orderReference,
+    p_full_name: input.fullName,
+    p_phone: input.phone,
+    p_email: input.email.trim() || null,
+    p_address_line1: input.addressLine1,
+    p_address_line2: input.addressLine2.trim() || null,
+    p_city: input.city,
+    p_district: input.district,
+    p_postal_code: input.postalCode.trim() || null,
+    p_payment_method: input.paymentMethod,
+    p_payment_status: paymentStatus,
+    p_receipt_url: input.receiptPath ?? null,
+    p_items: input.items.map((item) => ({
+      product_id: item.productId,
+      slug: item.slug,
+      name: item.name,
+      image: item.image,
+      size: item.size,
+      quantity: item.quantity,
+    })),
   });
 
-  if (orderError) {
-    throw new Error(orderError.message);
+  if (error) {
+    throw new Error(error.message);
   }
 
-  const orderItems = await buildOrderItemsWithPreorderSnapshot(orderId, input.items);
-
-  const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-
-  if (itemsError) {
-    // Order row exists but items failed — surface this distinctly so it's
-    // easy to find/fix from the Supabase dashboard if it ever happens.
-    throw new Error(`Order ${input.orderReference} was created, but saving items failed: ${itemsError.message}`);
+  const result = (data as CreateOrderRpcRow[] | null)?.[0];
+  if (!result) {
+    throw new Error(`Order ${input.orderReference} was not created — no result returned.`);
   }
 
   // Fire-and-forget: the order is fully saved at this point, so a failure
   // to email the admin should never surface as a checkout error.
-  void notifyAdminOfNewOrder(orderId);
+  void notifyAdminOfNewOrder(result.order_id);
 }
