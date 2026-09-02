@@ -21,6 +21,7 @@ import { formatPrice, getStockForSize, isSizeInStock, getPreorderMessage } from 
 import type { Product as ProductType } from '../data/products';
 import { fetchCollectionById } from '../data/collections';
 import SEO, { type JsonLdBlock } from '../components/SEO';
+import { STORE_CONFIG } from '../config/store';
 
 const SITE_URL = 'https://comicculture.lk';
 
@@ -49,11 +50,17 @@ const RETURN_POLICY_JSONLD = {
  * Mirrors the "Shipping & Returns" accordion text below: dispatch within
  * 1-2 business days, arrival within 2-4 business days, island-wide
  * (Sri Lanka only — the site has no other delivery region anywhere).
- * `shippingRate` is deliberately omitted: no delivery fee is defined
- * anywhere in the codebase, so it isn't set here rather than guessed.
+ * `shippingRate` uses the centralized STORE_CONFIG.deliveryFee (the same
+ * Rs. 350 customer-facing delivery fee charged at checkout) rather than a
+ * hardcoded value.
  */
 const SHIPPING_DETAILS_JSONLD = {
   '@type': 'OfferShippingDetails',
+  shippingRate: {
+    '@type': 'MonetaryAmount',
+    value: STORE_CONFIG.deliveryFee,
+    currency: STORE_CONFIG.currency,
+  },
   shippingDestination: {
     '@type': 'DefinedRegion',
     addressCountry: 'LK',
