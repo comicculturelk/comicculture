@@ -5,7 +5,7 @@ import { Plus, Minus } from 'lucide-react';
 const faqs = [
   {
     question: 'What products do you sell?',
-    answer: 'ComicCulture offers premium jersey-material T-shirts inspired by comics, anime, and pop culture. Availability depends on current stock, so some designs may sell out from time to time.',
+    answer: 'ComicCulture offers premium fan-apparel T-shirts — including jersey, cotton, and cotton/polyester styles — inspired by comics, anime, and pop culture. Availability depends on current stock, so some designs may sell out from time to time.',
   },
   {
     question: 'How do I place an order?',
@@ -29,7 +29,7 @@ const faqs = [
   },
   {
     question: 'What sizes are available?',
-    answer: 'Our jerseys come in XS, S, M, L, XL, and XXL. Check the size guide on each product page before ordering, as fit can vary between prints.',
+    answer: 'Our T-shirts come in XS, S, M, L, XL, and XXL. Check the size guide on each product page before ordering, as fit can vary between prints.',
   },
   {
     question: 'Can I exchange sizes?',
@@ -49,7 +49,7 @@ const faqs = [
   },
   {
     question: 'Are these officially licensed products?',
-    answer: 'ComicCulture is a fan-inspired apparel brand. Our jerseys and future collections feature original designs inspired by comic books, pop culture, and fictional universes. We are not affiliated with, endorsed by, or officially connected to any comic book publishers or entertainment companies',
+    answer: 'ComicCulture is a fan-inspired apparel brand. Our designs are original artwork inspired by comic books, pop culture, and fictional universes. We are not affiliated with, endorsed by, or officially connected to any comic book publishers or entertainment companies',
   },
 ];
 

@@ -31,7 +31,7 @@ export default function Timeline() {
             BEHIND THE <span className="text-gradient-blue">DESIGN</span>
           </h2>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-            Every jersey goes through our meticulous 6-step process before reaching you.
+            Every piece goes through our meticulous 6-step process before reaching you.
           </p>
         </motion.div>
 

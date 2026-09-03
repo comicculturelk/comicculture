@@ -274,14 +274,14 @@ export default function CollectionPage() {
         {/* Empty state — no products in collection at all */}
         {!loading && !error && collectionProducts.length === 0 && (
           <p className="text-center text-muted">
-            No jerseys found in this collection yet.
+            No products found in this collection yet.
           </p>
         )}
 
         {/* Empty state — filters/search matched nothing */}
         {!loading && !error && collectionProducts.length > 0 && filteredProducts.length === 0 && (
           <p className="text-center text-muted">
-            No jerseys match your search or filters.
+            No products match your search or filters.
           </p>
         )}
 

@@ -554,7 +554,7 @@ export default function Product() {
               >
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   Orders are dispatched within 1-2 business days and typically arrive within
-                  2-4 business days island-wide. If a jersey doesn't fit right, reach out to us
+                  2-4 business days island-wide. If an item doesn't fit right, reach out to us
                   on WhatsApp within 7 days of delivery to arrange a free size exchange.
                 </p>
               </AccordionItem>

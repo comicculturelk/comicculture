@@ -43,7 +43,7 @@ export default function WhySection() {
             WHY <span className="text-gradient-red">COMICCULTURE</span>
           </h2>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-            We don't just make jerseys. We create wearable art inspired by the stories you love.
+            We don't just make T-shirts. We create wearable art inspired by the stories you love.
           </p>
         </motion.div>
 

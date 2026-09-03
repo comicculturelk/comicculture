@@ -153,7 +153,7 @@ export function derivePreorderSnapshot(
 
 export function generateWhatsAppMessage(product: Product, size: string, quantity = 1): string {
   const qtyText = quantity > 1 ? `${quantity}x ` : '';
-  const message = `Hi! I'd like to order ${qtyText}the ${product.name} jersey in size ${size} from ComicCulture. Is it available?`;
+  const message = `Hi! I'd like to order ${qtyText}the ${product.name} in size ${size} from ComicCulture. Is it available?`;
   return encodeURIComponent(message);
 }
 

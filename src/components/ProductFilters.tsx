@@ -38,7 +38,7 @@ export default function ProductFilters({
           type="text"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search jerseys..."
+          placeholder="Search products..."
           className="w-full rounded-full border border-border bg-surface py-2.5 pl-11 pr-4 text-sm text-foreground placeholder:text-muted transition-colors duration-200 focus:border-primary/50 focus:outline-none"
         />
       </div>

@@ -65,7 +65,7 @@ export default function SearchOverlay({ onClose }: SearchOverlayProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search jerseys, collections..."
+              placeholder="Search products, collections..."
               className="w-full bg-transparent text-base text-foreground placeholder:text-muted focus:outline-none"
             />
             <button
@@ -86,7 +86,7 @@ export default function SearchOverlay({ onClose }: SearchOverlayProps) {
 
               {showEmptyState && (
                 <p className="px-3 py-6 text-center text-sm text-muted">
-                  No jerseys found for "{query}".
+                  No products found for "{query}".
                 </p>
               )}
 

@@ -47,7 +47,7 @@ export default function Contact() {
             GET IN <span className="text-gradient-red">TOUCH</span>
           </h2>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-            Questions about jerseys? Want to collaborate? Reach out and let's talk.
+            Questions about our products? Want to collaborate? Reach out and let's talk.
           </p>
         </motion.div>
 
