@@ -1,0 +1,33 @@
+-- Fix: after 20260903010000_create_order_server_side_pricing.sql, all
+-- order creation goes through the create_order() RPC, which computes
+-- price/subtotal/delivery_fee/total itself and performs its own inserts
+-- into orders/order_items. But the original direct-insert policies from
+-- 20260719110000_create_orders.sql were never removed:
+--
+--   create policy "Anyone can create an order" on orders for insert
+--     to anon with check (true);
+--   create policy "Anyone can add items to an order" on order_items
+--     for insert to anon with check (true);
+--
+-- These still let anon bypass create_order entirely and call
+-- supabase.from('orders').insert(...) / .from('order_items').insert(...)
+-- directly with any price/subtotal/total/status it likes — the exact
+-- hole create_order was built to close, left open on a second door.
+--
+-- Fix: drop both policies. create_order() is SECURITY DEFINER and its
+-- INSERT INTO orders / INSERT INTO order_items statements run as the
+-- function owner, who owns these tables — table owners are exempt from
+-- RLS unless FORCE ROW LEVEL SECURITY is set (it isn't here), so the RPC
+-- keeps working with zero direct insert policies on either table.
+-- With no insert policy left for any role, RLS default-denies all direct
+-- inserts (anon and authenticated alike) — the RPC becomes the only way
+-- to create an order or order item.
+--
+-- Existing authenticated policies (view/update orders, view order_items,
+-- from 20260719130000_admin_orders_rls.sql) are untouched by this
+-- migration and keep working exactly as before.
+--
+-- Run this in the Supabase SQL editor (or via CLI migration).
+
+drop policy if exists "Anyone can create an order" on orders;
+drop policy if exists "Anyone can add items to an order" on order_items;
