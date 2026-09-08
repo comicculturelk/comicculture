@@ -76,8 +76,8 @@ function mapRowToProduct(row: ProductRow): Product {
     images: row.images ?? undefined,
     instagramLink: row.instagram_link,
     featured: row.featured,
-    material: row.material ?? 'Premium breathable polyester mesh',
-    fit: row.fit ?? 'True to size, athletic fit',
+    material: row.material ?? 'Premium quality material',
+    fit: row.fit ?? 'True to size',
     careInstructions:
       row.care_instructions && row.care_instructions.length > 0
         ? row.care_instructions
