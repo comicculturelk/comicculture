@@ -103,9 +103,6 @@ export default function Hero({ collections }: HeroProps) {
             />
           )}
         </AnimatePresence>
-        {current.image && (
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
-        )}
       </div>
 
       {/* Masthead */}

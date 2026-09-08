@@ -45,36 +45,38 @@ export default function Navbar() {
     <>
       <motion.header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled ? 'glass-dark py-3' : 'py-5'
+          scrolled ? 'glass py-3' : 'py-5'
         }`}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6">
-          {/* Logo — serves as the Home link */}
-          <MotionLink
-            to="/"
-            className="flex items-center gap-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="relative flex h-9 w-9 items-center justify-center">
-              <div className="absolute inset-0 opacity-50" />
-              <img
-                src="/images/logo/logo-black.svg"
-                alt="ComicCulture"
-                className="relative h-8 w-8"
-              />
-            </div>
-            <div className="hidden sm:flex flex-col">
-              <span className="font-display text-base text-foreground leading-none">COMIC</span>
-              <span className="font-display text-base text-primary leading-none">CULTURE</span>
-            </div>
-          </MotionLink>
+        <nav className="mx-auto grid max-w-7xl grid-cols-3 items-center px-6">
+          {/* Left: Logo — serves as the Home link */}
+          <div className="flex items-center justify-start">
+            <MotionLink
+              to="/"
+              className="flex items-center gap-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="relative flex h-9 w-9 items-center justify-center">
+                <div className="absolute inset-0 opacity-50" />
+                <img
+                  src="/images/logo/logo-black.svg"
+                  alt="ComicCulture"
+                  className="relative h-8 w-8"
+                />
+              </div>
+              <div className="hidden sm:flex flex-col">
+                <span className="font-display text-base text-foreground leading-none">COMIC</span>
+                <span className="font-display text-base text-primary leading-none">CULTURE</span>
+              </div>
+            </MotionLink>
+          </div>
 
-          {/* Desktop Nav Links */}
-          <ul className="hidden lg:flex items-center gap-8">
+          {/* Center: Desktop Nav Links */}
+          <ul className="hidden items-center justify-center gap-8 lg:flex">
             {navLinks.map((link) => (
               <li key={link.to}>
                 <Link
@@ -88,67 +90,70 @@ export default function Navbar() {
             ))}
           </ul>
 
-          {/* CTA Buttons */}
-          <div className="hidden lg:flex items-center gap-4">
-            <button
-              onClick={handleOpenSearch}
-              className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
-              aria-label="Open search"
-            >
-              <Search className="h-5 w-5" />
-            </button>
-            <button
-              onClick={openCart}
-              className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
-              aria-label="Open cart"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {totalItems}
-                </span>
-              )}
-            </button>
-            <MotionLink
-              to="/shop"
-              className="btn-primary"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              Shop Now
-            </MotionLink>
-          </div>
+          {/* Right: Actions */}
+          <div className="flex items-center justify-end">
+            {/* CTA Buttons (desktop) */}
+            <div className="hidden lg:flex items-center gap-4">
+              <button
+                onClick={handleOpenSearch}
+                className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
+                aria-label="Open search"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+              <button
+                onClick={openCart}
+                className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
+                aria-label="Open cart"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
+              <MotionLink
+                to="/shop"
+                className="btn-primary"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <ShoppingBag className="h-4 w-4" />
+                Shop Now
+              </MotionLink>
+            </div>
 
-          {/* Mobile: Search + Cart + Menu Toggle */}
-          <div className="flex items-center gap-1 lg:hidden">
-            <button
-              onClick={handleOpenSearch}
-              className="relative p-2 text-foreground"
-              aria-label="Open search"
-            >
-              <Search className="h-5 w-5" />
-            </button>
-            <button
-              onClick={openCart}
-              className="relative p-2 text-foreground"
-              aria-label="Open cart"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {totalItems}
-                </span>
-              )}
-            </button>
-            <motion.button
-              className="p-2 text-foreground"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              whileTap={{ scale: 0.9 }}
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </motion.button>
+            {/* Mobile: Search + Cart + Menu Toggle */}
+            <div className="flex items-center gap-1 lg:hidden">
+              <button
+                onClick={handleOpenSearch}
+                className="relative p-2 text-foreground"
+                aria-label="Open search"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+              <button
+                onClick={openCart}
+                className="relative p-2 text-foreground"
+                aria-label="Open cart"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
+              <motion.button
+                className="p-2 text-foreground"
+                onClick={() => setMobileOpen(!mobileOpen)}
+                whileTap={{ scale: 0.9 }}
+                aria-label="Toggle menu"
+              >
+                {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </motion.button>
+            </div>
           </div>
         </nav>
       </motion.header>
