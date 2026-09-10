@@ -4,9 +4,11 @@ import { fetchCollectionById } from './collections';
 
 /**
  * Structured apparel category, replacing free-text guessing from
- * `material`/`fit`. Mirrors the `products_product_type_check` constraint in
- * supabase/migrations/20260909060000_add_product_type_to_products.sql — add
- * new values in both places together.
+ * `material`/`fit`. Mirrors the `product_versions_product_type_check`
+ * constraint in supabase/migrations — add new values in both places
+ * together. Lives on `product_versions` now (Phase 2A model), not on the
+ * product itself, since different versions of the same design can be
+ * different garment types (e.g. a Spider-Man tee vs. a Spider-Man jersey).
  */
 export type ProductType = 'regular_tshirt' | 'oversized_tshirt' | 'jersey' | 'polo' | 'hoodie';
 
@@ -26,6 +28,49 @@ export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   hoodie: 'Hoodie',
 };
 
+/** Canonical display order for garment sizes. Anything not in this list sorts after, alphabetically. */
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+
+function compareSizes(a: string, b: string): number {
+  const ai = SIZE_ORDER.indexOf(a);
+  const bi = SIZE_ORDER.indexOf(b);
+  if (ai === -1 && bi === -1) return a.localeCompare(b);
+  if (ai === -1) return 1;
+  if (bi === -1) return -1;
+  return ai - bi;
+}
+
+/** The sellable unit: one size of one product version, with its own SKU/price/stock. */
+export interface ProductVersionSize {
+  id: string;
+  versionId: string;
+  size: string;
+  sku: string;
+  price: number;
+  stock: number;
+  createdAt: string;
+}
+
+/** A specific apparel offering of a product (e.g. "Jersey", "Oversized — Black"). */
+export interface ProductVersion {
+  id: string;
+  productId: string;
+  versionName: string;
+  productType: ProductType;
+  material?: string;
+  fit?: string;
+  color?: string;
+  images?: string[];
+  careInstructions?: string[];
+  isPreorder: boolean;
+  preorderDays?: number | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  sizes: ProductVersionSize[];
+}
+
+/** The design/story-level entity — a comic character/theme, independent of any particular garment. */
 export interface Product {
   id: string;
   name: string;
@@ -35,23 +80,44 @@ export interface Product {
   tagline: string;
   description: string;
   lore: string;
-  price: number;
-  sizes: string[];
   image: string;
   images?: string[];
-  instagramLink: string;
   featured?: boolean;
-  material?: string;
-  fit?: string;
-  careInstructions?: string[];
-  sku: string;
-  stock?: Record<string, number>;
-  isPreorder: boolean;
-  preorderDays?: number | null;
-  productType: ProductType;
+  createdAt: string;
+  versions: ProductVersion[];
 }
 
-// Shape of a row as it comes back from Supabase (snake_case column names)
+// --- Row shapes as they come back from Supabase (snake_case column names) ---
+
+interface ProductVersionSizeRow {
+  id: string;
+  version_id: string;
+  size: string;
+  sku: string;
+  price: number;
+  stock: number;
+  created_at: string;
+}
+
+interface ProductVersionRow {
+  id: string;
+  product_id: string;
+  version_name: string;
+  product_type: ProductType;
+  material: string | null;
+  fit: string | null;
+  color: string | null;
+  images: string[] | null;
+  care_instructions: string[] | null;
+  is_preorder: boolean;
+  preorder_days: number | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  // Present only when fetched via the nested product select below.
+  sizes?: ProductVersionSizeRow[];
+}
+
 interface ProductRow {
   id: string;
   name: string;
@@ -61,20 +127,12 @@ interface ProductRow {
   tagline: string;
   description: string;
   lore: string;
-  price: number;
-  sizes: string[];
   image: string;
   images: string[] | null;
-  instagram_link: string;
   featured: boolean;
-  material: string | null;
-  fit: string | null;
-  care_instructions: string[] | null;
-  sku: string;
-  stock: Record<string, number> | null;
-  is_preorder: boolean;
-  preorder_days: number | null;
-  product_type: ProductType;
+  created_at: string;
+  // Present only when fetched via the nested select below.
+  versions?: ProductVersionRow[];
 }
 
 const DEFAULT_CARE_INSTRUCTIONS = [
@@ -86,6 +144,59 @@ const DEFAULT_CARE_INSTRUCTIONS = [
 
 const PRODUCT_IMAGES_BUCKET = 'product-images';
 
+/**
+ * Nested select shape for `products`, pulling in every version and every
+ * size row for each version in a single round trip. Ordering is applied
+ * client-side in the mapping functions below (sort_order for versions,
+ * canonical size order for sizes) rather than via `.order(..., { foreignTable })`,
+ * to keep this resilient to supabase-js version differences on nested ordering.
+ */
+const PRODUCT_SELECT = `
+  *,
+  versions:product_versions (
+    *,
+    sizes:product_version_sizes (*)
+  )
+`;
+
+function mapRowToVersionSize(row: ProductVersionSizeRow): ProductVersionSize {
+  return {
+    id: row.id,
+    versionId: row.version_id,
+    size: row.size,
+    sku: row.sku,
+    price: row.price,
+    stock: row.stock,
+    createdAt: row.created_at,
+  };
+}
+
+function mapRowToVersion(row: ProductVersionRow): ProductVersion {
+  return {
+    id: row.id,
+    productId: row.product_id,
+    versionName: row.version_name,
+    productType: row.product_type,
+    material: row.material ?? undefined,
+    fit: row.fit ?? undefined,
+    color: row.color ?? undefined,
+    images: row.images ?? undefined,
+    careInstructions:
+      row.care_instructions && row.care_instructions.length > 0
+        ? row.care_instructions
+        : DEFAULT_CARE_INSTRUCTIONS,
+    isPreorder: row.is_preorder,
+    preorderDays: row.preorder_days ?? undefined,
+    isActive: row.is_active,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    sizes: (row.sizes ?? [])
+      .slice()
+      .sort((a, b) => compareSizes(a.size, b.size))
+      .map(mapRowToVersionSize),
+  };
+}
+
 function mapRowToProduct(row: ProductRow): Product {
   return {
     id: row.id,
@@ -96,43 +207,34 @@ function mapRowToProduct(row: ProductRow): Product {
     tagline: row.tagline,
     description: row.description,
     lore: row.lore,
-    price: row.price,
-    sizes: row.sizes,
     image: row.image,
     images: row.images ?? undefined,
-    instagramLink: row.instagram_link,
     featured: row.featured,
-    material: row.material ?? 'Premium quality material',
-    fit: row.fit ?? 'True to size',
-    careInstructions:
-      row.care_instructions && row.care_instructions.length > 0
-        ? row.care_instructions
-        : DEFAULT_CARE_INSTRUCTIONS,
-    sku: row.sku,
-    stock: row.stock ?? {},
-    isPreorder: row.is_preorder,
-    preorderDays: row.preorder_days ?? undefined,
-    productType: row.product_type,
+    createdAt: row.created_at,
+    versions: (row.versions ?? [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(mapRowToVersion),
   };
 }
 
 export async function fetchProducts(): Promise<Product[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select(PRODUCT_SELECT)
     .order('created_at', { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load products: ${error.message}`);
   }
 
-  return (data ?? []).map(mapRowToProduct);
+  return ((data ?? []) as unknown as ProductRow[]).map(mapRowToProduct);
 }
 
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select(PRODUCT_SELECT)
     .eq('slug', slug)
     .maybeSingle();
 
@@ -140,7 +242,7 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
     throw new Error(`Failed to load product: ${error.message}`);
   }
 
-  return data ? mapRowToProduct(data) : null;
+  return data ? mapRowToProduct(data as unknown as ProductRow) : null;
 }
 
 export function formatPrice(price: number): string {
@@ -149,14 +251,16 @@ export function formatPrice(price: number): string {
 
 /**
  * Human-readable pre-order delivery message, e.g. "Delivery within 14 days".
- * Returns null when the product isn't a pre-order, or has no valid
+ * Pre-order status now lives on the product VERSION (not the product), since
+ * one version of a design can be in stock while another is pre-order only.
+ * Returns null when the version isn't a pre-order, or has no valid
  * timeframe set — callers should never render null/0/undefined to customers.
  */
 export function getPreorderMessage(
-  product: Pick<Product, 'isPreorder' | 'preorderDays'>
+  version: Pick<ProductVersion, 'isPreorder' | 'preorderDays'>
 ): string | null {
-  if (!product.isPreorder) return null;
-  const days = product.preorderDays;
+  if (!version.isPreorder) return null;
+  const days = version.preorderDays;
   if (!days || days <= 0) return null;
   return `Delivery within ${days} day${days === 1 ? '' : 's'}`;
 }
@@ -164,9 +268,9 @@ export function getPreorderMessage(
 /**
  * Normalizes raw pre-order fields into a consistent DB-ready pair —
  * preorder_days is always forced to null when is_preorder is false,
- * mirroring the products/order_items CHECK constraints. Shared by any
- * write path (admin product form, order item snapshotting) so this rule
- * lives in one place.
+ * mirroring the product_versions/order_items CHECK constraints. Shared by
+ * any write path (admin version form, order item snapshotting) so this
+ * rule lives in one place.
  */
 export function derivePreorderSnapshot(
   isPreorder: boolean,
@@ -178,28 +282,38 @@ export function derivePreorderSnapshot(
   };
 }
 
-export function generateWhatsAppMessage(product: Product, size: string, quantity = 1): string {
+export function generateWhatsAppMessage(product: Pick<Product, 'name'>, size: string, quantity = 1): string {
   const qtyText = quantity > 1 ? `${quantity}x ` : '';
   const message = `Hi! I'd like to order ${qtyText}the ${product.name} in size ${size} from ComicCulture. Is it available?`;
   return encodeURIComponent(message);
 }
 
-/** Remaining stock for a given size (0 if unknown/out of stock). */
-export function getStockForSize(product: Pick<Product, 'stock'>, size: string): number {
-  return product.stock?.[size] ?? 0;
+/**
+ * Remaining stock for a given size within a specific product VERSION
+ * (0 if unknown/out of stock). Stock is scoped to a version+size now, not
+ * to the product as a whole, since e.g. the Jersey and the Hoodie of the
+ * same design carry independent stock.
+ */
+export function getStockForSize(version: Pick<ProductVersion, 'sizes'>, size: string): number {
+  return version.sizes.find((s) => s.size === size)?.stock ?? 0;
 }
 
-/** Whether a given size can currently be ordered. */
-export function isSizeInStock(product: Pick<Product, 'stock'>, size: string): boolean {
-  return getStockForSize(product, size) > 0;
+/** Whether a given size of a given version can currently be ordered. */
+export function isSizeInStock(version: Pick<ProductVersion, 'sizes'>, size: string): boolean {
+  return getStockForSize(version, size) > 0;
 }
 
-/** Overwrites a product's per-size stock map (admin use only). */
-export async function updateProductStock(
-  productId: string,
-  stock: Record<string, number>
-): Promise<void> {
-  const { error } = await supabase.from('products').update({ stock }).eq('id', productId);
+/**
+ * Overwrites the stock for a single product_version_sizes row (admin use
+ * only). Previously this took a productId + a whole per-size stock map,
+ * because stock lived directly on `products`; now stock is per
+ * (version, size) row, so callers must target the specific row by id.
+ */
+export async function updateProductStock(versionSizeId: string, stock: number): Promise<void> {
+  const { error } = await supabase
+    .from('product_version_sizes')
+    .update({ stock })
+    .eq('id', versionSizeId);
   if (error) {
     throw new Error(`Failed to update stock: ${error.message}`);
   }
@@ -214,6 +328,19 @@ export interface ProductFilters {
   featuredOnly?: boolean;
 }
 
+/** All distinct sizes available across a product's versions. */
+function getProductSizes(product: Pick<Product, 'versions'>): string[] {
+  const seen = new Set<string>();
+  product.versions.forEach((v) => v.sizes.forEach((s) => seen.add(s.size)));
+  return Array.from(seen);
+}
+
+/** Cheapest price across all of a product's version-sizes (0 if it has none). */
+function getProductMinPrice(product: Pick<Product, 'versions'>): number {
+  const prices = product.versions.flatMap((v) => v.sizes.map((s) => s.price));
+  return prices.length > 0 ? Math.min(...prices) : 0;
+}
+
 export function filterProducts(products: Product[], filters: ProductFilters): Product[] {
   const { search, size, maxPrice, featuredOnly } = filters;
   const query = search?.trim().toLowerCase();
@@ -224,38 +351,43 @@ export function filterProducts(products: Product[], filters: ProductFilters): Pr
         .toLowerCase();
       if (!haystack.includes(query)) return false;
     }
-    if (size && !product.sizes.includes(size)) return false;
-    if (maxPrice != null && product.price > maxPrice) return false;
+    if (size && !getProductSizes(product).includes(size)) return false;
+    // "maxPrice" is satisfied if the product has at least one option at or
+    // under that price (its cheapest version-size), matching a typical
+    // "starting from" storefront price filter.
+    if (maxPrice != null && getProductMinPrice(product) > maxPrice) return false;
     if (featuredOnly && !product.featured) return false;
     return true;
   });
 }
 
-/** Unique sizes present across a product list, de-duplicated. */
+/** Unique sizes present across a product list's versions, de-duplicated. */
 export function getUniqueSizes(products: Product[]): string[] {
   const seen = new Set<string>();
-  products.forEach((p) => p.sizes.forEach((s) => seen.add(s)));
+  products.forEach((p) => getProductSizes(p).forEach((s) => seen.add(s)));
   return Array.from(seen);
 }
 
-/** Min/max price across a product list. Returns { min: 0, max: 0 } for an empty list. */
+/** Min/max price across every version-size of a product list. Returns { min: 0, max: 0 } if none exist. */
 export function getPriceBounds(products: Product[]): { min: number; max: number } {
-  if (products.length === 0) return { min: 0, max: 0 };
-  const prices = products.map((p) => p.price);
+  const prices = products.flatMap((p) => p.versions.flatMap((v) => v.sizes.map((s) => s.price)));
+  if (prices.length === 0) return { min: 0, max: 0 };
   return { min: Math.min(...prices), max: Math.max(...prices) };
 }
 
 // --- Admin: product management (create / edit / delete / duplicate) ---
 
 /**
- * Fields an admin can set when creating or editing a product.
+ * Fields an admin can set when creating or editing a product's design/story
+ * layer. Garment-specific fields (type, material, price, sizes, stock, SKU,
+ * pre-order) have moved to `ProductVersionInput` / `ProductVersionSizeInput`
+ * below — a product on its own is just the design.
  * `images` is an ordered list — `images[0]` is treated as the primary image
  * and mirrored into the `image` column for storefront compatibility.
  */
 export interface ProductInput {
   name: string;
   slug: string;
-  sku: string;
   /**
    * Relational source of truth — the id of an existing `collections` row.
    * Free-text collection names are no longer accepted from callers; the
@@ -267,17 +399,8 @@ export interface ProductInput {
   tagline: string;
   description: string;
   lore: string;
-  price: number;
-  sizes: string[];
   images: string[];
   featured?: boolean;
-  material?: string;
-  fit?: string;
-  careInstructions?: string[];
-  stock?: Record<string, number>;
-  isPreorder?: boolean;
-  preorderDays?: number | null;
-  productType: ProductType;
 }
 
 /**
@@ -297,30 +420,14 @@ async function mapProductInputToRow(input: ProductInput) {
   return {
     name: input.name,
     slug: input.slug,
-    sku: input.sku,
     collection_id: input.collectionId,
     collection: collection.name,
     tagline: input.tagline,
     description: input.description,
     lore: input.lore,
-    price: input.price,
-    sizes: input.sizes,
     image: input.images[0] ?? '',
     images: input.images,
-    // instagram_link is a required legacy column not exposed in the admin form;
-    // defaulted to empty string rather than adding it back into the UI.
-    instagram_link: '',
     featured: input.featured ?? false,
-    material: input.material ?? null,
-    fit: input.fit ?? null,
-    care_instructions: input.careInstructions ?? null,
-    stock: input.stock ?? {},
-    is_preorder: input.isPreorder ?? false,
-    // Defensive: mirrors the DB check constraint (preorder_days must be
-    // null unless is_preorder is true) so a stale value can never slip
-    // through even if the caller passes one by mistake.
-    preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
-    product_type: input.productType,
   };
 }
 
@@ -335,10 +442,15 @@ export async function isSlugTaken(slug: string, excludeId?: string): Promise<boo
   return !!data;
 }
 
-/** Whether a SKU is already in use by another product. */
-export async function isSkuTaken(sku: string, excludeId?: string): Promise<boolean> {
-  let query = supabase.from('products').select('id').eq('sku', sku);
-  if (excludeId) query = query.neq('id', excludeId);
+/**
+ * Whether a SKU is already in use by another product-version-size row.
+ * SKUs now live on `product_version_sizes` (one per sellable size), not on
+ * `products` — so this checks that table, and `excludeSizeId` refers to a
+ * `product_version_sizes.id`, not a product id.
+ */
+export async function isSkuTaken(sku: string, excludeSizeId?: string): Promise<boolean> {
+  let query = supabase.from('product_version_sizes').select('id').eq('sku', sku);
+  if (excludeSizeId) query = query.neq('id', excludeSizeId);
   const { data, error } = await query.maybeSingle();
   if (error) {
     throw new Error(`Failed to check SKU: ${error.message}`);
@@ -353,7 +465,9 @@ export async function createProduct(input: ProductInput): Promise<Product> {
   if (error) {
     throw new Error(`Failed to create product: ${error.message}`);
   }
-  return mapRowToProduct(data);
+  // A freshly created product has no versions yet; mapRowToProduct defaults
+  // `versions` to [] since `data` has no nested `versions` key here.
+  return mapRowToProduct(data as ProductRow);
 }
 
 export async function updateProduct(id: string, input: ProductInput): Promise<Product> {
@@ -368,7 +482,10 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
   if (error) {
     throw new Error(`Failed to update product: ${error.message}`);
   }
-  return mapRowToProduct(data);
+  // Same note as createProduct: this response has no nested versions, so
+  // callers that need the full versions/sizes tree should re-fetch via
+  // fetchProductBySlug/fetchProducts after an update.
+  return mapRowToProduct(data as ProductRow);
 }
 
 /**
@@ -381,6 +498,9 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
  * Image cleanup failures are swallowed (via allSettled) since the product
  * row is already gone by that point — an orphaned file is a minor issue,
  * a stuck delete flow is worse.
+ * NOTE: this does not explicitly delete the product's `product_versions` /
+ * `product_version_sizes` rows — whether they're removed depends on the FK
+ * behavior configured in the DB (see report).
  */
 export async function deleteProduct(
   product: Pick<Product, 'id' | 'image' | 'images'>
@@ -409,7 +529,101 @@ export async function deleteProduct(
   await Promise.allSettled(urls.map((url) => deleteProductImage(url)));
 }
 
-/** Creates a copy of an existing product with a new slug/SKU and a "(Copy)" name suffix. Reuses existing image URLs (no re-upload). */
+// --- Admin: product version & version-size management ---
+//
+// Minimal CRUD to support duplicateProduct below and any Phase 2B version
+// editor. `ProductForm.tsx` itself is untouched in this phase per the task
+// scope, so nothing here is wired into the UI yet.
+
+/** Fields an admin can set when creating or editing a product version. */
+export interface ProductVersionInput {
+  versionName: string;
+  productType: ProductType;
+  material?: string | null;
+  fit?: string | null;
+  color?: string | null;
+  images?: string[];
+  careInstructions?: string[];
+  isPreorder?: boolean;
+  preorderDays?: number | null;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+function mapVersionInputToRow(productId: string, input: ProductVersionInput) {
+  return {
+    product_id: productId,
+    version_name: input.versionName,
+    product_type: input.productType,
+    material: input.material ?? null,
+    fit: input.fit ?? null,
+    color: input.color ?? null,
+    images: input.images ?? null,
+    care_instructions: input.careInstructions ?? null,
+    is_preorder: input.isPreorder ?? false,
+    // Defensive: mirrors the DB check constraint (preorder_days must be
+    // null unless is_preorder is true) so a stale value can never slip
+    // through even if the caller passes one by mistake.
+    preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
+    is_active: input.isActive ?? true,
+    sort_order: input.sortOrder ?? 0,
+  };
+}
+
+export async function createProductVersion(
+  productId: string,
+  input: ProductVersionInput
+): Promise<ProductVersion> {
+  const { data, error } = await supabase
+    .from('product_versions')
+    .insert(mapVersionInputToRow(productId, input))
+    .select()
+    .single();
+  if (error) {
+    throw new Error(`Failed to create product version: ${error.message}`);
+  }
+  return mapRowToVersion({ ...(data as ProductVersionRow), sizes: [] });
+}
+
+/** Fields an admin can set when creating or editing a single sellable size row. */
+export interface ProductVersionSizeInput {
+  size: string;
+  sku: string;
+  price: number;
+  stock?: number;
+}
+
+export async function createProductVersionSize(
+  versionId: string,
+  input: ProductVersionSizeInput
+): Promise<ProductVersionSize> {
+  const { data, error } = await supabase
+    .from('product_version_sizes')
+    .insert({
+      version_id: versionId,
+      size: input.size,
+      sku: input.sku,
+      price: input.price,
+      stock: input.stock ?? 0,
+    })
+    .select()
+    .single();
+  if (error) {
+    throw new Error(`Failed to create size: ${error.message}`);
+  }
+  return mapRowToVersionSize(data as ProductVersionSizeRow);
+}
+
+/**
+ * Creates a copy of an existing product — including all of its versions and
+ * their sizes — with new slugs/SKUs and a "(Copy)" name suffix. Reuses
+ * existing image URLs (no re-upload). Stock on every duplicated size starts
+ * at 0, matching the previous single-table behavior.
+ * This now requires several sequential inserts (one product, then one per
+ * version, then one per size) since the data is spread across three
+ * tables; there's no multi-table transaction here, so a failure partway
+ * through can leave a partially-duplicated product behind (see report).
+ */
 export async function duplicateProduct(product: Product): Promise<Product> {
   if (!product.collectionId) {
     throw new Error(
@@ -417,24 +631,47 @@ export async function duplicateProduct(product: Product): Promise<Product> {
     );
   }
   const suffix = Date.now().toString(36);
-  return createProduct({
+  const newProduct = await createProduct({
     name: `${product.name} (Copy)`,
     slug: `${product.slug}-copy-${suffix}`,
-    sku: `${product.sku}-COPY-${suffix.toUpperCase()}`,
     collectionId: product.collectionId,
     tagline: product.tagline,
     description: product.description,
     lore: product.lore,
-    price: product.price,
-    sizes: product.sizes,
     images: product.images && product.images.length > 0 ? product.images : [product.image],
     featured: false,
-    material: product.material,
-    fit: product.fit,
-    careInstructions: product.careInstructions,
-    stock: {},
-    productType: product.productType,
   });
+
+  for (const version of product.versions) {
+    const newVersion = await createProductVersion(newProduct.id, {
+      versionName: version.versionName,
+      productType: version.productType,
+      material: version.material,
+      fit: version.fit,
+      color: version.color,
+      images: version.images,
+      careInstructions: version.careInstructions,
+      isPreorder: version.isPreorder,
+      preorderDays: version.preorderDays,
+      isActive: version.isActive,
+      sortOrder: version.sortOrder,
+    });
+
+    for (const size of version.sizes) {
+      await createProductVersionSize(newVersion.id, {
+        size: size.size,
+        sku: `${size.sku}-COPY-${suffix.toUpperCase()}`,
+        price: size.price,
+        stock: 0,
+      });
+    }
+  }
+
+  const duplicated = await fetchProductBySlug(newProduct.slug);
+  if (!duplicated) {
+    throw new Error('Product was duplicated but could not be reloaded.');
+  }
+  return duplicated;
 }
 
 // --- Admin: product image upload (Supabase Storage) ---

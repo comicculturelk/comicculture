@@ -1,6 +1,15 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react';
 
 export interface CartItem {
+  /**
+   * Identifies the exact sellable unit (one size of one product version).
+   * This is now the cart line's identity — see loadCart/addItem/removeItem/
+   * updateQuantity below. Two different versions of the same product that
+   * happen to share a size (e.g. Loki → Jersey → M and
+   * Loki → Oversized Cotton → M) have different versionSizeId values and
+   * so remain separate cart lines.
+   */
+  versionSizeId: string;
   productId: string;
   slug: string;
   name: string;
@@ -15,8 +24,8 @@ export interface CartItem {
 interface CartContextValue {
   items: CartItem[];
   addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
-  removeItem: (productId: string, size: string) => void;
-  updateQuantity: (productId: string, size: string, quantity: number) => void;
+  removeItem: (versionSizeId: string) => void;
+  updateQuantity: (versionSizeId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -31,10 +40,40 @@ export const CartContext = createContext<CartContextValue | undefined>(undefined
 
 const STORAGE_KEY = 'comicculture_cart';
 
+/**
+ * Narrows unknown parsed JSON down to a valid CartItem. Old (pre Phase 2B)
+ * carts stored items keyed by productId+size with no versionSizeId at all —
+ * there's no reliable way to infer which version they meant, so those
+ * items are discarded rather than guessed at. This also guards against any
+ * other malformed/corrupted localStorage content crashing the app on load.
+ */
+function isValidCartItem(value: unknown): value is CartItem {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.versionSizeId === 'string' &&
+    item.versionSizeId.length > 0 &&
+    typeof item.productId === 'string' &&
+    typeof item.slug === 'string' &&
+    typeof item.name === 'string' &&
+    typeof item.image === 'string' &&
+    typeof item.price === 'number' &&
+    typeof item.size === 'string' &&
+    typeof item.quantity === 'number' &&
+    item.quantity > 0 &&
+    (item.maxStock === undefined || typeof item.maxStock === 'number')
+  );
+}
+
 function loadCart(): CartItem[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as CartItem[]) : [];
+    if (!stored) return [];
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    // Silently drop anything that isn't a valid, versionSizeId-keyed item —
+    // covers both pre-Phase-2B carts and any other malformed data.
+    return parsed.filter(isValidCartItem);
   } catch {
     return [];
   }
@@ -54,9 +93,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   const addItem: CartContextValue['addItem'] = (item, quantity = 1) => {
-    const existing = items.find(
-      (i) => i.productId === item.productId && i.size === item.size
-    );
+    const existing = items.find((i) => i.versionSizeId === item.versionSizeId);
     const cap = item.maxStock ?? existing?.maxStock;
     const desiredQty = (existing?.quantity ?? 0) + quantity;
     const cappedQty = cap != null ? Math.min(desiredQty, cap) : desiredQty;
@@ -72,7 +109,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => {
       if (existing) {
         return prev.map((i) =>
-          i.productId === item.productId && i.size === item.size
+          i.versionSizeId === item.versionSizeId
             ? { ...i, quantity: cappedQty, maxStock: cap ?? i.maxStock }
             : i
         );
@@ -81,27 +118,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeItem: CartContextValue['removeItem'] = (productId, size) => {
-    setItems((prev) => prev.filter((i) => !(i.productId === productId && i.size === size)));
+  const removeItem: CartContextValue['removeItem'] = (versionSizeId) => {
+    setItems((prev) => prev.filter((i) => i.versionSizeId !== versionSizeId));
   };
 
-  const updateQuantity: CartContextValue['updateQuantity'] = (productId, size, quantity) => {
+  const updateQuantity: CartContextValue['updateQuantity'] = (versionSizeId, quantity) => {
     if (quantity <= 0) {
-      removeItem(productId, size);
+      removeItem(versionSizeId);
       return;
     }
-    const target = items.find((i) => i.productId === productId && i.size === size);
+    const target = items.find((i) => i.versionSizeId === versionSizeId);
     const cap = target?.maxStock;
     const cappedQty = cap != null ? Math.min(quantity, cap) : quantity;
 
     setStockMessage(
-      cap != null && quantity > cap ? `Only ${cap} left in size ${size}.` : null
+      cap != null && quantity > cap ? `Only ${cap} left in size ${target?.size ?? ''}.` : null
     );
 
     setItems((prev) =>
-      prev.map((i) =>
-        i.productId === productId && i.size === size ? { ...i, quantity: cappedQty } : i
-      )
+      prev.map((i) => (i.versionSizeId === versionSizeId ? { ...i, quantity: cappedQty } : i))
     );
   };
 
