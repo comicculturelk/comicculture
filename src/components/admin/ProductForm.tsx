@@ -4,8 +4,11 @@ import {
   updateProduct,
   isSlugTaken,
   isSkuTaken,
+  PRODUCT_TYPES,
+  PRODUCT_TYPE_LABELS,
   type Product,
   type ProductInput,
+  type ProductType,
 } from '../../data/products';
 import { fetchCollections, type Collection } from '../../data/collections';
 import { slugify } from '../../lib/slug';
@@ -33,6 +36,9 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   const [sku, setSku] = useState(product?.sku ?? '');
   const [skuTouched, setSkuTouched] = useState(mode === 'edit');
   const [collectionId, setCollectionId] = useState(product?.collectionId ?? '');
+  const [productType, setProductType] = useState<ProductType>(
+    product?.productType ?? 'regular_tshirt'
+  );
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionsLoading, setCollectionsLoading] = useState(true);
   const [collectionsError, setCollectionsError] = useState<string | null>(null);
@@ -151,6 +157,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         slug: slug.trim(),
         sku: sku.trim(),
         collectionId,
+        productType,
         tagline: tagline.trim(),
         description: description.trim(),
         lore: lore.trim(),
@@ -255,6 +262,21 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
               Create a collection first under Admin → Collections.
             </span>
           )}
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Product Type</span>
+          <select
+            value={productType}
+            onChange={(e) => setProductType(e.target.value as ProductType)}
+            className={inputClass()}
+          >
+            {PRODUCT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {PRODUCT_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="flex flex-col gap-1.5">

@@ -2,6 +2,30 @@ import { supabase } from '../lib/supabase';
 import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
 import { fetchCollectionById } from './collections';
 
+/**
+ * Structured apparel category, replacing free-text guessing from
+ * `material`/`fit`. Mirrors the `products_product_type_check` constraint in
+ * supabase/migrations/20260909060000_add_product_type_to_products.sql — add
+ * new values in both places together.
+ */
+export type ProductType = 'regular_tshirt' | 'oversized_tshirt' | 'jersey' | 'polo' | 'hoodie';
+
+export const PRODUCT_TYPES: ProductType[] = [
+  'regular_tshirt',
+  'oversized_tshirt',
+  'jersey',
+  'polo',
+  'hoodie',
+];
+
+export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
+  regular_tshirt: 'Regular T-Shirt',
+  oversized_tshirt: 'Oversized T-Shirt',
+  jersey: 'Jersey',
+  polo: 'Polo',
+  hoodie: 'Hoodie',
+};
+
 export interface Product {
   id: string;
   name: string;
@@ -24,6 +48,7 @@ export interface Product {
   stock?: Record<string, number>;
   isPreorder: boolean;
   preorderDays?: number | null;
+  productType: ProductType;
 }
 
 // Shape of a row as it comes back from Supabase (snake_case column names)
@@ -49,6 +74,7 @@ interface ProductRow {
   stock: Record<string, number> | null;
   is_preorder: boolean;
   preorder_days: number | null;
+  product_type: ProductType;
 }
 
 const DEFAULT_CARE_INSTRUCTIONS = [
@@ -86,6 +112,7 @@ function mapRowToProduct(row: ProductRow): Product {
     stock: row.stock ?? {},
     isPreorder: row.is_preorder,
     preorderDays: row.preorder_days ?? undefined,
+    productType: row.product_type,
   };
 }
 
@@ -250,6 +277,7 @@ export interface ProductInput {
   stock?: Record<string, number>;
   isPreorder?: boolean;
   preorderDays?: number | null;
+  productType: ProductType;
 }
 
 /**
@@ -292,6 +320,7 @@ async function mapProductInputToRow(input: ProductInput) {
     // null unless is_preorder is true) so a stale value can never slip
     // through even if the caller passes one by mistake.
     preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
+    product_type: input.productType,
   };
 }
 
@@ -404,6 +433,7 @@ export async function duplicateProduct(product: Product): Promise<Product> {
     fit: product.fit,
     careInstructions: product.careInstructions,
     stock: {},
+    productType: product.productType,
   });
 }
 
