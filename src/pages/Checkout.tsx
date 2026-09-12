@@ -88,7 +88,10 @@ export default function Checkout() {
   const preorderLines = items.reduce<{ item: (typeof items)[number]; message: string }[]>(
     (acc, item) => {
       const product = products.find((p) => p.id === item.productId);
-      const message = product ? getPreorderMessage(product) : null;
+      const version = product?.versions.find((v) =>
+        v.sizes.some((s) => s.id === item.versionSizeId)
+      );
+      const message = version ? getPreorderMessage(version) : null;
       if (message) acc.push({ item, message });
       return acc;
     },
@@ -586,7 +589,10 @@ export default function Checkout() {
             <div className="space-y-4">
               {items.map((item) => {
                 const product = products.find((p) => p.id === item.productId);
-                const preorderMessage = product ? getPreorderMessage(product) : null;
+                const version = product?.versions.find((v) =>
+                  v.sizes.some((s) => s.id === item.versionSizeId)
+                );
+                const preorderMessage = version ? getPreorderMessage(version) : null;
                 return (
                 <div key={`${item.productId}-${item.size}`} className="flex gap-3">
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-background">

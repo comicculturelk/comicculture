@@ -4,6 +4,19 @@ import { X, Minus, Plus, Trash2, Info } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import { getPreorderMessage } from '../data/products';
+import type { Product, ProductVersion } from '../data/products';
+
+/**
+ * Preorder status now lives on ProductVersion, not Product. A cart line only
+ * knows its versionSizeId, so to get preorder info we find the version
+ * (within the item's loaded product) whose sizes include that id.
+ */
+function findVersionForVersionSizeId(
+  product: Product | undefined,
+  versionSizeId: string
+): ProductVersion | undefined {
+  return product?.versions.find((v) => v.sizes.some((s) => s.id === versionSizeId));
+}
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalItems, totalPrice } =
@@ -12,7 +25,8 @@ export default function CartDrawer() {
 
   const hasPreorderItems = items.some((item) => {
     const product = products.find((p) => p.id === item.productId);
-    return product ? !!getPreorderMessage(product) : false;
+    const version = findVersionForVersionSizeId(product, item.versionSizeId);
+    return version ? !!getPreorderMessage(version) : false;
   });
 
   return (
@@ -69,10 +83,11 @@ export default function CartDrawer() {
                   )}
                   {items.map((item) => {
                     const product = products.find((p) => p.id === item.productId);
-                    const preorderMessage = product ? getPreorderMessage(product) : null;
+                    const version = findVersionForVersionSizeId(product, item.versionSizeId);
+                    const preorderMessage = version ? getPreorderMessage(version) : null;
                     return (
                     <div
-                      key={`${item.productId}-${item.size}`}
+                      key={item.versionSizeId}
                       className="glass flex gap-4 rounded-xl p-4"
                     >
                       <Link
@@ -93,7 +108,7 @@ export default function CartDrawer() {
                             {item.name}
                           </Link>
                           <button
-                            onClick={() => removeItem(item.productId, item.size)}
+                            onClick={() => removeItem(item.versionSizeId)}
                             className="text-muted transition-colors hover:text-primary"
                             aria-label="Remove item"
                           >
@@ -116,7 +131,7 @@ export default function CartDrawer() {
                         <div className="mt-auto flex items-center gap-3 pt-2">
                           <button
                             onClick={() =>
-                              updateQuantity(item.productId, item.size, item.quantity - 1)
+                              updateQuantity(item.versionSizeId, item.quantity - 1)
                             }
                             className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
                             aria-label="Decrease quantity"
@@ -126,7 +141,7 @@ export default function CartDrawer() {
                           <span className="w-4 text-center text-sm text-foreground">{item.quantity}</span>
                           <button
                             onClick={() =>
-                              updateQuantity(item.productId, item.size, item.quantity + 1)
+                              updateQuantity(item.versionSizeId, item.quantity + 1)
                             }
                             className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
                             aria-label="Increase quantity"

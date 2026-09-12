@@ -15,6 +15,26 @@ function stockState(qty: number): 'out' | 'low' | 'ok' {
   return qty <= 0 ? 'out' : qty <= LOW_STOCK_THRESHOLD ? 'low' : 'ok';
 }
 
+/**
+ * Unique size labels across a product's active versions. Sizes now live on
+ * `ProductVersion` (not directly on `Product`), so this is the new
+ * equivalent of the old flat `product.sizes` list.
+ */
+function getActiveSizes(product: Product): string[] {
+  const seen = new Set<string>();
+  product.versions
+    .filter((v) => v.isActive)
+    .forEach((v) => v.sizes.forEach((s) => seen.add(s.size)));
+  return Array.from(seen);
+}
+
+/** Total stock for a size, aggregated across all of a product's active versions. */
+function getTotalStockForSize(product: Product, size: string): number {
+  return product.versions
+    .filter((v) => v.isActive)
+    .reduce((sum, v) => sum + getStockForSize(v, size), 0);
+}
+
 function StockActionForm({
   action,
   onCancel,
@@ -146,8 +166,8 @@ export default function AdminInventory() {
         <div key={product.id} className="glass rounded-2xl p-6">
           <p className="font-display text-lg text-foreground tracking-wide">{product.name}</p>
           <div className="mt-4 space-y-3">
-            {product.sizes.map((size) => {
-              const qty = getStockForSize(product, size);
+            {getActiveSizes(product).map((size) => {
+              const qty = getTotalStockForSize(product, size);
               const state = stockState(qty);
               const isActive =
                 activeAction?.productId === product.id && activeAction?.size === size;

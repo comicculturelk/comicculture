@@ -4,12 +4,25 @@ import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { filterProducts } from '../data/products';
+import type { Product } from '../data/products';
 
 interface SearchOverlayProps {
   onClose: () => void;
 }
 
 const MAX_RESULTS = 6;
+
+/**
+ * Lowest price across the product's active versions/sizes (0 if none).
+ * Price now lives per version-size (Phase 2B), not directly on the
+ * product.
+ */
+function getLowestPrice(product: Product): number {
+  const prices = product.versions
+    .filter((v) => v.isActive)
+    .flatMap((v) => v.sizes.map((s) => s.price));
+  return prices.length > 0 ? Math.min(...prices) : 0;
+}
 
 export default function SearchOverlay({ onClose }: SearchOverlayProps) {
   const { products, loading } = useProducts();
@@ -114,7 +127,7 @@ export default function SearchOverlay({ onClose }: SearchOverlayProps) {
                       </p>
                     </div>
                     <span className="shrink-0 font-display text-sm text-foreground">
-                      Rs. {product.price}
+                      Rs. {getLowestPrice(product)}
                     </span>
                   </Link>
                 ))}

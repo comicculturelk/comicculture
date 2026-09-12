@@ -37,6 +37,26 @@ function isSameDay(iso: string, reference: Date): boolean {
 
 type CardAccent = 'default' | 'warning' | 'danger';
 
+/**
+ * Unique size labels across a product's active versions. Sizes now live on
+ * `ProductVersion` (not directly on `Product`), so this is the new
+ * equivalent of the old flat `product.sizes` list.
+ */
+function getActiveSizes(product: Product): string[] {
+  const seen = new Set<string>();
+  product.versions
+    .filter((v) => v.isActive)
+    .forEach((v) => v.sizes.forEach((s) => seen.add(s.size)));
+  return Array.from(seen);
+}
+
+/** Total stock for a size, aggregated across all of a product's active versions. */
+function getTotalStockForSize(product: Product, size: string): number {
+  return product.versions
+    .filter((v) => v.isActive)
+    .reduce((sum, v) => sum + getStockForSize(v, size), 0);
+}
+
 const CARD_ACCENT_STYLES: Record<CardAccent, string> = {
   default: 'text-foreground',
   warning: 'text-yellow-400',
@@ -162,8 +182,8 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
   const attentionProducts: { product: Product; sizes: { size: string; qty: number }[] }[] = [];
   for (const product of products) {
     const flaggedSizes: { size: string; qty: number }[] = [];
-    for (const size of product.sizes) {
-      const qty = getStockForSize(product, size);
+    for (const size of getActiveSizes(product)) {
+      const qty = getTotalStockForSize(product, size);
       if (qty <= 0) outOfStockCount += 1;
       if (qty <= LOW_STOCK_THRESHOLD) flaggedSizes.push({ size, qty });
     }

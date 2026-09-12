@@ -17,8 +17,8 @@ import { useEffect, useState } from 'react';
 import { useProduct } from '../hooks/useProduct';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
-import { formatPrice, getStockForSize, isSizeInStock, getPreorderMessage } from '../data/products';
-import type { Product as ProductType } from '../data/products';
+import { formatPrice, isSizeInStock, getPreorderMessage } from '../data/products';
+import type { Product as ProductType, ProductVersion } from '../data/products';
 import { fetchCollectionById } from '../data/collections';
 import SEO, { type JsonLdBlock } from '../components/SEO';
 import { STORE_CONFIG } from '../config/store';
@@ -107,25 +107,67 @@ const SIZE_GUIDE = [
 
 type AccordionKey = 'description' | 'details' | 'care' | 'shipping';
 
+/**
+ * Only active versions with at least one size are actually purchasable —
+ * an active version an admin left with zero sizes (mid-setup) is excluded
+ * rather than offered as a selectable-but-broken option.
+ */
+function getUsableVersions(product: ProductType): ProductVersion[] {
+  return product.versions.filter((v) => v.isActive && v.sizes.length > 0);
+}
+
+/**
+ * Resolves which size should be selected for a given version, given the
+ * previously selected size (if any). Keeps the previous size only if it
+ * still exists on this version AND is still in stock; otherwise prefers
+ * the first in-stock size, falling back to the first size at all, or ''
+ * if the version has no sizes.
+ */
+function resolveSizeForVersion(version: ProductVersion | undefined, previousSize: string): string {
+  if (!version || version.sizes.length === 0) return '';
+  const previousStillValid =
+    previousSize !== '' &&
+    version.sizes.some((s) => s.size === previousSize) &&
+    isSizeInStock(version, previousSize);
+  if (previousStillValid) return previousSize;
+  const firstInStock = version.sizes.find((s) => isSizeInStock(version, s.size));
+  return firstInStock?.size ?? version.sizes[0].size;
+}
+
+/** The version's own primary image if it has any, otherwise the product's image. */
+function getVersionPrimaryImage(version: ProductVersion | undefined, product: ProductType): string {
+  if (version?.images && version.images.length > 0) return version.images[0];
+  return product.image;
+}
+
+/** Cheapest price across all of a product's versions/sizes (for JSON-LD/related-products display). Null if it has none. */
+function getStartingPrice(product: ProductType): number | null {
+  const prices = product.versions.flatMap((v) => v.sizes.map((s) => s.price));
+  return prices.length > 0 ? Math.min(...prices) : null;
+}
+
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
   const { product, loading, error } = useProduct(slug);
   const { products: allProducts } = useProducts();
   const { addItem, openCart, stockMessage } = useCart();
-  const [selectedSize, setSelectedSize] = useState<string>('M');
+  const [selectedVersionId, setSelectedVersionId] = useState<string>('');
+  const [selectedSize, setSelectedSize] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [openSection, setOpenSection] = useState<AccordionKey | null>('description');
   const [collectionSlug, setCollectionSlug] = useState<string | null>(null);
 
-  // Reset per-product UI state whenever the loaded product changes
+  // Reset per-product UI state whenever the loaded product changes: pick the
+  // first usable (active, has sizes) version, then a size within it, and
+  // that version's own primary image if it has one.
   useEffect(() => {
     if (product) {
-      setActiveImage(product.image);
-      setSelectedSize(
-        product.sizes.find((s) => isSizeInStock(product, s)) ?? product.sizes[0] ?? 'M'
-      );
+      const initialVersion = getUsableVersions(product)[0];
+      setSelectedVersionId(initialVersion?.id ?? '');
+      setSelectedSize(resolveSizeForVersion(initialVersion, ''));
+      setActiveImage(getVersionPrimaryImage(initialVersion, product));
       setQuantity(1);
     }
   }, [product]);
@@ -172,24 +214,48 @@ export default function Product() {
     );
   }
 
-  const galleryImages =
-    product.images && product.images.length > 0
+  // Derived, version-aware selection state. Never stored directly in React
+  // state — always looked up from `product.versions` by id, so it can't go
+  // stale relative to the currently loaded product.
+  const usableVersions = getUsableVersions(product);
+  const selectedVersion = usableVersions.find((v) => v.id === selectedVersionId);
+  const selectedVersionSize = selectedVersion?.sizes.find((s) => s.size === selectedSize);
+
+  const handleSelectVersion = (versionId: string) => {
+    if (versionId === selectedVersionId) return;
+    const version = usableVersions.find((v) => v.id === versionId);
+    setSelectedVersionId(versionId);
+    setSelectedSize(resolveSizeForVersion(version, selectedSize));
+    setActiveImage(getVersionPrimaryImage(version, product));
+    setQuantity(1);
+  };
+
+  const versionImages =
+    selectedVersion?.images && selectedVersion.images.length > 0 ? selectedVersion.images : null;
+  const primaryImage = versionImages?.[0] ?? product.image;
+  const galleryImages = versionImages
+    ? [primaryImage, ...versionImages.filter((img) => img !== primaryImage)]
+    : product.images && product.images.length > 0
       ? [product.image, ...product.images.filter((img) => img !== product.image)]
       : [product.image];
 
-  const displayedImage = activeImage ?? product.image;
+  const displayedImage = activeImage ?? primaryImage;
 
   const relatedProducts = allProducts
     .filter((p) => p.collection === product.collection && p.slug !== product.slug)
     .slice(0, 4);
 
-  const availableStock = getStockForSize(product, selectedSize);
+  const availableStock = selectedVersionSize?.stock ?? 0;
   const maxQuantity = Math.max(1, Math.min(10, availableStock));
-  const preorderMessage = getPreorderMessage(product);
+  const preorderMessage = selectedVersion ? getPreorderMessage(selectedVersion) : null;
 
   const canonicalUrl = `${SITE_URL}/product/${product.slug}`;
   const metaDescription = buildProductMetaDescription(product);
-  const isInStock = product.sizes.some((size) => isSizeInStock(product, size));
+  // "In stock" for JSON-LD purposes means at least one size of at least one
+  // usable version is currently purchasable — not tied to whichever
+  // version/size happens to be selected in the UI right now.
+  const isInStock = usableVersions.some((v) => v.sizes.some((s) => isSizeInStock(v, s.size)));
+  const jsonLdPrice = selectedVersionSize?.price ?? getStartingPrice(product) ?? 0;
 
   const productJsonLd: JsonLdBlock = {
     id: 'product',
@@ -199,7 +265,7 @@ export default function Product() {
       name: product.name,
       description: metaDescription,
       image: product.image,
-      sku: product.sku,
+      sku: selectedVersionSize?.sku ?? '',
       brand: {
         '@type': 'Brand',
         name: 'ComicCulture',
@@ -207,7 +273,7 @@ export default function Product() {
       offers: {
         '@type': 'Offer',
         url: canonicalUrl,
-        price: product.price,
+        price: jsonLdPrice,
         priceCurrency: 'LKR',
         availability: isInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
         hasMerchantReturnPolicy: RETURN_POLICY_JSONLD,
@@ -230,15 +296,17 @@ export default function Product() {
   };
 
   const handleAddToCart = () => {
+    if (!selectedVersion || !selectedVersionSize) return;
     addItem(
       {
+        versionSizeId: selectedVersionSize.id,
         productId: product.id,
         slug: product.slug,
         name: product.name,
         image: product.image,
-        price: product.price,
-        size: selectedSize,
-        maxStock: availableStock,
+        price: selectedVersionSize.price,
+        size: selectedVersionSize.size,
+        maxStock: selectedVersionSize.stock,
       },
       quantity
     );
@@ -248,6 +316,8 @@ export default function Product() {
   const toggleSection = (key: AccordionKey) => {
     setOpenSection((current) => (current === key ? null : key));
   };
+
+  const canAddToCart = !!selectedVersion && !!selectedVersionSize && availableStock > 0;
 
   return (
     <>
@@ -313,7 +383,7 @@ export default function Product() {
                 </span>
               )}
 
-              {product.isPreorder && (
+              {selectedVersion?.isPreorder && (
                 <span className="absolute right-4 top-4 border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">
                   Pre-Order
                 </span>
@@ -357,9 +427,9 @@ export default function Product() {
                   {product.collection}
                 </span>
               )}
-              {product.sku && (
+              {selectedVersionSize?.sku && (
                 <span className="font-mono text-xs uppercase tracking-wide text-muted">
-                  {product.sku}
+                  {selectedVersionSize.sku}
                 </span>
               )}
             </div>
@@ -374,19 +444,54 @@ export default function Product() {
 
             {/* Price */}
             <div className="mt-4 flex items-baseline gap-3">
-              <p className="font-display text-4xl text-foreground">
-                {formatPrice(product.price)}
-              </p>
+              {selectedVersionSize ? (
+                <p className="font-display text-4xl text-foreground">
+                  {formatPrice(selectedVersionSize.price)}
+                </p>
+              ) : (
+                <p className="font-display text-2xl text-muted-foreground">Currently unavailable</p>
+              )}
             </div>
 
             {/* Description */}
             <p className="mt-6 text-muted-foreground leading-relaxed">{product.description}</p>
 
+            {/* Version selector — only shown when there's more than one usable version */}
+            {usableVersions.length > 1 && (
+              <div className="mt-8">
+                <p className="mb-3 text-sm font-medium text-muted">
+                  Select Version
+                  {selectedVersion && (
+                    <span className="text-muted-foreground"> — {selectedVersion.versionName}</span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {usableVersions.map((version) => (
+                    <motion.button
+                      key={version.id}
+                      type="button"
+                      className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
+                        selectedVersionId === version.id
+                          ? 'border-primary bg-primary/20 text-primary'
+                          : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                      }`}
+                      onClick={() => handleSelectVersion(version.id)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {version.versionName}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Size selector */}
             <div className="mt-8">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-sm font-medium text-muted">
-                  Select Size <span className="text-muted-foreground">— {selectedSize}</span>
+                  Select Size
+                  {selectedSize && <span className="text-muted-foreground"> — {selectedSize}</span>}
                 </p>
                 <button
                   type="button"
@@ -397,42 +502,50 @@ export default function Product() {
                   Size Guide
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {product.sizes.map((size) => {
-                  const inStock = isSizeInStock(product, size);
-                  return (
-                    <div key={size} className="flex flex-col items-center gap-1">
-                      <motion.button
-                        type="button"
-                        disabled={!inStock}
-                        className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
-                          selectedSize === size
-                            ? 'border-primary bg-primary/20 text-primary'
-                            : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
-                        } ${
-                          !inStock
-                            ? 'cursor-not-allowed opacity-40 hover:border-border hover:text-muted-foreground'
-                            : ''
-                        }`}
-                        onClick={() => {
-                          if (!inStock) return;
-                          setSelectedSize(size);
-                          setQuantity(1);
-                        }}
-                        whileHover={inStock ? { scale: 1.05 } : undefined}
-                        whileTap={inStock ? { scale: 0.95 } : undefined}
-                      >
-                        {size}
-                      </motion.button>
-                      {!inStock && (
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Sold out
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              {selectedVersion && selectedVersion.sizes.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedVersion.sizes.map((sizeOption) => {
+                    const inStock = isSizeInStock(selectedVersion, sizeOption.size);
+                    return (
+                      <div key={sizeOption.id} className="flex flex-col items-center gap-1">
+                        <motion.button
+                          type="button"
+                          disabled={!inStock}
+                          className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
+                            selectedSize === sizeOption.size
+                              ? 'border-primary bg-primary/20 text-primary'
+                              : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                          } ${
+                            !inStock
+                              ? 'cursor-not-allowed opacity-40 hover:border-border hover:text-muted-foreground'
+                              : ''
+                          }`}
+                          onClick={() => {
+                            if (!inStock) return;
+                            setSelectedSize(sizeOption.size);
+                            setQuantity(1);
+                          }}
+                          whileHover={inStock ? { scale: 1.05 } : undefined}
+                          whileTap={inStock ? { scale: 0.95 } : undefined}
+                        >
+                          {sizeOption.size}
+                        </motion.button>
+                        {!inStock && (
+                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Sold out
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {usableVersions.length === 0
+                    ? 'This product is currently unavailable.'
+                    : 'No sizes currently available for this version.'}
+                </p>
+              )}
             </div>
 
             {/* Quantity selector */}
@@ -461,7 +574,7 @@ export default function Product() {
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
-              {quantity >= maxQuantity && availableStock > 0 && (
+              {quantity >= maxQuantity && availableStock > 0 && selectedSize && (
                 <p className="mt-2 text-xs text-muted-foreground">
                   Only {availableStock} left in size {selectedSize}
                 </p>
@@ -481,17 +594,19 @@ export default function Product() {
               <motion.button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={availableStock === 0}
+                disabled={!canAddToCart}
                 className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <ShoppingBag className="h-5 w-5" />
-                {availableStock === 0
-                  ? 'Sold Out'
-                  : product.isPreorder
-                    ? 'Pre-Order Now'
-                    : 'Add to Cart'}
+                {!selectedVersion || !selectedVersionSize
+                  ? 'Currently Unavailable'
+                  : availableStock === 0
+                    ? 'Sold Out'
+                    : selectedVersion.isPreorder
+                      ? 'Pre-Order Now'
+                      : 'Add to Cart'}
               </motion.button>
               {stockMessage && (
                 <p className="mt-2 text-xs text-primary">{stockMessage}</p>
@@ -523,14 +638,17 @@ export default function Product() {
               >
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
                   <li>
-                    <span className="text-muted">Material:</span> {product.material}
+                    <span className="text-muted">Material:</span>{' '}
+                    {selectedVersion?.material ?? '—'}
                   </li>
                   <li>
-                    <span className="text-muted">Fit:</span> {product.fit}
+                    <span className="text-muted">Fit:</span> {selectedVersion?.fit ?? '—'}
                   </li>
                   <li>
                     <span className="text-muted">Available sizes:</span>{' '}
-                    {product.sizes.join(', ')}
+                    {selectedVersion && selectedVersion.sizes.length > 0
+                      ? selectedVersion.sizes.map((s) => s.size).join(', ')
+                      : '—'}
                   </li>
                 </ul>
               </AccordionItem>
@@ -541,7 +659,7 @@ export default function Product() {
                 onToggle={() => toggleSection('care')}
               >
                 <ul className="list-inside list-disc space-y-1.5 text-sm text-muted-foreground">
-                  {(product.careInstructions ?? []).map((instruction) => (
+                  {(selectedVersion?.careInstructions ?? []).map((instruction) => (
                     <li key={instruction}>{instruction}</li>
                   ))}
                 </ul>
@@ -679,6 +797,7 @@ function AccordionItem({
 }
 
 function RelatedProductCard({ product }: { product: ProductType }) {
+  const startingPrice = getStartingPrice(product);
   return (
     <Link
       to={`/product/${product.slug}`}
@@ -693,7 +812,9 @@ function RelatedProductCard({ product }: { product: ProductType }) {
       </div>
       <div className="p-3">
         <p className="truncate text-sm font-medium text-foreground">{product.name}</p>
-        <p className="mt-1 text-sm text-primary">{formatPrice(product.price)}</p>
+        {startingPrice != null && (
+          <p className="mt-1 text-sm text-primary">{formatPrice(startingPrice)}</p>
+        )}
       </div>
     </Link>
   );
