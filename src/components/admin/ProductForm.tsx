@@ -4,7 +4,6 @@ import {
   updateProduct,
   createProductVersion,
   createProductVersionSize,
-  updateProductStock,
   fetchProductBySlug,
   isSlugTaken,
   isSkuTaken,
@@ -16,6 +15,7 @@ import {
   type ProductVersion,
   type ProductVersionInput,
 } from '../../data/products';
+import { adjustStock } from '../../data/inventory';
 import { fetchCollections, type Collection } from '../../data/collections';
 import { slugify } from '../../lib/slug';
 import ImageManager from './ImageManager';
@@ -583,15 +583,30 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
           : await updateProduct(product!.id, productInput);
 
       // Persist stock edits made to existing version-sizes (edit mode only).
+      // The UI still collects an absolute target ("set stock to X"), but the
+      // mutation itself now goes through adjustStock() as a delta — this
+      // locks the row, clamps at 0 server-side, and records an
+      // inventory_movements entry, instead of the old unconditional
+      // overwrite via updateProductStock(). The comparison base is still
+      // whatever was loaded when the form opened (see note above
+      // handleSubmit's stock loop) — adjustStock's row lock protects the
+      // eventual write, not this stale read.
       if (mode === 'edit' && product) {
         for (const version of product.versions) {
           for (const size of version.sizes) {
             const edited = stockEdits[size.id];
             if (edited == null) continue;
-            const nextStock = Number(edited);
-            if (Number.isFinite(nextStock) && nextStock !== size.stock) {
-              await updateProductStock(size.id, Math.max(0, nextStock));
-            }
+            const parsed = Number(edited);
+            if (!Number.isFinite(parsed)) continue;
+            const nextStock = Math.max(0, parsed);
+            const quantityChange = nextStock - size.stock;
+            if (quantityChange === 0) continue;
+            await adjustStock(
+              size.id,
+              quantityChange,
+              'correction',
+              `Stock corrected via product editor (${size.stock} → ${nextStock})`
+            );
           }
         }
       }
