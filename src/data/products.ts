@@ -585,6 +585,76 @@ export async function createProductVersion(
   return mapRowToVersion({ ...(data as ProductVersionRow), sizes: [] });
 }
 
+/**
+ * Maps ProductVersionInput to an update payload, deliberately omitting
+ * product_id — a version's parent product never changes via this path,
+ * so it's left untouched rather than re-sent on every edit.
+ */
+function mapVersionInputToUpdateRow(input: ProductVersionInput) {
+  return {
+    version_name: input.versionName,
+    product_type: input.productType,
+    material: input.material ?? null,
+    fit: input.fit ?? null,
+    color: input.color ?? null,
+    images: input.images ?? null,
+    care_instructions: input.careInstructions ?? null,
+    is_preorder: input.isPreorder ?? false,
+    preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
+    is_active: input.isActive ?? true,
+    sort_order: input.sortOrder ?? 0,
+  };
+}
+
+/** Updates a version's metadata (versionName, productType, material, fit, color, images, careInstructions, isPreorder, preorderDays, isActive, sortOrder). Does not touch its sizes. */
+export async function updateProductVersion(
+  id: string,
+  input: ProductVersionInput
+): Promise<ProductVersion> {
+  const { data, error } = await supabase
+    .from('product_versions')
+    .update(mapVersionInputToUpdateRow(input))
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) {
+    throw new Error(`Failed to update product version: ${error.message}`);
+  }
+  // Like createProductVersion, this response has no nested sizes; callers
+  // needing the full sizes list should re-fetch via fetchProductBySlug/
+  // fetchProducts after an update.
+  return mapRowToVersion({ ...(data as ProductVersionRow), sizes: [] });
+}
+
+/**
+ * Deletes a product version. `product_version_sizes.version_id` is
+ * ON DELETE CASCADE, so this also deletes all of the version's sizes —
+ * unless any of those sizes already appear in `order_items` (or
+ * `inventory_movements`), in which case the database's foreign key
+ * constraint blocks the whole delete and this throws a clear error rather
+ * than a raw Postgres constraint message.
+ */
+export async function deleteProductVersion(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('product_versions')
+    .delete()
+    .eq('id', id)
+    .select('id');
+  if (error) {
+    if (error.code === '23503') {
+      throw new Error(
+        'This version cannot be deleted because one or more of its sizes has existing order or inventory history. Deactivate it instead.'
+      );
+    }
+    throw new Error(`Failed to delete product version: ${error.message}`);
+  }
+  if (!data || data.length === 0) {
+    throw new Error(
+      'Product version could not be deleted. Check permissions or verify that it still exists.'
+    );
+  }
+}
+
 /** Fields an admin can set when creating or editing a single sellable size row. */
 export interface ProductVersionSizeInput {
   size: string;
@@ -612,6 +682,78 @@ export async function createProductVersionSize(
     throw new Error(`Failed to create size: ${error.message}`);
   }
   return mapRowToVersionSize(data as ProductVersionSizeRow);
+}
+
+/**
+ * Updates a size's size/SKU/price only. Deliberately does NOT accept
+ * `stock` — stock changes must always go through adjustStock()/
+ * restockProduct() in inventory.ts, which record an inventory_movements
+ * row and enforce reasons/non-negative stock via the adjust_stock/
+ * restock_product RPCs. Omitting `stock` from the input type (rather than
+ * just ignoring it if passed) makes that impossible to get wrong at
+ * compile time.
+ */
+export async function updateProductVersionSize(
+  id: string,
+  input: Omit<ProductVersionSizeInput, 'stock'>
+): Promise<ProductVersionSize> {
+  const { data, error } = await supabase
+    .from('product_version_sizes')
+    .update({ size: input.size, sku: input.sku, price: input.price })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) {
+    throw new Error(`Failed to update size: ${error.message}`);
+  }
+  return mapRowToVersionSize(data as ProductVersionSizeRow);
+}
+
+/**
+ * Deletes a single size row. Blocked by the database's foreign key
+ * constraint if it already appears in `order_items` (or
+ * `inventory_movements`) — that failure is converted into a clear error
+ * rather than a raw Postgres constraint message. Callers wanting to check
+ * this ahead of time (e.g. to hide/disable a delete button) can use
+ * hasOrderHistory() below.
+ */
+export async function deleteProductVersionSize(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('product_version_sizes')
+    .delete()
+    .eq('id', id)
+    .select('id');
+  if (error) {
+    if (error.code === '23503') {
+      throw new Error(
+        'This size cannot be deleted because it has existing order or inventory history. Set its stock to 0 instead.'
+      );
+    }
+    throw new Error(`Failed to delete size: ${error.message}`);
+  }
+  if (!data || data.length === 0) {
+    throw new Error('Size could not be deleted. Check permissions or verify that it still exists.');
+  }
+}
+
+/**
+ * Whether a version-size has ever been ordered. This is an informational
+ * read only — the actual enforcement is the order_items.version_size_id
+ * foreign key checked by deleteProductVersionSize()/deleteProductVersion()
+ * above. Useful for a caller that wants to explain *why* deletion is
+ * blocked (or hide the option) before the user even tries.
+ */
+export async function hasOrderHistory(versionSizeId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('id')
+    .eq('version_size_id', versionSizeId)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to check order history: ${error.message}`);
+  }
+  return !!data;
 }
 
 /**
