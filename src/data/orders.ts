@@ -50,13 +50,11 @@ interface CreateOrderRpcRow {
 export async function createOrder(input: CreateOrderInput): Promise<void> {
   // Single server-side RPC does everything that touches money, stock, or
   // payment status: validates + decrements stock, looks up each item's
-  // real product/size/price/SKU from `product_version_sizes` (keyed by
-  // version_size_id — the client never sends price, size, or product_id
-  // as authoritative values), computes subtotal/delivery_fee/total itself,
-  // derives payment_status from payment_method + receipt presence (never
-  // accepted as a client parameter), and inserts the order + order_items
-  // rows atomically. See
-  // supabase/migrations/20260910044914_introduce_product_versions_and_sizes.sql.
+  // real price from `products`, computes subtotal/delivery_fee/total
+  // itself, derives payment_status from payment_method + receipt presence
+  // (never accepted as a client parameter), and inserts the order +
+  // order_items rows atomically. See
+  // supabase/migrations/20260903030000_harden_create_order_payment_status_search_path.sql.
   const { data, error } = await supabase.rpc('create_order', {
     p_order_reference: input.orderReference,
     p_full_name: input.fullName,
@@ -71,9 +69,11 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
     p_receipt_url: input.receiptPath ?? null,
     p_items: input.items.map((item) => ({
       version_size_id: item.versionSizeId,
+      product_id: item.productId,
       slug: item.slug,
       name: item.name,
       image: item.image,
+      size: item.size,
       quantity: item.quantity,
     })),
   });
