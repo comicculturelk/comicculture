@@ -79,16 +79,14 @@ export async function fetchInventoryMovements(
   return (data ?? []).map(mapRow);
 }
 
-/** Add supplier stock for a product/size. Admin only (RLS-enforced via RPC grant). */
+/** Add supplier stock for a product-version-size. Admin only (RLS-enforced via RPC grant). */
 export async function restockProduct(
-  productId: string,
-  size: string,
+  versionSizeId: string,
   quantity: number,
   note?: string
 ): Promise<void> {
   const { error } = await supabase.rpc('restock_product', {
-    p_product_id: productId,
-    p_size: size,
+    p_version_size_id: versionSizeId,
     p_quantity: quantity,
     p_note: note ?? null,
   });
@@ -98,17 +96,15 @@ export async function restockProduct(
   }
 }
 
-/** Record a manual stock adjustment (damaged, missing, giveaway, correction, other). */
+/** Record a manual stock adjustment (damaged, missing, giveaway, correction, other) for a product-version-size. */
 export async function adjustStock(
-  productId: string,
-  size: string,
+  versionSizeId: string,
   quantityChange: number,
   reason: AdjustmentReason,
   note?: string
 ): Promise<void> {
   const { error } = await supabase.rpc('adjust_stock', {
-    p_product_id: productId,
-    p_size: size,
+    p_version_size_id: versionSizeId,
     p_quantity_change: quantityChange,
     p_reason: reason,
     p_note: note ?? null,

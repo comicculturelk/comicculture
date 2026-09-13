@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { PackagePlus, SlidersHorizontal } from 'lucide-react';
-import { fetchProducts, getStockForSize, type Product } from '../../data/products';
+import { fetchProducts, type Product } from '../../data/products';
 import {
   restockProduct,
   adjustStock,
@@ -9,30 +9,16 @@ import {
 } from '../../data/inventory';
 import { LOW_STOCK_THRESHOLD } from '../../pages/Admin';
 
-type StockAction = { productId: string; size: string; kind: 'restock' | 'adjust' } | null;
+/**
+ * A stock action targets one product_version_sizes row directly — the
+ * versionSizeId is the actual inventory identifier now, since the same
+ * size (e.g. "M") can exist on more than one version of the same product
+ * with independent stock.
+ */
+type StockAction = { versionSizeId: string; kind: 'restock' | 'adjust' } | null;
 
 function stockState(qty: number): 'out' | 'low' | 'ok' {
   return qty <= 0 ? 'out' : qty <= LOW_STOCK_THRESHOLD ? 'low' : 'ok';
-}
-
-/**
- * Unique size labels across a product's active versions. Sizes now live on
- * `ProductVersion` (not directly on `Product`), so this is the new
- * equivalent of the old flat `product.sizes` list.
- */
-function getActiveSizes(product: Product): string[] {
-  const seen = new Set<string>();
-  product.versions
-    .filter((v) => v.isActive)
-    .forEach((v) => v.sizes.forEach((s) => seen.add(s.size)));
-  return Array.from(seen);
-}
-
-/** Total stock for a size, aggregated across all of a product's active versions. */
-function getTotalStockForSize(product: Product, size: string): number {
-  return product.versions
-    .filter((v) => v.isActive)
-    .reduce((sum, v) => sum + getStockForSize(v, size), 0);
 }
 
 function StockActionForm({
@@ -61,9 +47,9 @@ function StockActionForm({
     setError(null);
     try {
       if (action.kind === 'restock') {
-        await restockProduct(action.productId, action.size, Math.abs(qty), note.trim() || undefined);
+        await restockProduct(action.versionSizeId, Math.abs(qty), note.trim() || undefined);
       } else {
-        await adjustStock(action.productId, action.size, qty, reason, note.trim() || undefined);
+        await adjustStock(action.versionSizeId, qty, reason, note.trim() || undefined);
       }
       onDone();
     } catch (err) {
@@ -165,81 +151,98 @@ export default function AdminInventory() {
       {products.map((product) => (
         <div key={product.id} className="glass rounded-2xl p-6">
           <p className="font-display text-lg text-foreground tracking-wide">{product.name}</p>
-          <div className="mt-4 space-y-3">
-            {getActiveSizes(product).map((size) => {
-              const qty = getTotalStockForSize(product, size);
-              const state = stockState(qty);
-              const isActive =
-                activeAction?.productId === product.id && activeAction?.size === size;
-              return (
-                <div key={size} className="border-b border-border pb-3 last:border-0 last:pb-0">
-                  <div className="flex flex-wrap items-center gap-4">
-                    <span className="w-10 text-xs font-medium uppercase tracking-wide text-muted">
-                      {size}
-                    </span>
-                    <span
-                      className={`font-display text-lg tracking-wide ${
-                        state === 'out'
-                          ? 'text-red-400'
-                          : state === 'low'
-                            ? 'text-yellow-400'
-                            : 'text-foreground'
-                      }`}
-                    >
-                      {qty}
-                    </span>
-                    {state === 'out' && (
-                      <span className="text-[10px] uppercase tracking-wide text-red-400">
-                        Out of stock
-                      </span>
-                    )}
-                    {state === 'low' && (
-                      <span className="text-[10px] uppercase tracking-wide text-yellow-400">
-                        Low stock
-                      </span>
-                    )}
-                    <div className="ml-auto flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setActiveAction(
-                            isActive && activeAction?.kind === 'restock'
-                              ? null
-                              : { productId: product.id, size, kind: 'restock' }
-                          )
-                        }
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+          {product.versions.length === 0 && (
+            <p className="mt-2 text-sm text-muted-foreground">No versions set up yet.</p>
+          )}
+          <div className="mt-4 space-y-5">
+            {product.versions.map((version) => (
+              <div key={version.id}>
+                {product.versions.length > 1 && (
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {version.versionName}
+                  </p>
+                )}
+                <div className="space-y-3">
+                  {version.sizes.map((sizeRow) => {
+                    const qty = sizeRow.stock;
+                    const state = stockState(qty);
+                    const isActive =
+                      activeAction?.versionSizeId === sizeRow.id;
+                    return (
+                      <div
+                        key={sizeRow.id}
+                        className="border-b border-border pb-3 last:border-0 last:pb-0"
                       >
-                        <PackagePlus className="h-3.5 w-3.5" />
-                        Restock
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setActiveAction(
-                            isActive && activeAction?.kind === 'adjust'
-                              ? null
-                              : { productId: product.id, size, kind: 'adjust' }
-                          )
-                        }
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-                      >
-                        <SlidersHorizontal className="h-3.5 w-3.5" />
-                        Adjust
-                      </button>
-                    </div>
-                  </div>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <span className="w-10 text-xs font-medium uppercase tracking-wide text-muted">
+                            {sizeRow.size}
+                          </span>
+                          <span
+                            className={`font-display text-lg tracking-wide ${
+                              state === 'out'
+                                ? 'text-red-400'
+                                : state === 'low'
+                                  ? 'text-yellow-400'
+                                  : 'text-foreground'
+                            }`}
+                          >
+                            {qty}
+                          </span>
+                          {state === 'out' && (
+                            <span className="text-[10px] uppercase tracking-wide text-red-400">
+                              Out of stock
+                            </span>
+                          )}
+                          {state === 'low' && (
+                            <span className="text-[10px] uppercase tracking-wide text-yellow-400">
+                              Low stock
+                            </span>
+                          )}
+                          <div className="ml-auto flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setActiveAction(
+                                  isActive && activeAction?.kind === 'restock'
+                                    ? null
+                                    : { versionSizeId: sizeRow.id, kind: 'restock' }
+                                )
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                            >
+                              <PackagePlus className="h-3.5 w-3.5" />
+                              Restock
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setActiveAction(
+                                  isActive && activeAction?.kind === 'adjust'
+                                    ? null
+                                    : { versionSizeId: sizeRow.id, kind: 'adjust' }
+                                )
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                            >
+                              <SlidersHorizontal className="h-3.5 w-3.5" />
+                              Adjust
+                            </button>
+                          </div>
+                        </div>
 
-                  {isActive && (
-                    <StockActionForm
-                      action={activeAction}
-                      onCancel={() => setActiveAction(null)}
-                      onDone={handleDone}
-                    />
-                  )}
+                        {isActive && (
+                          <StockActionForm
+                            action={activeAction}
+                            onCancel={() => setActiveAction(null)}
+                            onDone={handleDone}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       ))}
