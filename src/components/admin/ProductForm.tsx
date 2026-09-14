@@ -6,6 +6,8 @@ import {
   updateProductVersion,
   createProductVersionSize,
   updateProductVersionSize,
+  deleteProductVersionSize,
+  hasOrderHistory,
   fetchProductBySlug,
   isSlugTaken,
   isSkuTaken,
@@ -269,6 +271,9 @@ function SizeDraftRow({
  * updateProductVersionSize(); stock stays on the separate adjustStock()
  * path. New sizes can also be added to this version — they're created via
  * createProductVersionSize() on submit rather than updating an existing row.
+ * Existing sizes can be deleted immediately (not deferred to submit) via
+ * deleteProductVersionSize(), after a hasOrderHistory() check blocks
+ * deletion of any size with existing order/inventory references.
  */
 function ExistingVersionCard({
   version,
@@ -282,6 +287,9 @@ function ExistingVersionCard({
   onAddNewSize,
   onRemoveNewSize,
   onNewSizeChange,
+  deletedSizeIds,
+  deletingSizeId,
+  onDeleteSize,
 }: {
   version: ProductVersion;
   edit: ExistingVersionEdit;
@@ -294,6 +302,9 @@ function ExistingVersionCard({
   onAddNewSize: () => void;
   onRemoveNewSize: (sizeLocalId: string) => void;
   onNewSizeChange: (sizeLocalId: string, patch: Partial<DraftSize>) => void;
+  deletedSizeIds: Set<string>;
+  deletingSizeId: string | null;
+  onDeleteSize: (size: ProductVersionSize) => void;
 }) {
   return (
     <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
@@ -411,46 +422,59 @@ function ExistingVersionCard({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {version.sizes.map((size) => {
-          const sizeEdit = sizeEdits[size.id];
-          return (
-            <div key={size.id} className="rounded-lg border border-border bg-background p-2">
-              <p className="text-[11px] uppercase tracking-wide text-muted">{size.size}</p>
-              <label className="mt-1 flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-muted">SKU</span>
-                <input
-                  value={sizeEdit?.sku ?? size.sku}
-                  onChange={(e) =>
-                    onSizeEditChange(size.id, { sku: e.target.value.toUpperCase() })
-                  }
-                  className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
-                />
-              </label>
-              <label className="mt-1 flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-muted">
-                  Price (Rs.)
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  value={sizeEdit?.price ?? String(size.price)}
-                  onChange={(e) => onSizeEditChange(size.id, { price: e.target.value })}
-                  className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
-                />
-              </label>
-              <label className="mt-1 flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-muted">Stock</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={stockEdits[size.id] ?? String(size.stock)}
-                  onChange={(e) => onStockChange(size.id, e.target.value)}
-                  className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
-                />
-              </label>
-            </div>
-          );
-        })}
+        {version.sizes
+          .filter((size) => !deletedSizeIds.has(size.id))
+          .map((size) => {
+            const sizeEdit = sizeEdits[size.id];
+            const isDeleting = deletingSizeId === size.id;
+            return (
+              <div key={size.id} className="rounded-lg border border-border bg-background p-2">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[11px] uppercase tracking-wide text-muted">{size.size}</p>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteSize(size)}
+                    disabled={isDeleting}
+                    className="text-[10px] text-muted-foreground hover:text-primary disabled:opacity-50"
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+                <label className="mt-1 flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-wide text-muted">SKU</span>
+                  <input
+                    value={sizeEdit?.sku ?? size.sku}
+                    onChange={(e) =>
+                      onSizeEditChange(size.id, { sku: e.target.value.toUpperCase() })
+                    }
+                    className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                </label>
+                <label className="mt-1 flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-wide text-muted">
+                    Price (Rs.)
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={sizeEdit?.price ?? String(size.price)}
+                    onChange={(e) => onSizeEditChange(size.id, { price: e.target.value })}
+                    className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                </label>
+                <label className="mt-1 flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-wide text-muted">Stock</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={stockEdits[size.id] ?? String(size.stock)}
+                    onChange={(e) => onStockChange(size.id, e.target.value)}
+                    className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                </label>
+              </div>
+            );
+          })}
       </div>
 
       <div className="space-y-2">
@@ -715,6 +739,13 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   // row to update.
   const [newExistingSizes, setNewExistingSizes] = useState<Record<string, DraftSize[]>>({});
 
+  // --- Existing sizes deleted this session. Deletion happens immediately
+  // (via deleteProductVersionSize()), not deferred to submit — this set is
+  // purely a render-time overlay so a deleted size disappears from the UI
+  // without needing to refetch/reload the product.
+  const [deletedSizeIds, setDeletedSizeIds] = useState<Set<string>>(new Set());
+  const [deletingSizeId, setDeletingSizeId] = useState<string | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -817,6 +848,45 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         s.localId === sizeLocalId ? { ...s, ...patch } : s
       ),
     }));
+  };
+
+  /**
+   * Deletes an existing (already-saved) size, immediately — not deferred to
+   * submit. Order/inventory history is checked via hasOrderHistory() first
+   * so a blocked size is never even offered a confirmation dialog; the
+   * deleteProductVersionSize() call itself still has its own FK-violation
+   * error message as a fallback in case history is created between the
+   * check and the delete.
+   */
+  const handleDeleteSize = async (size: ProductVersionSize, versionName: string) => {
+    setError(null);
+    setDeletingSizeId(size.id);
+    try {
+      const hasHistory = await hasOrderHistory(size.id);
+      if (hasHistory) {
+        setError(
+          `Size "${size.size}" in "${versionName}" cannot be deleted because it has existing order or inventory history. Set its stock to 0 instead.`
+        );
+        return;
+      }
+      if (!window.confirm(`Delete size "${size.size}" from "${versionName}"? This cannot be undone.`)) {
+        return;
+      }
+      await deleteProductVersionSize(size.id);
+      setDeletedSizeIds((prev) => new Set(prev).add(size.id));
+      setSizeEdits((prev) => {
+        const { [size.id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      setStockEdits((prev) => {
+        const { [size.id]: _removed, ...rest } = prev;
+        return rest;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete size');
+    } finally {
+      setDeletingSizeId(null);
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -952,7 +1022,9 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         const drafts = (newExistingSizes[v.id] ?? []).filter(
           (s) => s.size.trim() || s.sku.trim() || s.price.trim()
         );
-        const sizeLabels = v.sizes.map((sz) => sz.size);
+        const sizeLabels = v.sizes
+          .filter((sz) => !deletedSizeIds.has(sz.id))
+          .map((sz) => sz.size);
         for (const s of drafts) {
           const size = s.size.trim().toUpperCase();
           if (!size) {
@@ -1281,12 +1353,17 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
                 onNewSizeChange={(sizeLocalId, patch) =>
                   updateNewSizeForVersion(v.id, sizeLocalId, patch)
                 }
+                deletedSizeIds={deletedSizeIds}
+                deletingSizeId={deletingSizeId}
+                onDeleteSize={(size) => handleDeleteSize(size, v.versionName)}
               />
             ))}
           </div>
           <p className="text-xs text-muted">
-            Use "Add Size" above to add a new size to a version. Existing sizes can't be removed
-            or renamed here — add a new version below for a different apparel offering.
+            Use "Add Size" above to add a new size, or "Delete" on a size to remove it. Sizes with
+            existing order or inventory history can't be deleted — set their stock to 0 instead.
+            Existing sizes can't be renamed here — add a new version below for a different apparel
+            offering.
           </p>
         </div>
       )}
