@@ -3,7 +3,9 @@ import {
   createProduct,
   updateProduct,
   createProductVersion,
+  updateProductVersion,
   createProductVersionSize,
+  updateProductVersionSize,
   fetchProductBySlug,
   isSlugTaken,
   isSkuTaken,
@@ -14,6 +16,7 @@ import {
   type ProductType,
   type ProductVersion,
   type ProductVersionInput,
+  type ProductVersionSize,
 } from '../../data/products';
 import { adjustStock } from '../../data/inventory';
 import { fetchCollections, type Collection } from '../../data/collections';
@@ -83,67 +86,292 @@ function emptyDraftVersion(): DraftVersion {
 }
 
 /**
- * Read-only summary of a version that already exists in the database.
- * Only stock is editable here — updating a version's own fields (type,
- * material, fit, color, pre-order, care instructions) or an existing
- * size's SKU/price has no backing write function in data/products.ts yet
- * (see report). Add a new version below for other changes.
+ * Editable metadata for a version that already exists in the database —
+ * reuses DraftVersion's field shape (minus localId/isActive/sizes) since
+ * the editable fields and their string-based form representation are
+ * identical to a draft version's.
+ */
+type ExistingVersionEdit = Pick<
+  DraftVersion,
+  | 'versionName'
+  | 'productType'
+  | 'material'
+  | 'fit'
+  | 'color'
+  | 'careInstructions'
+  | 'isPreorder'
+  | 'preorderDays'
+>;
+
+function existingVersionEditFrom(version: ProductVersion): ExistingVersionEdit {
+  return {
+    versionName: version.versionName,
+    productType: version.productType,
+    material: version.material ?? '',
+    fit: version.fit ?? '',
+    color: version.color ?? '',
+    careInstructions: (version.careInstructions ?? []).join('\n'),
+    isPreorder: version.isPreorder,
+    preorderDays: version.preorderDays ? String(version.preorderDays) : '',
+  };
+}
+
+/**
+ * Editable SKU/price for a size that already exists in the database.
+ * Deliberately excludes stock — stock keeps going through the separate
+ * stockEdits/adjustStock() path above, never through this one or through
+ * updateProductVersionSize() (whose input type already excludes stock at
+ * the type level in products.ts).
+ */
+interface ExistingSizeEdit {
+  sku: string;
+  price: string;
+}
+
+function existingSizeEditFrom(size: ProductVersionSize): ExistingSizeEdit {
+  return { sku: size.sku, price: String(size.price) };
+}
+
+/**
+ * Whether an edit actually differs from the version as loaded — used to
+ * skip calling updateProductVersion() for versions the admin didn't touch.
+ * `images`, `isActive`, and `sortOrder` aren't part of this comparison
+ * since Step 1 doesn't expose editing them; they're carried through
+ * unchanged in existingVersionEditToInput() below regardless.
+ */
+function existingVersionEditChanged(version: ProductVersion, edit: ExistingVersionEdit): boolean {
+  const nextCare = edit.careInstructions
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const currentCare = version.careInstructions ?? [];
+  const careChanged =
+    nextCare.length !== currentCare.length ||
+    nextCare.some((line, i) => line !== currentCare[i]);
+  const nextPreorderDays = edit.isPreorder ? Number(edit.preorderDays) : null;
+
+  return (
+    edit.versionName.trim() !== version.versionName ||
+    edit.productType !== version.productType ||
+    edit.material.trim() !== (version.material ?? '') ||
+    edit.fit.trim() !== (version.fit ?? '') ||
+    edit.color.trim() !== (version.color ?? '') ||
+    careChanged ||
+    edit.isPreorder !== version.isPreorder ||
+    nextPreorderDays !== (version.preorderDays ?? null)
+  );
+}
+
+/**
+ * Builds the full ProductVersionInput updateProductVersion() expects.
+ * updateProductVersion() overwrites every field it's given (it has no
+ * partial-update mode), so images/isActive/sortOrder — none of which
+ * Step 1 exposes for editing — are carried through from the version as
+ * loaded rather than omitted, or they'd silently reset to their defaults
+ * (images: null, isActive: true, sortOrder: 0).
+ */
+function existingVersionEditToInput(
+  version: ProductVersion,
+  edit: ExistingVersionEdit
+): ProductVersionInput {
+  return {
+    versionName: edit.versionName.trim(),
+    productType: edit.productType,
+    material: edit.material.trim() || undefined,
+    fit: edit.fit.trim() || undefined,
+    color: edit.color.trim() || undefined,
+    images: version.images,
+    careInstructions: edit.careInstructions
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean),
+    isPreorder: edit.isPreorder,
+    preorderDays: edit.isPreorder ? Number(edit.preorderDays) : null,
+    isActive: version.isActive,
+    sortOrder: version.sortOrder,
+  };
+}
+
+/**
+ * Editable card for a version that already exists in the database.
+ * Version metadata (name, type, material, fit, color, pre-order, care
+ * instructions) is editable here and saved via updateProductVersion() on
+ * submit. Existing sizes' SKU/price stay read-only for now (Step 2) —
+ * only stock is editable, via the existing adjustStock() path.
  */
 function ExistingVersionCard({
   version,
+  edit,
+  onEditChange,
   stockEdits,
   onStockChange,
+  sizeEdits,
+  onSizeEditChange,
 }: {
   version: ProductVersion;
+  edit: ExistingVersionEdit;
+  onEditChange: (patch: Partial<ExistingVersionEdit>) => void;
   stockEdits: Record<string, string>;
   onStockChange: (sizeId: string, value: string) => void;
+  sizeEdits: Record<string, ExistingSizeEdit>;
+  onSizeEditChange: (sizeId: string, patch: Partial<ExistingSizeEdit>) => void;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-display text-sm tracking-wide text-foreground">{version.versionName}</p>
-        <span className="text-[11px] uppercase tracking-wide text-muted">
-          {PRODUCT_TYPE_LABELS[version.productType]}
-          {!version.isActive ? ' · Inactive' : ''}
+        <span className="text-xs uppercase tracking-wide text-muted">
+          {version.versionName || 'Version'}
         </span>
-      </div>
-
-      <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
-        {version.material && <p>Material: {version.material}</p>}
-        {version.fit && <p>Fit: {version.fit}</p>}
-        {version.color && <p>Color: {version.color}</p>}
-        {version.isPreorder && (
-          <p>Pre-order: {version.preorderDays ? `${version.preorderDays} days` : 'Yes'}</p>
+        {!version.isActive && (
+          <span className="text-[11px] uppercase tracking-wide text-muted">Inactive</span>
         )}
       </div>
 
-      {version.careInstructions && version.careInstructions.length > 0 && (
-        <ul className="mt-2 list-inside list-disc text-xs text-muted">
-          {version.careInstructions.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Version Name</span>
+          <input
+            value={edit.versionName}
+            onChange={(e) => onEditChange({ versionName: e.target.value })}
+            className={inputClass()}
+            placeholder="Jersey"
+          />
+        </label>
 
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {version.sizes.map((size) => (
-          <div key={size.id} className="rounded-lg border border-border bg-background p-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted">
-              {size.size} · {size.sku}
-            </p>
-            <p className="text-xs text-muted-foreground">Rs. {size.price}</p>
-            <label className="mt-1 flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wide text-muted">Stock</span>
-              <input
-                type="number"
-                min="0"
-                value={stockEdits[size.id] ?? String(size.stock)}
-                onChange={(e) => onStockChange(size.id, e.target.value)}
-                className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
-              />
-            </label>
-          </div>
-        ))}
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Apparel Type</span>
+          <select
+            value={edit.productType}
+            onChange={(e) => onEditChange({ productType: e.target.value as ProductType })}
+            className={inputClass()}
+          >
+            {PRODUCT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {PRODUCT_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Material</span>
+          <input
+            value={edit.material}
+            onChange={(e) => onEditChange({ material: e.target.value })}
+            className={inputClass()}
+            placeholder="Premium breathable polyester mesh"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Fit</span>
+          <input
+            value={edit.fit}
+            onChange={(e) => onEditChange({ fit: e.target.value })}
+            className={inputClass()}
+            placeholder="True to size, athletic fit"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Color</span>
+          <input
+            value={edit.color}
+            onChange={(e) => onEditChange({ color: e.target.value })}
+            className={inputClass()}
+            placeholder="Black"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className={fieldLabelClass()}>Care Instructions (one per line)</span>
+          <textarea
+            value={edit.careInstructions}
+            onChange={(e) => onEditChange({ careInstructions: e.target.value })}
+            rows={3}
+            className={inputClass()}
+            placeholder={'Machine wash cold with like colors\nDo not bleach'}
+          />
+        </label>
+      </div>
+
+      <div className="space-y-3">
+        <span className={fieldLabelClass()}>Pre-Order</span>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={edit.isPreorder}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              onEditChange({
+                isPreorder: checked,
+                preorderDays:
+                  checked && (!edit.preorderDays || Number(edit.preorderDays) <= 0)
+                    ? '14'
+                    : edit.preorderDays,
+              });
+            }}
+            className="h-4 w-4 rounded border-border accent-primary"
+          />
+          <span className="text-sm text-foreground">Available for pre-order</span>
+        </label>
+
+        {edit.isPreorder && (
+          <label className="flex flex-col gap-1.5 sm:w-48">
+            <span className={fieldLabelClass()}>Pre-order delivery period (days)</span>
+            <input
+              type="number"
+              min="1"
+              value={edit.preorderDays}
+              onChange={(e) => onEditChange({ preorderDays: e.target.value })}
+              className={inputClass()}
+              placeholder="14"
+            />
+          </label>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {version.sizes.map((size) => {
+          const sizeEdit = sizeEdits[size.id];
+          return (
+            <div key={size.id} className="rounded-lg border border-border bg-background p-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted">{size.size}</p>
+              <label className="mt-1 flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-wide text-muted">SKU</span>
+                <input
+                  value={sizeEdit?.sku ?? size.sku}
+                  onChange={(e) =>
+                    onSizeEditChange(size.id, { sku: e.target.value.toUpperCase() })
+                  }
+                  className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </label>
+              <label className="mt-1 flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-wide text-muted">
+                  Price (Rs.)
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  value={sizeEdit?.price ?? String(size.price)}
+                  onChange={(e) => onSizeEditChange(size.id, { price: e.target.value })}
+                  className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </label>
+              <label className="mt-1 flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-wide text-muted">Stock</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={stockEdits[size.id] ?? String(size.stock)}
+                  onChange={(e) => onStockChange(size.id, e.target.value)}
+                  className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </label>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -393,10 +621,31 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         : []
   );
 
-  // --- Existing versions (edit mode) — stock is the only editable field ---
+  // --- Existing versions (edit mode) — metadata is editable via
+  // updateProductVersion(); stock stays on its separate adjustStock() path.
+  const [versionEdits, setVersionEdits] = useState<Record<string, ExistingVersionEdit>>(() => {
+    const map: Record<string, ExistingVersionEdit> = {};
+    product?.versions.forEach((v) => {
+      map[v.id] = existingVersionEditFrom(v);
+    });
+    return map;
+  });
+
   const [stockEdits, setStockEdits] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {};
     product?.versions.forEach((v) => v.sizes.forEach((s) => { map[s.id] = String(s.stock); }));
+    return map;
+  });
+
+  // --- Existing sizes (edit mode) — SKU/price editable via
+  // updateProductVersionSize(); stock stays on the stockEdits/adjustStock() path above.
+  const [sizeEdits, setSizeEdits] = useState<Record<string, ExistingSizeEdit>>(() => {
+    const map: Record<string, ExistingSizeEdit> = {};
+    product?.versions.forEach((v) =>
+      v.sizes.forEach((s) => {
+        map[s.id] = existingSizeEditFrom(s);
+      })
+    );
     return map;
   });
 
@@ -541,26 +790,90 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       }
     }
 
+    if (mode === 'edit' && product) {
+      for (const v of product.versions) {
+        const edit = versionEdits[v.id];
+        if (!edit) continue;
+        if (!edit.versionName.trim()) {
+          return setError('Each existing version needs a name.');
+        }
+        if (edit.isPreorder) {
+          const days = Number(edit.preorderDays);
+          if (!days || days <= 0) {
+            return setError(
+              `Enter a valid pre-order delivery period for "${edit.versionName.trim()}".`
+            );
+          }
+        }
+      }
+    }
+
+    // Existing sizes whose SKU or price the admin actually changed this
+    // session — only these trigger validation/updateProductVersionSize()
+    // calls below; sizes with no edit, or whose edit matches the loaded
+    // data exactly, are left untouched.
+    const changedExistingSizes: Array<{
+      id: string;
+      versionName: string;
+      size: string;
+      sku: string;
+      price: number;
+      skuChanged: boolean;
+    }> = [];
+    if (mode === 'edit' && product) {
+      for (const v of product.versions) {
+        for (const s of v.sizes) {
+          const sizeEdit = sizeEdits[s.id];
+          if (!sizeEdit) continue;
+          const trimmedSku = sizeEdit.sku.trim();
+          const priceValue = Number(sizeEdit.price);
+          const skuChanged = trimmedSku !== s.sku;
+          const priceChanged = Number.isFinite(priceValue) && priceValue !== s.price;
+          if (!skuChanged && !priceChanged) continue;
+          if (!trimmedSku) {
+            return setError(`Enter a SKU for size "${s.size}" in "${v.versionName}".`);
+          }
+          if (!Number.isFinite(priceValue) || priceValue < 0) {
+            return setError(`Enter a valid price for size "${s.size}" in "${v.versionName}".`);
+          }
+          changedExistingSizes.push({
+            id: s.id,
+            versionName: v.versionName,
+            size: s.size,
+            sku: trimmedSku,
+            price: priceValue,
+            skuChanged,
+          });
+        }
+      }
+    }
+
     const newSkus = versionsToCreate.flatMap((v) =>
       v.sizes.filter((s) => s.sku.trim()).map((s) => s.sku.trim())
     );
-    if (new Set(newSkus).size !== newSkus.length) {
+    const allSubmittedSkus = [...newSkus, ...changedExistingSizes.map((s) => s.sku)];
+    if (new Set(allSubmittedSkus).size !== allSubmittedSkus.length) {
       return setError('Duplicate SKU entered — each size needs a unique SKU.');
     }
 
     setSubmitting(true);
     try {
       const excludeId = mode === 'edit' ? product?.id : undefined;
-      const [slugAlreadyTaken, skuConflicts] = await Promise.all([
+      // Only query isSkuTaken for existing sizes whose SKU actually
+      // changed — an unchanged SKU can't have become newly "taken" by
+      // itself, so there's nothing to check.
+      const skuChecksNeeded = changedExistingSizes.filter((s) => s.skuChanged);
+      const [slugAlreadyTaken, skuConflicts, existingSkuConflicts] = await Promise.all([
         isSlugTaken(slug.trim(), excludeId),
         Promise.all(newSkus.map((sku) => isSkuTaken(sku))),
+        Promise.all(skuChecksNeeded.map((s) => isSkuTaken(s.sku, s.id))),
       ]);
       if (slugAlreadyTaken) {
         setError('This slug is already in use by another product.');
         setSubmitting(false);
         return;
       }
-      if (skuConflicts.some(Boolean)) {
+      if (skuConflicts.some(Boolean) || existingSkuConflicts.some(Boolean)) {
         setError('One of the SKUs entered is already in use.');
         setSubmitting(false);
         return;
@@ -609,6 +922,27 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
             );
           }
         }
+      }
+
+      // Persist metadata edits made to existing versions (edit mode only).
+      // Only versions whose edit actually differs from the loaded data
+      // trigger a call, so untouched versions never hit the database.
+      if (mode === 'edit' && product) {
+        for (const version of product.versions) {
+          const edit = versionEdits[version.id];
+          if (!edit) continue;
+          if (existingVersionEditChanged(version, edit)) {
+            await updateProductVersion(version.id, existingVersionEditToInput(version, edit));
+          }
+        }
+      }
+
+      // Persist SKU/price edits made to existing sizes (edit mode only).
+      // Stock is intentionally excluded — it was already handled above via
+      // adjustStock(), and updateProductVersionSize()'s input type omits
+      // stock entirely so it can't be touched from this call.
+      for (const s of changedExistingSizes) {
+        await updateProductVersionSize(s.id, { size: s.size, sku: s.sku, price: s.price });
       }
 
       // Create any new versions (and their sizes) added during this session.
@@ -769,18 +1103,30 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
               <ExistingVersionCard
                 key={v.id}
                 version={v}
+                edit={versionEdits[v.id]}
+                onEditChange={(patch) =>
+                  setVersionEdits((prev) => ({
+                    ...prev,
+                    [v.id]: { ...prev[v.id], ...patch },
+                  }))
+                }
                 stockEdits={stockEdits}
                 onStockChange={(sizeId, value) =>
                   setStockEdits((prev) => ({ ...prev, [sizeId]: value }))
+                }
+                sizeEdits={sizeEdits}
+                onSizeEditChange={(sizeId, patch) =>
+                  setSizeEdits((prev) => ({
+                    ...prev,
+                    [sizeId]: { ...prev[sizeId], ...patch },
+                  }))
                 }
               />
             ))}
           </div>
           <p className="text-xs text-muted">
-            Editing a version's own details (type, material, fit, color, pre-order, care
-            instructions) or an existing size's SKU/price isn't supported from this form yet —
-            only stock quantities can be adjusted above. Add a new version below for other
-            changes.
+            Sizes can't be added, removed, or renamed here — add a new version below for a
+            different apparel offering.
           </p>
         </div>
       )}
