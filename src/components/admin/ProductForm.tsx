@@ -193,11 +193,82 @@ function existingVersionEditToInput(
 }
 
 /**
+ * Editable size/SKU/price/stock row for a size draft (a size not yet saved
+ * to the database). Shared by DraftVersionCard (sizes for a brand-new
+ * version) and ExistingVersionCard (new sizes being added to a version that
+ * already exists) — the fields and validation shape are identical either
+ * way, only what happens on submit differs.
+ */
+function SizeDraftRow({
+  draft,
+  onChange,
+  onRemove,
+}: {
+  draft: DraftSize;
+  onChange: (patch: Partial<DraftSize>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:items-end">
+      <label className="flex flex-col gap-1">
+        <span className="text-[10px] uppercase tracking-wide text-muted">Size</span>
+        <input
+          value={draft.size}
+          onChange={(e) => onChange({ size: e.target.value.toUpperCase() })}
+          className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+          placeholder="M"
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-[10px] uppercase tracking-wide text-muted">SKU</span>
+        <input
+          value={draft.sku}
+          onChange={(e) => onChange({ sku: e.target.value.toUpperCase() })}
+          className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+          placeholder="CC-JERSEY-M"
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-[10px] uppercase tracking-wide text-muted">Price (Rs.)</span>
+        <input
+          type="number"
+          min="0"
+          value={draft.price}
+          onChange={(e) => onChange({ price: e.target.value })}
+          className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+          placeholder="4500"
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-[10px] uppercase tracking-wide text-muted">Stock</span>
+        <input
+          type="number"
+          min="0"
+          value={draft.stock}
+          onChange={(e) => onChange({ stock: e.target.value })}
+          className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+          placeholder="0"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="justify-self-start rounded-lg border border-border px-2 py-1.5 text-xs text-muted-foreground hover:text-primary sm:justify-self-auto"
+      >
+        Remove
+      </button>
+    </div>
+  );
+}
+
+/**
  * Editable card for a version that already exists in the database.
  * Version metadata (name, type, material, fit, color, pre-order, care
  * instructions) is editable here and saved via updateProductVersion() on
- * submit. Existing sizes' SKU/price stay read-only for now (Step 2) —
- * only stock is editable, via the existing adjustStock() path.
+ * submit. Existing sizes' SKU/price are editable via
+ * updateProductVersionSize(); stock stays on the separate adjustStock()
+ * path. New sizes can also be added to this version — they're created via
+ * createProductVersionSize() on submit rather than updating an existing row.
  */
 function ExistingVersionCard({
   version,
@@ -207,6 +278,10 @@ function ExistingVersionCard({
   onStockChange,
   sizeEdits,
   onSizeEditChange,
+  newSizes,
+  onAddNewSize,
+  onRemoveNewSize,
+  onNewSizeChange,
 }: {
   version: ProductVersion;
   edit: ExistingVersionEdit;
@@ -215,6 +290,10 @@ function ExistingVersionCard({
   onStockChange: (sizeId: string, value: string) => void;
   sizeEdits: Record<string, ExistingSizeEdit>;
   onSizeEditChange: (sizeId: string, patch: Partial<ExistingSizeEdit>) => void;
+  newSizes: DraftSize[];
+  onAddNewSize: () => void;
+  onRemoveNewSize: (sizeLocalId: string) => void;
+  onNewSizeChange: (sizeLocalId: string, patch: Partial<DraftSize>) => void;
 }) {
   return (
     <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
@@ -372,6 +451,29 @@ function ExistingVersionCard({
             </div>
           );
         })}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className={fieldLabelClass()}>Add Size</span>
+          <button
+            type="button"
+            onClick={onAddNewSize}
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            + Add Size
+          </button>
+        </div>
+        <div className="space-y-2">
+          {newSizes.map((s) => (
+            <SizeDraftRow
+              key={s.localId}
+              draft={s}
+              onChange={(patch) => onNewSizeChange(s.localId, patch)}
+              onRemove={() => onRemoveNewSize(s.localId)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -540,59 +642,12 @@ function DraftVersionCard({
 
         <div className="space-y-2">
           {version.sizes.map((s) => (
-            <div key={s.localId} className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:items-end">
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-muted">Size</span>
-                <input
-                  value={s.size}
-                  onChange={(e) =>
-                    onSizeChange(s.localId, { size: e.target.value.toUpperCase() })
-                  }
-                  className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
-                  placeholder="M"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-muted">SKU</span>
-                <input
-                  value={s.sku}
-                  onChange={(e) => onSizeChange(s.localId, { sku: e.target.value.toUpperCase() })}
-                  className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
-                  placeholder="CC-JERSEY-M"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-muted">
-                  Price (Rs.)
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  value={s.price}
-                  onChange={(e) => onSizeChange(s.localId, { price: e.target.value })}
-                  className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
-                  placeholder="4500"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wide text-muted">Stock</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={s.stock}
-                  onChange={(e) => onSizeChange(s.localId, { stock: e.target.value })}
-                  className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
-                  placeholder="0"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => onRemoveSize(s.localId)}
-                className="justify-self-start rounded-lg border border-border px-2 py-1.5 text-xs text-muted-foreground hover:text-primary sm:justify-self-auto"
-              >
-                Remove
-              </button>
-            </div>
+            <SizeDraftRow
+              key={s.localId}
+              draft={s}
+              onChange={(patch) => onSizeChange(s.localId, patch)}
+              onRemove={() => onRemoveSize(s.localId)}
+            />
           ))}
         </div>
       </div>
@@ -653,6 +708,12 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   const [draftVersions, setDraftVersions] = useState<DraftVersion[]>(
     mode === 'create' ? [emptyDraftVersion()] : []
   );
+
+  // --- New sizes being added to an existing (already-saved) version, keyed
+  // by that version's id. Each entry is created via createProductVersionSize()
+  // on submit — never updateProductVersionSize(), since there's no existing
+  // row to update.
+  const [newExistingSizes, setNewExistingSizes] = useState<Record<string, DraftSize[]>>({});
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -729,6 +790,33 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
           : v
       )
     );
+  };
+
+  const addNewSizeToVersion = (versionId: string) => {
+    setNewExistingSizes((prev) => ({
+      ...prev,
+      [versionId]: [...(prev[versionId] ?? []), emptyDraftSize()],
+    }));
+  };
+
+  const removeNewSizeFromVersion = (versionId: string, sizeLocalId: string) => {
+    setNewExistingSizes((prev) => ({
+      ...prev,
+      [versionId]: (prev[versionId] ?? []).filter((s) => s.localId !== sizeLocalId),
+    }));
+  };
+
+  const updateNewSizeForVersion = (
+    versionId: string,
+    sizeLocalId: string,
+    patch: Partial<DraftSize>
+  ) => {
+    setNewExistingSizes((prev) => ({
+      ...prev,
+      [versionId]: (prev[versionId] ?? []).map((s) =>
+        s.localId === sizeLocalId ? { ...s, ...patch } : s
+      ),
+    }));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -848,10 +936,64 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       }
     }
 
+    // New sizes being added to an existing (already-saved) version this
+    // session — each becomes a createProductVersionSize() call on submit,
+    // never updateProductVersionSize(), since there's no existing row.
+    const newExistingSizesFlat: Array<{
+      versionId: string;
+      versionName: string;
+      size: string;
+      sku: string;
+      price: number;
+      stock: number;
+    }> = [];
+    if (mode === 'edit' && product) {
+      for (const v of product.versions) {
+        const drafts = (newExistingSizes[v.id] ?? []).filter(
+          (s) => s.size.trim() || s.sku.trim() || s.price.trim()
+        );
+        const sizeLabels = v.sizes.map((sz) => sz.size);
+        for (const s of drafts) {
+          const size = s.size.trim().toUpperCase();
+          if (!size) {
+            return setError(`Enter a size label for the new size in "${v.versionName}".`);
+          }
+          if (!s.sku.trim()) {
+            return setError(`Enter a SKU for the new size "${size}" in "${v.versionName}".`);
+          }
+          const priceValue = Number(s.price);
+          if (!priceValue || priceValue <= 0) {
+            return setError(
+              `Enter a valid price for the new size "${size}" in "${v.versionName}".`
+            );
+          }
+          const stockValue = s.stock.trim() ? Number(s.stock) : 0;
+          if (!Number.isFinite(stockValue) || stockValue < 0) {
+            return setError(
+              `Enter a valid stock quantity for the new size "${size}" in "${v.versionName}".`
+            );
+          }
+          if (sizeLabels.includes(size)) {
+            return setError(`Size "${size}" already exists on "${v.versionName}".`);
+          }
+          sizeLabels.push(size);
+          newExistingSizesFlat.push({
+            versionId: v.id,
+            versionName: v.versionName,
+            size,
+            sku: s.sku.trim(),
+            price: priceValue,
+            stock: stockValue,
+          });
+        }
+      }
+    }
+
     const newSkus = versionsToCreate.flatMap((v) =>
       v.sizes.filter((s) => s.sku.trim()).map((s) => s.sku.trim())
     );
-    const allSubmittedSkus = [...newSkus, ...changedExistingSizes.map((s) => s.sku)];
+    const allNewSkus = [...newSkus, ...newExistingSizesFlat.map((s) => s.sku)];
+    const allSubmittedSkus = [...allNewSkus, ...changedExistingSizes.map((s) => s.sku)];
     if (new Set(allSubmittedSkus).size !== allSubmittedSkus.length) {
       return setError('Duplicate SKU entered — each size needs a unique SKU.');
     }
@@ -865,7 +1007,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       const skuChecksNeeded = changedExistingSizes.filter((s) => s.skuChanged);
       const [slugAlreadyTaken, skuConflicts, existingSkuConflicts] = await Promise.all([
         isSlugTaken(slug.trim(), excludeId),
-        Promise.all(newSkus.map((sku) => isSkuTaken(sku))),
+        Promise.all(allNewSkus.map((sku) => isSkuTaken(sku))),
         Promise.all(skuChecksNeeded.map((s) => isSkuTaken(s.sku, s.id))),
       ]);
       if (slugAlreadyTaken) {
@@ -943,6 +1085,18 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       // stock entirely so it can't be touched from this call.
       for (const s of changedExistingSizes) {
         await updateProductVersionSize(s.id, { size: s.size, sku: s.sku, price: s.price });
+      }
+
+      // Create new sizes added to an existing version this session. These
+      // are brand-new rows (never seen by the database before), so they
+      // always go through createProductVersionSize(), never an update.
+      for (const s of newExistingSizesFlat) {
+        await createProductVersionSize(s.versionId, {
+          size: s.size,
+          sku: s.sku,
+          price: s.price,
+          stock: s.stock,
+        });
       }
 
       // Create any new versions (and their sizes) added during this session.
@@ -1121,12 +1275,18 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
                     [sizeId]: { ...prev[sizeId], ...patch },
                   }))
                 }
+                newSizes={newExistingSizes[v.id] ?? []}
+                onAddNewSize={() => addNewSizeToVersion(v.id)}
+                onRemoveNewSize={(sizeLocalId) => removeNewSizeFromVersion(v.id, sizeLocalId)}
+                onNewSizeChange={(sizeLocalId, patch) =>
+                  updateNewSizeForVersion(v.id, sizeLocalId, patch)
+                }
               />
             ))}
           </div>
           <p className="text-xs text-muted">
-            Sizes can't be added, removed, or renamed here — add a new version below for a
-            different apparel offering.
+            Use "Add Size" above to add a new size to a version. Existing sizes can't be removed
+            or renamed here — add a new version below for a different apparel offering.
           </p>
         </div>
       )}
