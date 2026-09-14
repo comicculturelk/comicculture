@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
-import { filterProducts } from '../data/products';
+import { filterProducts, formatPrice } from '../data/products';
 import type { Product } from '../data/products';
 
 interface SearchOverlayProps {
@@ -127,7 +127,7 @@ export default function SearchOverlay({ onClose }: SearchOverlayProps) {
                       </p>
                     </div>
                     <span className="shrink-0 font-display text-sm text-foreground">
-                      Rs. {getLowestPrice(product)}
+                      {formatPrice(getLowestPrice(product))}
                     </span>
                   </Link>
                 ))}

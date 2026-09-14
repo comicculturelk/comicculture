@@ -246,7 +246,7 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
 }
 
 export function formatPrice(price: number): string {
-  return `Rs. ${price}`;
+  return `Rs. ${price.toLocaleString('en-US')}`;
 }
 
 /**

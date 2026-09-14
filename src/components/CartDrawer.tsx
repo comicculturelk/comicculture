@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { X, Minus, Plus, Trash2, Info } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
-import { getPreorderMessage } from '../data/products';
+import { formatPrice, getPreorderMessage } from '../data/products';
 import type { Product, ProductVersion } from '../data/products';
 
 /**
@@ -126,7 +126,7 @@ export default function CartDrawer() {
                             </span>
                           </div>
                         )}
-                        <p className="mt-1 font-display text-primary">Rs. {item.price}</p>
+                        <p className="mt-1 font-display text-primary">{formatPrice(item.price)}</p>
 
                         <div className="mt-auto flex items-center gap-3 pt-2">
                           <button
@@ -164,7 +164,7 @@ export default function CartDrawer() {
                   <span className="text-muted">
                     Subtotal ({totalItems} {totalItems === 1 ? 'item' : 'items'})
                   </span>
-                  <span className="font-display text-2xl text-primary">Rs. {totalPrice}</span>
+                  <span className="font-display text-2xl text-primary">{formatPrice(totalPrice)}</span>
                 </div>
                 <Link to="/checkout" onClick={closeCart} className="btn-primary w-full">
                   Proceed to Checkout

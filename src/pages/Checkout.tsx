@@ -18,7 +18,7 @@ import {
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import { createOrder } from '../data/orders';
-import { getPreorderMessage } from '../data/products';
+import { formatPrice, getPreorderMessage } from '../data/products';
 import { uploadFile } from '../lib/storage';
 import { STORE_CONFIG } from '../config/store';
 
@@ -399,7 +399,7 @@ export default function Checkout() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-primary">Rs. {deliveryFee}</span>
+                  <span className="text-sm font-medium text-primary">{formatPrice(deliveryFee)}</span>
                   <CheckCircle2 className="h-4 w-4 text-primary" />
                 </div>
               </div>
@@ -610,7 +610,7 @@ export default function Checkout() {
                     )}
                   </div>
                   <p className="self-center text-sm font-medium text-muted">
-                    Rs. {item.price * item.quantity}
+                    {formatPrice(item.price * item.quantity)}
                   </p>
                 </div>
                 );
@@ -620,15 +620,15 @@ export default function Checkout() {
             <div className="space-y-2 border-t border-border pt-4 text-sm">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>Subtotal ({totalItems} {totalItems === 1 ? 'item' : 'items'})</span>
-                <span>Rs. {totalPrice}</span>
+                <span>{formatPrice(totalPrice)}</span>
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>Delivery</span>
-                <span>Rs. {deliveryFee}</span>
+                <span>{formatPrice(deliveryFee)}</span>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2 font-display text-lg text-foreground">
                 <span>Total</span>
-                <span className="text-primary">Rs. {total}</span>
+                <span className="text-primary">{formatPrice(total)}</span>
               </div>
             </div>
 
