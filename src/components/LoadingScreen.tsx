@@ -35,13 +35,46 @@ const wipeVariants = {
   },
 };
 
+// The intro should only play once per browser session — refreshing or
+// deep-linking within the same session shouldn't replay it, but a genuinely
+// new tab/session (sessionStorage, not localStorage) should still get it.
+const INTRO_SESSION_KEY = 'comicculture:intro-seen';
+
+function hasSeenIntroThisSession(): boolean {
+  try {
+    return sessionStorage.getItem(INTRO_SESSION_KEY) === 'true';
+  } catch {
+    // sessionStorage inaccessible (e.g. disabled) — fall back to the
+    // original always-show behavior rather than throwing.
+    return false;
+  }
+}
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
 export default function LoadingScreen() {
-  const [loading, setLoading] = useState(true);
+  // Computed once, synchronously, before first paint — so a returning
+  // visitor or a reduced-motion user never sees the intro flash in only to
+  // be skipped a moment later; it simply never renders.
+  const [loading, setLoading] = useState(
+    () => !prefersReducedMotion() && !hasSeenIntroThisSession()
+  );
 
   useEffect(() => {
+    if (!loading) return;
+
+    try {
+      sessionStorage.setItem(INTRO_SESSION_KEY, 'true');
+    } catch {
+      // Storage unavailable — nothing more to persist, the intro still
+      // plays once for this mount either way.
+    }
+
     const timer = setTimeout(() => setLoading(false), 2500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [loading]);
 
   return (
     <AnimatePresence>
