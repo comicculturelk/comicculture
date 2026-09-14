@@ -4,6 +4,7 @@ import {
   updateProduct,
   createProductVersion,
   updateProductVersion,
+  deleteProductVersion,
   createProductVersionSize,
   updateProductVersionSize,
   deleteProductVersionSize,
@@ -290,6 +291,8 @@ function ExistingVersionCard({
   deletedSizeIds,
   deletingSizeId,
   onDeleteSize,
+  deletingVersionId,
+  onDeleteVersion,
 }: {
   version: ProductVersion;
   edit: ExistingVersionEdit;
@@ -305,16 +308,30 @@ function ExistingVersionCard({
   deletedSizeIds: Set<string>;
   deletingSizeId: string | null;
   onDeleteSize: (size: ProductVersionSize) => void;
+  deletingVersionId: string | null;
+  onDeleteVersion: (version: ProductVersion) => void;
 }) {
+  const isDeletingVersion = deletingVersionId === version.id;
+
   return (
     <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs uppercase tracking-wide text-muted">
           {version.versionName || 'Version'}
         </span>
-        {!version.isActive && (
-          <span className="text-[11px] uppercase tracking-wide text-muted">Inactive</span>
-        )}
+        <div className="flex items-center gap-3">
+          {!version.isActive && (
+            <span className="text-[11px] uppercase tracking-wide text-muted">Inactive</span>
+          )}
+          <button
+            type="button"
+            onClick={() => onDeleteVersion(version)}
+            disabled={isDeletingVersion}
+            className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50"
+          >
+            {isDeletingVersion ? 'Deleting...' : 'Delete Version'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -746,6 +763,11 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   const [deletedSizeIds, setDeletedSizeIds] = useState<Set<string>>(new Set());
   const [deletingSizeId, setDeletingSizeId] = useState<string | null>(null);
 
+  // --- Existing versions deleted this session — same immediate-delete/
+  // render-overlay pattern as deletedSizeIds above.
+  const [deletedVersionIds, setDeletedVersionIds] = useState<Set<string>>(new Set());
+  const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -886,6 +908,64 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       setError(err instanceof Error ? err.message : 'Failed to delete size');
     } finally {
       setDeletingSizeId(null);
+    }
+  };
+
+  /**
+   * Deletes an existing (already-saved) version, immediately — not deferred
+   * to submit. Every size on the version is checked for order/inventory
+   * history first (deleteProductVersion() would cascade-delete sizes, so
+   * this must be at least as strict as the per-size check); a version with
+   * no sizes has nothing to check and is safe to delete once confirmed.
+   */
+  const handleDeleteVersion = async (version: ProductVersion) => {
+    setError(null);
+    setDeletingVersionId(version.id);
+    try {
+      const historyChecks = await Promise.all(version.sizes.map((s) => hasOrderHistory(s.id)));
+      if (historyChecks.some(Boolean)) {
+        setError(
+          `Version "${version.versionName}" cannot be deleted because one or more of its sizes has existing order or inventory history. Deactivate it instead.`
+        );
+        return;
+      }
+      if (
+        !window.confirm(
+          `Delete version "${version.versionName}" and all of its sizes? This cannot be undone.`
+        )
+      ) {
+        return;
+      }
+      await deleteProductVersion(version.id);
+
+      setDeletedVersionIds((prev) => new Set(prev).add(version.id));
+
+      const sizeIds = new Set(version.sizes.map((s) => s.id));
+      setVersionEdits((prev) => {
+        const { [version.id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      setNewExistingSizes((prev) => {
+        const { [version.id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      setSizeEdits((prev) =>
+        Object.fromEntries(Object.entries(prev).filter(([id]) => !sizeIds.has(id)))
+      );
+      setStockEdits((prev) =>
+        Object.fromEntries(Object.entries(prev).filter(([id]) => !sizeIds.has(id)))
+      );
+      // These sizes no longer exist at all, so they don't need to keep
+      // occupying the "deleted this session" overlay either.
+      setDeletedSizeIds((prev) => {
+        const next = new Set(prev);
+        sizeIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete version');
+    } finally {
+      setDeletingVersionId(null);
     }
   };
 
@@ -1210,6 +1290,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     }
   };
 
+  const visibleVersions = product?.versions.filter((v) => !deletedVersionIds.has(v.id)) ?? [];
+
   return (
     <form onSubmit={handleSubmit} className="glass space-y-6 rounded-2xl p-6">
       <h2 className="font-display text-xl tracking-wide text-foreground">
@@ -1321,11 +1403,11 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       </div>
 
       {/* Existing versions (edit mode only) */}
-      {mode === 'edit' && product && product.versions.length > 0 && (
+      {mode === 'edit' && product && visibleVersions.length > 0 && (
         <div className="space-y-4 border-t border-border pt-6">
           <span className={fieldLabelClass()}>Existing Versions</span>
           <div className="space-y-3">
-            {product.versions.map((v) => (
+            {visibleVersions.map((v) => (
               <ExistingVersionCard
                 key={v.id}
                 version={v}
@@ -1356,13 +1438,17 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
                 deletedSizeIds={deletedSizeIds}
                 deletingSizeId={deletingSizeId}
                 onDeleteSize={(size) => handleDeleteSize(size, v.versionName)}
+                deletingVersionId={deletingVersionId}
+                onDeleteVersion={handleDeleteVersion}
               />
             ))}
           </div>
           <p className="text-xs text-muted">
             Use "Add Size" above to add a new size, or "Delete" on a size to remove it. Sizes with
             existing order or inventory history can't be deleted — set their stock to 0 instead.
-            Existing sizes can't be renamed here — add a new version below for a different apparel
+            "Delete Version" removes a whole version and its sizes, but only when none of its
+            sizes has order or inventory history — deactivate it instead if it does. Existing
+            sizes can't be renamed here — add a new version below for a different apparel
             offering.
           </p>
         </div>
