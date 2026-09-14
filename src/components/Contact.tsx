@@ -95,9 +95,7 @@ export default function Contact() {
                 <MapPin className="h-6 w-6 text-primary" />
               </div>
               <div>
-                  <p className="text-sm text-muted uppercase tracking-wider">Based in Colombo</p>
-                  <p className="mt-1 font-display text-xl text-foreground tracking-wide">
-                </p>
+                <p className="text-sm text-muted uppercase tracking-wider">Based in Colombo</p>
               </div>
             </div>
 

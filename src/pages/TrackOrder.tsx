@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, PackageSearch, CheckCircle2, Package, Truck, Home as HomeIcon, XCircle } from 'lucide-react';
 import { trackOrder } from '../data/tracking';
 import type { TrackedOrder, TrackedOrderItem } from '../data/tracking';
+import { formatPrice } from '../data/products';
 
 type ContactMethod = 'email' | 'phone';
 
@@ -268,14 +269,14 @@ export default function TrackOrder() {
                         </span>
                       )}
                     </div>
-                    <p className="text-foreground">Rs. {item.price * item.quantity}</p>
+                    <p className="text-foreground">{formatPrice(item.price * item.quantity)}</p>
                   </div>
                 ))}
               </div>
 
               <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
                 <p className="text-sm text-muted">Total</p>
-                <p className="font-display text-lg text-foreground">Rs. {result.total}</p>
+                <p className="font-display text-lg text-foreground">{formatPrice(result.total)}</p>
               </div>
             </motion.div>
           )}

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
+import { formatPrice } from '../data/products';
 
 interface OrderSuccessState {
   orderReference?: string;
@@ -12,6 +13,11 @@ interface OrderSuccessState {
 export default function OrderSuccess() {
   const location = useLocation();
   const state = (location.state ?? {}) as OrderSuccessState;
+  // Navigation state (set by Checkout right after a successful order) is
+  // gone on refresh or a direct/shared link — fall back to a message that
+  // doesn't claim to know details we no longer have, instead of silently
+  // showing a half-empty page.
+  const hasOrderDetails = Boolean(state.orderReference);
 
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
@@ -37,13 +43,22 @@ export default function OrderSuccess() {
           ORDER <span className="text-gradient-red">RECEIVED</span>
         </h1>
 
-        <p className="mt-4 text-muted">
-          {state.customerName ? `Thanks, ${state.customerName}! ` : 'Thank you! '}
-          Your order has been received. We'll reach out shortly on WhatsApp or phone to confirm
-          delivery details.
-        </p>
+        {hasOrderDetails ? (
+          <p className="mt-4 text-muted">
+            {state.customerName ? `Thanks, ${state.customerName}! ` : 'Thank you! '}
+            Your order has been received. We'll reach out shortly on WhatsApp or phone to confirm
+            delivery details.
+          </p>
+        ) : (
+          <p className="mt-4 text-muted">
+            We can't show your order confirmation details on this page right now — this can
+            happen after a refresh or when opening this page directly. If you just placed an
+            order, it's still been received. Use Track Order below with your order reference and
+            the email or phone number you checked out with to see its status.
+          </p>
+        )}
 
-        {state.orderReference && (
+        {hasOrderDetails && (
           <div className="mt-6 rounded-lg border border-border bg-surface px-6 py-3">
             <p className="text-xs uppercase tracking-wide text-muted">Order Reference</p>
             <p className="font-display text-lg text-foreground tracking-wide">
@@ -51,7 +66,8 @@ export default function OrderSuccess() {
             </p>
             {typeof state.total === 'number' && (
               <p className="mt-1 text-sm text-muted-foreground">
-                {state.totalItems} {state.totalItems === 1 ? 'item' : 'items'} · Rs. {state.total}
+                {state.totalItems} {state.totalItems === 1 ? 'item' : 'items'} ·{' '}
+                {formatPrice(state.total)}
               </p>
             )}
           </div>
@@ -68,9 +84,11 @@ export default function OrderSuccess() {
             Back to Home
           </Link>
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Use your order reference and email/phone to check your delivery status anytime.
-        </p>
+        {hasOrderDetails && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Use your order reference and email/phone to check your delivery status anytime.
+          </p>
+        )}
       </motion.div>
     </section>
   );

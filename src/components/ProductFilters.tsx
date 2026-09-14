@@ -1,4 +1,5 @@
 import { Search, X } from 'lucide-react';
+import { formatPrice } from '../data/products';
 
 interface ProductFiltersProps {
   search: string;
@@ -85,7 +86,7 @@ export default function ProductFilters({
         {priceBounds.max > priceBounds.min && (
           <div className="flex items-center gap-3 rounded-full border border-border bg-surface px-4 py-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-muted">
-              Up to Rs. {priceLimit}
+              Up to {formatPrice(priceLimit)}
             </span>
             <input
               type="range"
