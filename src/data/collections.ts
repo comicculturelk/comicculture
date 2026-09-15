@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
 
 export type CollectionStatus = 'live' | 'soon';
@@ -122,7 +123,7 @@ export async function isCollectionSlugTaken(slug: string, excludeId?: string): P
 }
 
 export async function createCollection(input: CollectionInput): Promise<Collection> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('collections')
     .insert(mapCollectionInputToRow(input))
     .select()
@@ -135,7 +136,7 @@ export async function createCollection(input: CollectionInput): Promise<Collecti
 }
 
 export async function updateCollection(id: string, input: CollectionInput): Promise<Collection> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('collections')
     .update(mapCollectionInputToRow(input))
     .eq('id', id)
@@ -157,7 +158,7 @@ export async function updateCollection(id: string, input: CollectionInput): Prom
  * clear, actionable message instead of a raw DB error.
  */
 export async function deleteCollection(id: string): Promise<void> {
-  const { error } = await supabase.from('collections').delete().eq('id', id);
+  const { error } = await supabaseAdmin.from('collections').delete().eq('id', id);
   if (error) {
     if (error.code === '23503') {
       throw new Error(
@@ -208,7 +209,7 @@ export async function uploadCollectionCoverImage(slugHint: string, file: File): 
   const base = safePathSegment(slugHint) || 'collection';
   const path = `${COLLECTION_IMAGES_FOLDER}/${base}-${uniqueSuffix()}.${ext}`;
 
-  const { publicUrl } = await uploadFile(COLLECTION_IMAGES_BUCKET, path, file, 'public');
+  const { publicUrl } = await uploadFile(COLLECTION_IMAGES_BUCKET, path, file, 'public', supabaseAdmin);
   return publicUrl;
 }
 
@@ -221,5 +222,5 @@ export async function uploadCollectionCoverImage(slugHint: string, file: File): 
 export async function deleteCollectionCoverImage(url: string): Promise<void> {
   const path = getPathFromPublicUrl(COLLECTION_IMAGES_BUCKET, url);
   if (!path) return;
-  await deleteFile(COLLECTION_IMAGES_BUCKET, path);
+  await deleteFile(COLLECTION_IMAGES_BUCKET, path, supabaseAdmin);
 }

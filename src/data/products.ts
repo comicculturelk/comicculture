@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
 import { fetchCollectionById } from './collections';
 
@@ -310,7 +311,7 @@ export function isSizeInStock(version: Pick<ProductVersion, 'sizes'>, size: stri
  * (version, size) row, so callers must target the specific row by id.
  */
 export async function updateProductStock(versionSizeId: string, stock: number): Promise<void> {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('product_version_sizes')
     .update({ stock })
     .eq('id', versionSizeId);
@@ -460,7 +461,7 @@ export async function isSkuTaken(sku: string, excludeSizeId?: string): Promise<b
 
 export async function createProduct(input: ProductInput): Promise<Product> {
   const row = await mapProductInputToRow(input);
-  const { data, error } = await supabase.from('products').insert(row).select().single();
+  const { data, error } = await supabaseAdmin.from('products').insert(row).select().single();
 
   if (error) {
     throw new Error(`Failed to create product: ${error.message}`);
@@ -472,7 +473,7 @@ export async function createProduct(input: ProductInput): Promise<Product> {
 
 export async function updateProduct(id: string, input: ProductInput): Promise<Product> {
   const row = await mapProductInputToRow(input);
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('products')
     .update(row)
     .eq('id', id)
@@ -505,7 +506,7 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
 export async function deleteProduct(
   product: Pick<Product, 'id' | 'image' | 'images'>
 ): Promise<void> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('products')
     .delete()
     .eq('id', product.id)
@@ -574,7 +575,7 @@ export async function createProductVersion(
   productId: string,
   input: ProductVersionInput
 ): Promise<ProductVersion> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('product_versions')
     .insert(mapVersionInputToRow(productId, input))
     .select()
@@ -611,7 +612,7 @@ export async function updateProductVersion(
   id: string,
   input: ProductVersionInput
 ): Promise<ProductVersion> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('product_versions')
     .update(mapVersionInputToUpdateRow(input))
     .eq('id', id)
@@ -635,7 +636,7 @@ export async function updateProductVersion(
  * than a raw Postgres constraint message.
  */
 export async function deleteProductVersion(id: string): Promise<void> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('product_versions')
     .delete()
     .eq('id', id)
@@ -667,7 +668,7 @@ export async function createProductVersionSize(
   versionId: string,
   input: ProductVersionSizeInput
 ): Promise<ProductVersionSize> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('product_version_sizes')
     .insert({
       version_id: versionId,
@@ -697,7 +698,7 @@ export async function updateProductVersionSize(
   id: string,
   input: Omit<ProductVersionSizeInput, 'stock'>
 ): Promise<ProductVersionSize> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('product_version_sizes')
     .update({ size: input.size, sku: input.sku, price: input.price })
     .eq('id', id)
@@ -718,7 +719,7 @@ export async function updateProductVersionSize(
  * hasOrderHistory() below.
  */
 export async function deleteProductVersionSize(id: string): Promise<void> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('product_version_sizes')
     .delete()
     .eq('id', id)
@@ -744,7 +745,7 @@ export async function deleteProductVersionSize(id: string): Promise<void> {
  * blocked (or hide the option) before the user even tries.
  */
 export async function hasOrderHistory(versionSizeId: string): Promise<boolean> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('order_items')
     .select('id')
     .eq('version_size_id', versionSizeId)
@@ -822,7 +823,7 @@ export async function duplicateProduct(product: Product): Promise<Product> {
 export async function uploadProductImage(slug: string, file: File): Promise<string> {
   const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
   const path = `${slug}/${Date.now()}-${safeName}`;
-  const { publicUrl } = await uploadFile(PRODUCT_IMAGES_BUCKET, path, file);
+  const { publicUrl } = await uploadFile(PRODUCT_IMAGES_BUCKET, path, file, 'public', supabaseAdmin);
   return publicUrl;
 }
 
@@ -830,5 +831,5 @@ export async function uploadProductImage(slug: string, file: File): Promise<stri
 export async function deleteProductImage(url: string): Promise<void> {
   const path = getPathFromPublicUrl(PRODUCT_IMAGES_BUCKET, url);
   if (!path) return;
-  await deleteFile(PRODUCT_IMAGES_BUCKET, path);
+  await deleteFile(PRODUCT_IMAGES_BUCKET, path, supabaseAdmin);
 }

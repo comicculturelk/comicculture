@@ -5,7 +5,7 @@ import {
   XCircle,
   ImageOff,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { getSignedUrl } from '../../lib/storage';
 import { formatDate, StatusBadge } from '../../pages/Admin';
 
@@ -108,7 +108,7 @@ export default function AdminOrders() {
   const loadReceiptUrl = async (order: OrderRow) => {
     if (!order.receipt_url || receiptUrls[order.id]) return;
     try {
-      const url = await getSignedUrl('payment-receipts', order.receipt_url);
+      const url = await getSignedUrl('payment-receipts', order.receipt_url, 3600, supabaseAdmin);
       setReceiptUrls((prev) => ({ ...prev, [order.id]: url }));
     } catch {
       // Signed URL generation failed (e.g. file missing) — show a fallback
@@ -140,7 +140,7 @@ export default function AdminOrders() {
         ? { payment_status: 'paid', status: 'confirmed' }
         : { payment_status: 'failed' };
 
-    const { error: updateError } = await supabase.from('orders').update(updates).eq('id', orderId);
+    const { error: updateError } = await supabaseAdmin.from('orders').update(updates).eq('id', orderId);
 
     if (!updateError) {
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)));
@@ -150,7 +150,7 @@ export default function AdminOrders() {
 
   const loadOrders = async () => {
     setLoading(true);
-    const { data, error: fetchError } = await supabase
+    const { data, error: fetchError } = await supabaseAdmin
       .from('orders')
       .select('*, order_items(*)')
       .order('created_at', { ascending: false });
@@ -170,7 +170,7 @@ export default function AdminOrders() {
 
   const handleStatusChange = async (orderId: string, status: string) => {
     setUpdatingId(orderId);
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('orders')
       .update({ status })
       .eq('id', orderId);

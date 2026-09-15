@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
 
 export type MovementType = 'sale' | 'restock' | 'adjustment' | 'cancellation';
 export type AdjustmentReason = 'damaged' | 'missing' | 'giveaway' | 'correction' | 'other';
@@ -61,7 +61,7 @@ export interface FetchMovementsOptions {
 export async function fetchInventoryMovements(
   options: FetchMovementsOptions = {}
 ): Promise<InventoryMovement[]> {
-  let query = supabase
+  let query = supabaseAdmin
     .from('inventory_movements')
     .select('*')
     .order('created_at', { ascending: false })
@@ -85,7 +85,7 @@ export async function restockProduct(
   quantity: number,
   note?: string
 ): Promise<void> {
-  const { error } = await supabase.rpc('restock_product', {
+  const { error } = await supabaseAdmin.rpc('restock_product', {
     p_version_size_id: versionSizeId,
     p_quantity: quantity,
     p_note: note ?? null,
@@ -103,7 +103,7 @@ export async function adjustStock(
   reason: AdjustmentReason,
   note?: string
 ): Promise<void> {
-  const { error } = await supabase.rpc('adjust_stock', {
+  const { error } = await supabaseAdmin.rpc('adjust_stock', {
     p_version_size_id: versionSizeId,
     p_quantity_change: quantityChange,
     p_reason: reason,

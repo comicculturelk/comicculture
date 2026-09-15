@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
 import AdminProducts from '../components/admin/AdminProducts';
 import AdminCollections from '../components/admin/AdminCollections';
 import AdminDashboard from '../components/admin/AdminDashboard';
@@ -50,11 +50,11 @@ export default function Admin() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabaseAdmin.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setCheckingSession(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabaseAdmin.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
     return () => listener.subscription.unsubscribe();
@@ -81,7 +81,7 @@ function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInError } = await supabaseAdmin.auth.signInWithPassword({ email, password });
     if (signInError) setError(signInError.message);
     setLoading(false);
   };
@@ -120,7 +120,7 @@ function AdminPanel() {
     'dashboard' | 'orders' | 'products' | 'collections' | 'inventory' | 'history'
   >('orders');
 
-  const handleSignOut = () => supabase.auth.signOut();
+  const handleSignOut = () => supabaseAdmin.auth.signOut();
 
   return (
     <section className="min-h-screen bg-background px-6 py-24 lg:py-32">

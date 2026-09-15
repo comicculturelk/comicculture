@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface PublicUploadResult {
   path: string;
@@ -31,27 +32,31 @@ export async function uploadFile(
   bucket: string,
   path: string,
   file: File,
-  visibility: 'public'
+  visibility: 'public',
+  client?: SupabaseClient
 ): Promise<PublicUploadResult>;
 export async function uploadFile(
   bucket: string,
   path: string,
   file: File,
-  visibility: 'private'
+  visibility: 'private',
+  client?: SupabaseClient
 ): Promise<PrivateUploadResult>;
 export async function uploadFile(
   bucket: string,
   path: string,
   file: File,
-  visibility?: 'public' | 'private'
+  visibility?: 'public' | 'private',
+  client?: SupabaseClient
 ): Promise<PublicUploadResult>;
 export async function uploadFile(
   bucket: string,
   path: string,
   file: File,
-  visibility: 'public' | 'private' = 'public'
+  visibility: 'public' | 'private' = 'public',
+  client: SupabaseClient = supabase
 ): Promise<UploadResult> {
-  const { error } = await supabase.storage.from(bucket).upload(path, file, {
+  const { error } = await client.storage.from(bucket).upload(path, file, {
     cacheControl: '3600',
     upsert: false,
   });
@@ -64,7 +69,7 @@ export async function uploadFile(
     return { path };
   }
 
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  const { data } = client.storage.from(bucket).getPublicUrl(path);
   return { path, publicUrl: data.publicUrl };
 }
 
@@ -77,9 +82,10 @@ export async function uploadFile(
 export async function getSignedUrl(
   bucket: string,
   path: string,
-  expiresInSeconds = 3600
+  expiresInSeconds = 3600,
+  client: SupabaseClient = supabase
 ): Promise<string> {
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
+  const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
 
   if (error || !data) {
     throw new Error(`Failed to create signed URL: ${error?.message ?? 'unknown error'}`);
@@ -89,8 +95,12 @@ export async function getSignedUrl(
 }
 
 /** Deletes a file from a Supabase Storage bucket by its storage path. */
-export async function deleteFile(bucket: string, path: string): Promise<void> {
-  const { error } = await supabase.storage.from(bucket).remove([path]);
+export async function deleteFile(
+  bucket: string,
+  path: string,
+  client: SupabaseClient = supabase
+): Promise<void> {
+  const { error } = await client.storage.from(bucket).remove([path]);
   if (error) {
     throw new Error(`Failed to delete file: ${error.message}`);
   }

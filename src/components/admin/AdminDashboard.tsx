@@ -9,7 +9,7 @@ import {
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { fetchProducts, getStockForSize, type Product } from '../../data/products';
 import { formatDate, StatusBadge, LOW_STOCK_THRESHOLD } from '../../pages/Admin';
 
@@ -133,11 +133,11 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
 
       try {
         const [ordersRes, itemsRes, productsData] = await Promise.all([
-          supabase
+          supabaseAdmin
             .from('orders')
             .select('order_reference, full_name, total, status, created_at')
             .order('created_at', { ascending: false }),
-          supabase.from('order_items').select('name, quantity'),
+          supabaseAdmin.from('order_items').select('name, quantity'),
           fetchProducts(),
         ]);
 
