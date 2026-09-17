@@ -51,7 +51,11 @@ export default function Navbar() {
         animate={{ y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <nav className="mx-auto grid max-w-7xl grid-cols-3 items-center px-6">
+        {/* Below lg the outer columns size to their content so the centre nav
+            gets the leftover width (equal thirds would crowd the links into
+            two lines at ~768px). From lg the original equal-thirds grid takes
+            over, keeping the desktop layout exactly as before. */}
+        <nav className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center px-6 lg:grid-cols-3">
           {/* Left: Logo — serves as the Home link */}
           <div className="flex items-center justify-start">
             <MotionLink
@@ -76,7 +80,7 @@ export default function Navbar() {
           </div>
 
           {/* Center: Desktop Nav Links */}
-          <ul className="hidden items-center justify-center gap-8 lg:flex">
+          <ul className="hidden items-center justify-center gap-6 md:flex lg:gap-8">
             {navLinks.map((link) => (
               <li key={link.to}>
                 <Link
@@ -93,7 +97,7 @@ export default function Navbar() {
           {/* Right: Actions */}
           <div className="flex items-center justify-end">
             {/* CTA Buttons (desktop) */}
-            <div className="hidden lg:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-4">
               <button
                 onClick={handleOpenSearch}
                 className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
@@ -125,7 +129,7 @@ export default function Navbar() {
             </div>
 
             {/* Mobile: Search + Cart + Menu Toggle */}
-            <div className="flex items-center gap-1 lg:hidden">
+            <div className="flex items-center gap-1 md:hidden">
               <button
                 onClick={handleOpenSearch}
                 className="relative p-2 text-foreground"
@@ -162,7 +166,7 @@ export default function Navbar() {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            className="fixed inset-0 z-40 lg:hidden"
+            className="fixed inset-0 z-40 md:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

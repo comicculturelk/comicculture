@@ -287,7 +287,7 @@ export default function CollectionPage() {
 
         {/* Product grid */}
         {!loading && !error && filteredProducts.length > 0 && (
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             <AnimatePresence mode="popLayout">
               {filteredProducts.map((product, index) => (
                 <motion.div
