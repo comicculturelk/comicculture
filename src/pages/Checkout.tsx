@@ -270,6 +270,37 @@ export default function Checkout() {
           onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_400px] lg:items-start"
         >
+          {/* Mobile-only order overview. The full ORDER SUMMARY (with the
+              submit button) stays at the bottom where it belongs; this just
+              lets mobile customers see what they're buying and what it costs
+              before working through the form, instead of after. Hidden from
+              lg up, where the sticky summary column already does this. */}
+          <motion.section
+            aria-label="Order overview"
+            className="glass flex items-center gap-4 rounded-2xl p-4 lg:hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="flex flex-shrink-0 -space-x-2">
+              {items.slice(0, 3).map((item) => (
+                <div
+                  key={`${item.productId}-${item.size}`}
+                  className="h-11 w-11 overflow-hidden rounded-lg border border-border bg-background"
+                >
+                  <img src={item.image} alt="" className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-1 items-center justify-between gap-2">
+              <p className="text-xs uppercase tracking-wide text-muted">
+                {totalItems} {totalItems === 1 ? 'item' : 'items'}
+                {items.length > 3 && ` · +${items.length - 3} more`}
+              </p>
+              <p className="font-display text-lg text-primary">{formatPrice(total)}</p>
+            </div>
+          </motion.section>
+
           {/* Left: customer info, delivery, promo */}
           <motion.div
             className="glass space-y-8 rounded-2xl p-6 lg:p-8"
