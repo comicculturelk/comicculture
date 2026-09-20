@@ -15,11 +15,14 @@ interface Slide {
   headline: string;
   subline: string;
   image: string | null;
+  focusDesktop: string;
+  focusMobile: string;
   ctaLabel: string;
   ctaHref: string;
 }
 
 const AUTOPLAY_MS = 5000;
+const DEFAULT_HERO_FOCUS = '50% center';
 
 // Used only when there are no live collections with a cover image yet —
 // keeps the hero from breaking rather than inventing fake collection data.
@@ -29,6 +32,8 @@ const FALLBACK_SLIDE: Slide = {
   headline: 'WEAR YOUR UNIVERSE',
   subline: 'Wearable art for fans, in limited runs.',
   image: null,
+  focusDesktop: DEFAULT_HERO_FOCUS,
+  focusMobile: DEFAULT_HERO_FOCUS,
   ctaLabel: 'Shop All',
   ctaHref: '/shop',
 };
@@ -51,6 +56,8 @@ export default function Hero({ collections }: HeroProps) {
       headline: c.name.toUpperCase(),
       subline: c.description ? truncate(c.description, 90) : 'Shop the latest drop.',
       image: c.coverImage,
+      focusDesktop: c.heroFocusDesktop || DEFAULT_HERO_FOCUS,
+      focusMobile: c.heroFocusMobile || DEFAULT_HERO_FOCUS,
       ctaLabel: 'Shop Collection',
       ctaHref: `/collections/${c.slug}`,
     }));
@@ -95,7 +102,13 @@ export default function Hero({ collections }: HeroProps) {
               key={current.key}
               src={current.image}
               alt={current.headline}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-[var(--hero-focus-mobile)] lg:object-[var(--hero-focus-desktop)]"
+              style={
+                {
+                  '--hero-focus-mobile': current.focusMobile,
+                  '--hero-focus-desktop': current.focusDesktop,
+                } as React.CSSProperties
+              }
               initial={{ opacity: 0, scale: 1.03 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
@@ -104,6 +117,11 @@ export default function Hero({ collections }: HeroProps) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Legibility scrim — keeps centered text readable regardless of which
+          part of the artwork the focal position brings into view. Global,
+          not per-collection, to avoid a bespoke text system. */}
+      <div className="absolute inset-0 bg-background/35" />
 
       {/* Masthead */}
       <motion.div

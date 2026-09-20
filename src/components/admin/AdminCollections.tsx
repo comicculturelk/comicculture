@@ -13,6 +13,7 @@ import {
 import { slugify } from '../../lib/slug';
 import ConfirmAction from './ConfirmAction';
 import CollectionCoverUpload from './CollectionCoverUpload';
+import HeroFocusPicker from './HeroFocusPicker';
 
 type View = 'list' | 'create' | 'edit';
 
@@ -196,6 +197,8 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
   const [tagline, setTagline] = useState(collection?.tagline ?? '');
   const [description, setDescription] = useState(collection?.description ?? '');
   const [coverImage, setCoverImage] = useState(collection?.coverImage ?? '');
+  const [heroFocusDesktop, setHeroFocusDesktop] = useState(collection?.heroFocusDesktop ?? '');
+  const [heroFocusMobile, setHeroFocusMobile] = useState(collection?.heroFocusMobile ?? '');
   const [status, setStatus] = useState<CollectionStatus>(collection?.status ?? 'live');
   const [sortOrder, setSortOrder] = useState(
     collection ? String(collection.sortOrder) : '0'
@@ -234,6 +237,8 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
         tagline: tagline.trim() || null,
         description: description.trim() || null,
         coverImage: coverImage.trim() || null,
+        heroFocusDesktop: heroFocusDesktop.trim() || null,
+        heroFocusMobile: heroFocusMobile.trim() || null,
         status,
         sortOrder: sortOrderValue,
       };
@@ -332,6 +337,38 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
             value={coverImage || null}
             onChange={(url) => setCoverImage(url ?? '')}
             disabled={submitting}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Desktop Hero Focus</span>
+          <HeroFocusPicker
+            hint="Drag to choose what's visible on wide screens."
+            image={coverImage || null}
+            value={heroFocusDesktop || '50% center'}
+            onChange={setHeroFocusDesktop}
+            // The real Hero is a full-viewport min-h-screen section, so its
+            // rendered ratio approximates the browser window's ratio (not
+            // pixel-perfect — min-h-screen can grow taller than the
+            // viewport if content needs more room). Still, no fixed guess
+            // can represent that as well as the window's own live ratio —
+            // whether an image crops horizontally or vertically depends on
+            // the viewer's window shape. matchViewportAspect tracks this
+            // browser window's own live ratio instead, approximating the
+            // real Hero.
+            aspectClassName="aspect-[16/9]"
+            matchViewportAspect
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Mobile Hero Focus</span>
+          <HeroFocusPicker
+            hint="Drag to choose what's visible on phones/tablets."
+            image={coverImage || null}
+            value={heroFocusMobile || '50% center'}
+            onChange={setHeroFocusMobile}
+            aspectClassName="aspect-[9/16]"
           />
         </div>
       </div>
