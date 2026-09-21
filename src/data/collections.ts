@@ -15,6 +15,8 @@ export interface Collection {
   heroFocusDesktop: string | null;
   /** CSS object-position value for the hero image at mobile/tablet widths. Null uses the default centered crop. */
   heroFocusMobile: string | null;
+  /** CSS object-position value for the collection card image (Shop/Home "Choose Your World" grid). Null uses the default centered crop. */
+  cardFocus: string | null;
   status: CollectionStatus;
   sortOrder: number;
   createdAt: string;
@@ -30,6 +32,7 @@ interface CollectionRow {
   cover_image: string | null;
   hero_focus_desktop: string | null;
   hero_focus_mobile: string | null;
+  card_focus: string | null;
   status: string;
   sort_order: number;
   created_at: string;
@@ -45,6 +48,7 @@ function mapRowToCollection(row: CollectionRow): Collection {
     coverImage: row.cover_image,
     heroFocusDesktop: row.hero_focus_desktop,
     heroFocusMobile: row.hero_focus_mobile,
+    cardFocus: row.card_focus,
     // status is `text` in the DB (not a Postgres enum), so it's narrowed
     // here at the app boundary rather than trusted as-is.
     status: row.status === 'soon' ? 'soon' : 'live',
@@ -105,6 +109,7 @@ export interface CollectionInput {
   coverImage?: string | null;
   heroFocusDesktop?: string | null;
   heroFocusMobile?: string | null;
+  cardFocus?: string | null;
   status?: CollectionStatus;
   sortOrder?: number;
 }
@@ -118,6 +123,7 @@ function mapCollectionInputToRow(input: CollectionInput) {
     cover_image: input.coverImage ?? null,
     hero_focus_desktop: input.heroFocusDesktop ?? null,
     hero_focus_mobile: input.heroFocusMobile ?? null,
+    card_focus: input.cardFocus ?? null,
     status: input.status ?? 'live',
     sort_order: input.sortOrder ?? 0,
   };

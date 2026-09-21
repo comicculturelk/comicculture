@@ -199,6 +199,7 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
   const [coverImage, setCoverImage] = useState(collection?.coverImage ?? '');
   const [heroFocusDesktop, setHeroFocusDesktop] = useState(collection?.heroFocusDesktop ?? '');
   const [heroFocusMobile, setHeroFocusMobile] = useState(collection?.heroFocusMobile ?? '');
+  const [cardFocus, setCardFocus] = useState(collection?.cardFocus ?? '');
   const [status, setStatus] = useState<CollectionStatus>(collection?.status ?? 'live');
   const [sortOrder, setSortOrder] = useState(
     collection ? String(collection.sortOrder) : '0'
@@ -239,6 +240,7 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
         coverImage: coverImage.trim() || null,
         heroFocusDesktop: heroFocusDesktop.trim() || null,
         heroFocusMobile: heroFocusMobile.trim() || null,
+        cardFocus: cardFocus.trim() || null,
         status,
         sortOrder: sortOrderValue,
       };
@@ -369,6 +371,20 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
             value={heroFocusMobile || '50% center'}
             onChange={setHeroFocusMobile}
             aspectClassName="aspect-[9/16]"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Card Focus</span>
+          <HeroFocusPicker
+            hint="Drag to choose what's visible on the Shop/Home collection card."
+            image={coverImage || null}
+            value={cardFocus || '50% center'}
+            onChange={setCardFocus}
+            // Mirrors the real card's fixed ratio in Collections.tsx
+            // (aspect-[3/4]), which doesn't change with viewport width, so
+            // a single focus value (no desktop/mobile split) is enough.
+            aspectClassName="aspect-[3/4]"
           />
         </div>
       </div>

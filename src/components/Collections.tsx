@@ -98,6 +98,7 @@ export default function Collections({
                       <img
                         src={collection.coverImage}
                         alt={collection.name}
+                        style={{ objectPosition: collection.cardFocus || '50% center' }}
                         className={`h-full w-full object-cover transition-transform duration-500 ${
                           isLive ? 'group-hover:scale-105' : 'grayscale opacity-40'
                         }`}
