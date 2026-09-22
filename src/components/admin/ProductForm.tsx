@@ -12,6 +12,7 @@ import {
   fetchProductBySlug,
   isSlugTaken,
   isSkuTaken,
+  generateSku,
   PRODUCT_TYPES,
   PRODUCT_TYPE_LABELS,
   type Product,
@@ -46,10 +47,14 @@ function inputClass() {
 // createProductVersion / createProductVersionSize on submit. Local-only
 // ids (localId) key React state before a real DB id exists.
 
+// SKU is deliberately NOT part of this draft shape: for a size that doesn't
+// exist in the DB yet, the SKU is always derived from (product slug, version
+// name, size) via generateSku() at render time (for the preview shown to the
+// admin) and again at submit time — never stored/typed here — so it can
+// never go stale if the version name changes after sizes were added.
 interface DraftSize {
   localId: string;
   size: string;
-  sku: string;
   price: string;
   stock: string;
 }
@@ -69,7 +74,7 @@ interface DraftVersion {
 }
 
 function emptyDraftSize(): DraftSize {
-  return { localId: crypto.randomUUID(), size: '', sku: '', price: '', stock: '0' };
+  return { localId: crypto.randomUUID(), size: '', price: '', stock: '0' };
 }
 
 function emptyDraftVersion(): DraftVersion {
@@ -204,13 +209,23 @@ function existingVersionEditToInput(
  */
 function SizeDraftRow({
   draft,
+  productSlug,
+  versionName,
   onChange,
   onRemove,
 }: {
   draft: DraftSize;
+  /** Current product slug — part of the auto-generated SKU. */
+  productSlug: string;
+  /** Current version name (live-edited value, not necessarily saved yet) — part of the auto-generated SKU. */
+  versionName: string;
   onChange: (patch: Partial<DraftSize>) => void;
   onRemove: () => void;
 }) {
+  // Always derived, never typed — recomputes live as size/version/slug
+  // change, so it can never go stale. The same generateSku() call is made
+  // again at submit time in handleSubmit, using whatever was last shown here.
+  const sku = generateSku(productSlug, versionName, draft.size);
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:items-end">
       <label className="flex flex-col gap-1">
@@ -223,12 +238,13 @@ function SizeDraftRow({
         />
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-[10px] uppercase tracking-wide text-muted">SKU</span>
+        <span className="text-[10px] uppercase tracking-wide text-muted">SKU (auto)</span>
         <input
-          value={draft.sku}
-          onChange={(e) => onChange({ sku: e.target.value.toUpperCase() })}
-          className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
-          placeholder="CC-JERSEY-M"
+          value={sku}
+          disabled
+          readOnly
+          title="Generated automatically from the product, version and size — not editable."
+          className="cursor-not-allowed rounded-lg border border-dashed border-border bg-muted/30 px-2 py-1.5 text-sm text-muted-foreground outline-none"
         />
       </label>
       <label className="flex flex-col gap-1">
@@ -279,6 +295,7 @@ function SizeDraftRow({
 function ExistingVersionCard({
   version,
   edit,
+  productSlug,
   onEditChange,
   stockEdits,
   onStockChange,
@@ -296,6 +313,8 @@ function ExistingVersionCard({
 }: {
   version: ProductVersion;
   edit: ExistingVersionEdit;
+  /** Current product slug — threaded down to new-size rows for the auto-generated SKU preview. */
+  productSlug: string;
   onEditChange: (patch: Partial<ExistingVersionEdit>) => void;
   stockEdits: Record<string, string>;
   onStockChange: (sizeId: string, value: string) => void;
@@ -510,6 +529,8 @@ function ExistingVersionCard({
             <SizeDraftRow
               key={s.localId}
               draft={s}
+              productSlug={productSlug}
+              versionName={edit.versionName}
               onChange={(patch) => onNewSizeChange(s.localId, patch)}
               onRemove={() => onRemoveNewSize(s.localId)}
             />
@@ -524,6 +545,7 @@ function ExistingVersionCard({
 function DraftVersionCard({
   version,
   index,
+  productSlug,
   onChange,
   onRemove,
   onAddSize,
@@ -533,6 +555,8 @@ function DraftVersionCard({
 }: {
   version: DraftVersion;
   index: number;
+  /** Current product slug — threaded down to size rows for the auto-generated SKU preview. */
+  productSlug: string;
   onChange: (patch: Partial<DraftVersion>) => void;
   onRemove: () => void;
   onAddSize: () => void;
@@ -686,6 +710,8 @@ function DraftVersionCard({
             <SizeDraftRow
               key={s.localId}
               draft={s}
+              productSlug={productSlug}
+              versionName={version.versionName}
               onChange={(patch) => onSizeChange(s.localId, patch)}
               onRemove={() => onRemoveSize(s.localId)}
             />
@@ -983,9 +1009,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     // rather than erroring, so an admin can still delete it and add their
     // own without a false "required" flag on a version they never opened.
     const versionsToCreate = draftVersions.filter(
-      (v) =>
-        v.versionName.trim() ||
-        v.sizes.some((s) => s.size.trim() || s.sku.trim() || s.price.trim())
+      (v) => v.versionName.trim() || v.sizes.some((s) => s.size.trim() || s.price.trim())
     );
 
     if (mode === 'create' && versionsToCreate.length === 0) {
@@ -996,9 +1020,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       if (!v.versionName.trim()) {
         return setError('Each version needs a name (e.g. "Jersey", "Oversized — Black").');
       }
-      const validSizes = v.sizes.filter(
-        (s) => s.size.trim() || s.sku.trim() || s.price.trim()
-      );
+      const validSizes = v.sizes.filter((s) => s.size.trim() || s.price.trim());
       if (validSizes.length === 0) {
         return setError(`Add at least one size for "${v.versionName.trim()}".`);
       }
@@ -1006,11 +1028,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         if (!s.size.trim()) {
           return setError(`Enter a size label for "${v.versionName.trim()}".`);
         }
-        if (!s.sku.trim()) {
-          return setError(
-            `Enter a SKU for size "${s.size.trim()}" in "${v.versionName.trim()}".`
-          );
-        }
+        // SKU is auto-generated from product/version/size — no manual-entry
+        // check needed here; see generateSku() in src/data/products.ts.
         const priceValue = Number(s.price);
         if (!priceValue || priceValue <= 0) {
           return setError(
@@ -1100,19 +1119,22 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     if (mode === 'edit' && product) {
       for (const v of product.versions) {
         const drafts = (newExistingSizes[v.id] ?? []).filter(
-          (s) => s.size.trim() || s.sku.trim() || s.price.trim()
+          (s) => s.size.trim() || s.price.trim()
         );
         const sizeLabels = v.sizes
           .filter((sz) => !deletedSizeIds.has(sz.id))
           .map((sz) => sz.size);
+        // This version's name as it will actually be saved this submit —
+        // the live edit if the admin renamed it this session, else its
+        // current saved name — so the generated SKU always matches.
+        const effectiveVersionName = (versionEdits[v.id]?.versionName ?? v.versionName).trim();
         for (const s of drafts) {
           const size = s.size.trim().toUpperCase();
           if (!size) {
             return setError(`Enter a size label for the new size in "${v.versionName}".`);
           }
-          if (!s.sku.trim()) {
-            return setError(`Enter a SKU for the new size "${size}" in "${v.versionName}".`);
-          }
+          // SKU is auto-generated from product/version/size — no manual-entry
+          // check needed here; see generateSku() in src/data/products.ts.
           const priceValue = Number(s.price);
           if (!priceValue || priceValue <= 0) {
             return setError(
@@ -1133,7 +1155,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
             versionId: v.id,
             versionName: v.versionName,
             size,
-            sku: s.sku.trim(),
+            sku: generateSku(slug.trim(), effectiveVersionName, size),
             price: priceValue,
             stock: stockValue,
           });
@@ -1142,7 +1164,9 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     }
 
     const newSkus = versionsToCreate.flatMap((v) =>
-      v.sizes.filter((s) => s.sku.trim()).map((s) => s.sku.trim())
+      v.sizes
+        .filter((s) => s.size.trim())
+        .map((s) => generateSku(slug.trim(), v.versionName.trim(), s.size.trim().toUpperCase()))
     );
     const allNewSkus = [...newSkus, ...newExistingSizesFlat.map((s) => s.sku)];
     const allSubmittedSkus = [...allNewSkus, ...changedExistingSizes.map((s) => s.sku)];
@@ -1272,9 +1296,10 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         const newVersion = await createProductVersion(savedProduct.id, versionInput);
 
         for (const s of v.sizes.filter((size) => size.size.trim())) {
+          const size = s.size.trim().toUpperCase();
           await createProductVersionSize(newVersion.id, {
-            size: s.size.trim().toUpperCase(),
-            sku: s.sku.trim(),
+            size,
+            sku: generateSku(slug.trim(), v.versionName.trim(), size),
             price: Number(s.price),
             stock: Number(s.stock) || 0,
           });
@@ -1412,6 +1437,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
                 key={v.id}
                 version={v}
                 edit={versionEdits[v.id]}
+                productSlug={slug.trim()}
                 onEditChange={(patch) =>
                   setVersionEdits((prev) => ({
                     ...prev,
@@ -1479,6 +1505,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
               key={v.localId}
               version={v}
               index={i}
+              productSlug={slug.trim()}
               onChange={(patch) => updateDraftVersion(v.localId, patch)}
               onRemove={() => removeDraftVersion(v.localId)}
               onAddSize={() => addDraftSize(v.localId)}

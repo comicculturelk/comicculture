@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
 import { fetchCollectionById } from './collections';
+import { slugify } from '../lib/slug';
 
 /**
  * Structured apparel category, replacing free-text guessing from
@@ -441,6 +442,36 @@ export async function isSlugTaken(slug: string, excludeId?: string): Promise<boo
     throw new Error(`Failed to check slug: ${error.message}`);
   }
   return !!data;
+}
+
+function skuSegment(text: string, fallback: string): string {
+  const slug = slugify(text);
+  return (slug || fallback).toUpperCase();
+}
+
+/**
+ * Deterministically generates a readable SKU for a new product-version-size
+ * row, replacing manual SKU entry in the admin form. Format:
+ *   CC-{PRODUCT_SLUG}-{VERSION_NAME}-{SIZE}
+ * e.g. slug "classic-red" + version "Jersey" + size "M" -> "CC-CLASSIC-RED-JERSEY-M".
+ *
+ * This extends the pre-existing "CC-{id}" (single-version era) / then
+ * "CC-{id}-{size}" (Phase 2 backfill, see the introduce_product_versions_
+ * and_sizes migration) SKU convention with a version segment, since a
+ * product can now have several versions each needing distinct SKUs per size.
+ *
+ * Uniqueness is not enforced by this function alone — callers are expected
+ * to also run isSkuTaken() (and the DB's `product_version_sizes.sku` unique
+ * constraint remains the final backstop) before/at insert, exactly as
+ * before for manually-typed SKUs. In practice a collision is very unlikely
+ * since product slugs are globally unique and version names are unique
+ * per product, but this keeps the safety net rather than assuming it away.
+ */
+export function generateSku(productSlug: string, versionName: string, size: string): string {
+  const productPart = skuSegment(productSlug, 'PRODUCT');
+  const versionPart = skuSegment(versionName, 'VERSION');
+  const sizePart = skuSegment(size, 'SIZE');
+  return `CC-${productPart}-${versionPart}-${sizePart}`;
 }
 
 /**
