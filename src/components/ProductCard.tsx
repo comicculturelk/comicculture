@@ -1,25 +1,13 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { formatPrice, type Product } from '../data/products';
+import { formatPrice, getProductMinPrice, type Product } from '../data/products';
 
 const MotionLink = motion.create(Link);
 
 interface ProductCardProps {
   product: Product;
   index: number;
-}
-
-/**
- * Lowest price across the product's active versions/sizes (0 if none).
- * Price now lives per version-size (Phase 2B), not directly on the
- * product, so the card shows a representative "starting from" figure.
- */
-function getLowestPrice(product: Product): number {
-  const prices = product.versions
-    .filter((v) => v.isActive)
-    .flatMap((v) => v.sizes.map((s) => s.price));
-  return prices.length > 0 ? Math.min(...prices) : 0;
 }
 
 export default function ProductCard({ product, index }: ProductCardProps) {
@@ -72,7 +60,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
 
           <div className="mt-5 flex items-center justify-between">
             <span className="font-display text-lg text-foreground">
-              {formatPrice(getLowestPrice(product))}
+              {formatPrice(getProductMinPrice(product))}
             </span>
             <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary transition-transform duration-300 group-hover:translate-x-1">
               View Product

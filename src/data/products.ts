@@ -337,8 +337,19 @@ function getProductSizes(product: Pick<Product, 'versions'>): string[] {
   return Array.from(seen);
 }
 
-/** Cheapest price across all of a product's version-sizes (0 if it has none). */
-function getProductMinPrice(product: Pick<Product, 'versions'>): number {
+/**
+ * Cheapest price across all of a product's version-sizes (0 only if it
+ * genuinely has none). The single shared "starting from" price helper —
+ * used here for filterProducts()/getPriceBounds() below, and by
+ * ProductCard for the collection-grid price. Deliberately does NOT filter
+ * to `isActive` versions: doing so can leave a product with zero prices to
+ * pick from (e.g. every version currently marked inactive) and fall back
+ * to a hardcoded 0, which is exactly the "Rs. 0" card bug this avoids. The
+ * product detail page (src/pages/Product.tsx) has the same never-show-
+ * nothing philosophy — it falls back to all versions when none are active
+ * — so this keeps the collection card's price consistent with that.
+ */
+export function getProductMinPrice(product: Pick<Product, 'versions'>): number {
   const prices = product.versions.flatMap((v) => v.sizes.map((s) => s.price));
   return prices.length > 0 ? Math.min(...prices) : 0;
 }

@@ -1,5 +1,5 @@
 import { Pencil, Copy } from 'lucide-react';
-import type { Product } from '../../data/products';
+import { getProductMinPrice, type Product } from '../../data/products';
 import ConfirmAction from './ConfirmAction';
 
 interface ProductListItemProps {
@@ -22,14 +22,6 @@ function getActiveSizes(product: Product): string[] {
     .filter((v) => v.isActive)
     .forEach((v) => v.sizes.forEach((s) => seen.add(s.size)));
   return Array.from(seen);
-}
-
-/** Lowest price across all of a product's active versions/sizes (0 if none). */
-function getLowestPrice(product: Product): number {
-  const prices = product.versions
-    .filter((v) => v.isActive)
-    .flatMap((v) => v.sizes.map((s) => s.price));
-  return prices.length > 0 ? Math.min(...prices) : 0;
 }
 
 export default function ProductListItem({
@@ -80,7 +72,7 @@ export default function ProductListItem({
         ))}
       </div>
 
-      <p className="font-display text-lg text-foreground">Rs. {getLowestPrice(product)}</p>
+      <p className="font-display text-lg text-foreground">Rs. {getProductMinPrice(product)}</p>
 
       <div className="ml-auto flex items-center gap-2">
         <button
