@@ -42,6 +42,72 @@ function inputClass() {
   return 'w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary';
 }
 
+// --- Curated Material/Fit/Color options for the version form below ---
+// These stay plain strings on ProductVersion/ProductVersionInput (no DB or
+// type change) — the dropdowns just constrain new entry to a sane list
+// while OptionSelect (below) keeps any existing free-text value intact.
+const MATERIAL_OPTIONS = [
+  'Cotton',
+  'Cotton Jersey',
+  'Polyester Jersey',
+  'Fleece',
+  'French Terry',
+  'Other',
+] as const;
+
+const FIT_OPTIONS = ['Regular', 'Relaxed', 'Oversized', 'Slim'] as const;
+
+const COLOR_OPTIONS = [
+  'Black',
+  'White',
+  'Red',
+  'Blue',
+  'Green',
+  'Yellow',
+  'Orange',
+  'Purple',
+  'Grey',
+  'Brown',
+  'Pink',
+  'Multicolor',
+  'Other',
+] as const;
+
+/**
+ * A <select> backed by a curated option list that never silently loses an
+ * existing value. If `value` is non-empty and isn't one of `options` (e.g.
+ * a free-text material/fit/color saved before these dropdowns existed), it
+ * is injected as an extra selected option instead of being dropped/changed
+ * — so opening the edit form for an old version keeps showing (and, unless
+ * the admin explicitly picks something else, keeps saving) exactly what
+ * was there before. An empty value shows the placeholder, matching the
+ * previous behavior where a blank field saved as null.
+ */
+function OptionSelect({
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  options: readonly string[];
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const hasCustomValue = value !== '' && !options.includes(value);
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputClass()}>
+      <option value="">{placeholder}</option>
+      {hasCustomValue && <option value={value}>{value}</option>}
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 // --- New (unsaved) version/size draft state ---
 // These represent versions/sizes being added in this editing session, via
 // createProductVersion / createProductVersionSize on submit. Local-only
@@ -381,31 +447,31 @@ function ExistingVersionCard({
 
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Material</span>
-          <input
+          <OptionSelect
             value={edit.material}
-            onChange={(e) => onEditChange({ material: e.target.value })}
-            className={inputClass()}
-            placeholder="Premium breathable polyester mesh"
+            options={MATERIAL_OPTIONS}
+            placeholder="Select material"
+            onChange={(value) => onEditChange({ material: value })}
           />
         </label>
 
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Fit</span>
-          <input
+          <OptionSelect
             value={edit.fit}
-            onChange={(e) => onEditChange({ fit: e.target.value })}
-            className={inputClass()}
-            placeholder="True to size, athletic fit"
+            options={FIT_OPTIONS}
+            placeholder="Select fit"
+            onChange={(value) => onEditChange({ fit: value })}
           />
         </label>
 
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Color</span>
-          <input
+          <OptionSelect
             value={edit.color}
-            onChange={(e) => onEditChange({ color: e.target.value })}
-            className={inputClass()}
-            placeholder="Black"
+            options={COLOR_OPTIONS}
+            placeholder="Select color"
+            onChange={(value) => onEditChange({ color: value })}
           />
         </label>
 
@@ -607,31 +673,31 @@ function DraftVersionCard({
 
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Material</span>
-          <input
+          <OptionSelect
             value={version.material}
-            onChange={(e) => onChange({ material: e.target.value })}
-            className={inputClass()}
-            placeholder="Premium breathable polyester mesh"
+            options={MATERIAL_OPTIONS}
+            placeholder="Select material"
+            onChange={(value) => onChange({ material: value })}
           />
         </label>
 
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Fit</span>
-          <input
+          <OptionSelect
             value={version.fit}
-            onChange={(e) => onChange({ fit: e.target.value })}
-            className={inputClass()}
-            placeholder="True to size, athletic fit"
+            options={FIT_OPTIONS}
+            placeholder="Select fit"
+            onChange={(value) => onChange({ fit: value })}
           />
         </label>
 
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Color</span>
-          <input
+          <OptionSelect
             value={version.color}
-            onChange={(e) => onChange({ color: e.target.value })}
-            className={inputClass()}
-            placeholder="Black"
+            options={COLOR_OPTIONS}
+            placeholder="Select color"
+            onChange={(value) => onChange({ color: value })}
           />
         </label>
 
