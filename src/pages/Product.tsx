@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   ShoppingBag,
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   Truck,
@@ -22,6 +23,7 @@ import {
   getStockForSize,
   isSizeInStock,
   getPreorderMessage,
+  getProductMinPrice,
   PRODUCT_TYPE_LABELS,
 } from '../data/products';
 import type { Product as ProductType, ProductVersion } from '../data/products';
@@ -216,6 +218,16 @@ export default function Product() {
       : [product.image];
 
   const displayedImage = activeImage ?? galleryImages[0] ?? product.image;
+  const currentImageIndex = Math.max(galleryImages.indexOf(displayedImage), 0);
+
+  const handlePrevImage = () => {
+    const prevIndex = (currentImageIndex - 1 + galleryImages.length) % galleryImages.length;
+    setActiveImage(galleryImages[prevIndex]);
+  };
+  const handleNextImage = () => {
+    const nextIndex = (currentImageIndex + 1) % galleryImages.length;
+    setActiveImage(galleryImages[nextIndex]);
+  };
 
   const relatedProducts = allProducts
     .filter((p) => p.collection === product.collection && p.slug !== product.slug)
@@ -353,7 +365,11 @@ export default function Product() {
               <motion.img
                 key={displayedImage}
                 src={displayedImage}
-                alt={product.name}
+                alt={
+                  galleryImages.length > 1
+                    ? `${product.name} — image ${currentImageIndex + 1} of ${galleryImages.length}`
+                    : product.name
+                }
                 className="h-full w-full object-cover"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -375,16 +391,40 @@ export default function Product() {
                   Pre-Order
                 </span>
               )}
+
+              {/* Prev/next controls, only shown when there's more than one image */}
+              {galleryImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePrevImage}
+                    aria-label="Previous image"
+                    className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-foreground backdrop-blur-sm transition-colors hover:border-foreground active:scale-95"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNextImage}
+                    aria-label="Next image"
+                    className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-foreground backdrop-blur-sm transition-colors hover:border-foreground active:scale-95"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Thumbnails, only shown when there's more than one image */}
             {galleryImages.length > 1 && (
-              <div className="flex gap-3 p-4">
-                {galleryImages.map((img) => (
+              <div className="flex gap-3 overflow-x-auto p-4">
+                {galleryImages.map((img, index) => (
                   <button
                     key={img}
                     type="button"
                     onClick={() => setActiveImage(img)}
+                    aria-label={`View image ${index + 1} of ${galleryImages.length}`}
+                    aria-current={displayedImage === img}
                     className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
                       displayedImage === img
                         ? 'border-primary'
@@ -782,14 +822,6 @@ function AccordionItem({
   );
 }
 
-/** Cheapest price across a related product's active versions/sizes (0 if none). */
-function getLowestPrice(product: ProductType): number {
-  const prices = product.versions
-    .filter((v) => v.isActive)
-    .flatMap((v) => v.sizes.map((s) => s.price));
-  return prices.length > 0 ? Math.min(...prices) : 0;
-}
-
 function RelatedProductCard({ product }: { product: ProductType }) {
   return (
     <Link
@@ -805,7 +837,7 @@ function RelatedProductCard({ product }: { product: ProductType }) {
       </div>
       <div className="p-3">
         <p className="truncate text-sm font-medium text-foreground">{product.name}</p>
-        <p className="mt-1 text-sm text-primary">{formatPrice(getLowestPrice(product))}</p>
+        <p className="mt-1 text-sm text-primary">{formatPrice(getProductMinPrice(product))}</p>
       </div>
     </Link>
   );
