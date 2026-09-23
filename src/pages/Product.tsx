@@ -215,7 +215,9 @@ export default function Product() {
   const galleryImages =
     selectedVersion?.images && selectedVersion.images.length > 0
       ? selectedVersion.images
-      : [product.image];
+      : product.images && product.images.length > 0
+        ? product.images
+        : [product.image];
 
   const displayedImage = activeImage ?? galleryImages[0] ?? product.image;
   const currentImageIndex = Math.max(galleryImages.indexOf(displayedImage), 0);
