@@ -442,7 +442,7 @@ export default function Product() {
 
           {/* Product info */}
           <div className="relative flex flex-1 flex-col p-6 lg:p-10">
-            {/* Collection label + SKU */}
+            {/* Collection label */}
             <div className="flex items-center justify-between">
               {collectionSlug ? (
                 <Link
@@ -454,11 +454,6 @@ export default function Product() {
               ) : (
                 <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
                   {product.collection}
-                </span>
-              )}
-              {selectedVersionSize?.sku && (
-                <span className="font-mono text-xs uppercase tracking-wide text-muted">
-                  {selectedVersionSize.sku}
                 </span>
               )}
             </div>
