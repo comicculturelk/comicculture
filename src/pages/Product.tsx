@@ -121,15 +121,6 @@ function pickDefaultSize(version: ProductVersion | undefined): string {
   return inStock?.size ?? version.sizes[0]?.size ?? '';
 }
 
-const SIZE_GUIDE = [
-  { size: 'XS', chest: '18"', length: '26"', sleeve: '7¼"' },
-  { size: 'S', chest: '19"', length: '27"', sleeve: '7¾"' },
-  { size: 'M', chest: '20"', length: '28"', sleeve: '8¼"' },
-  { size: 'L', chest: '21"', length: '29"', sleeve: '8¾"' },
-  { size: 'XL', chest: '22"', length: '30"', sleeve: '9¼"' },
-  { size: 'XXL', chest: '23"', length: '31"', sleeve: '9¾"' },
-];
-
 type AccordionKey = 'description' | 'details' | 'care' | 'shipping';
 
 export default function Product() {
@@ -211,6 +202,8 @@ export default function Product() {
   const selectedVersion =
     product.versions.find((v) => v.id === selectedVersionId) ?? activeVersions[0];
   const selectedVersionSize = selectedVersion?.sizes.find((s) => s.size === selectedSize);
+  const sizeGuide = selectedVersion?.sizeGuide ?? [];
+  const hasSizeGuide = sizeGuide.length > 0;
 
   const galleryImages =
     selectedVersion?.images && selectedVersion.images.length > 0
@@ -290,6 +283,7 @@ export default function Product() {
     setActiveImage(version?.images?.[0] ?? product.image);
     setSelectedSize(pickDefaultSize(version));
     setQuantity(1);
+    setShowSizeGuide(false);
   };
 
   const handleAddToCart = () => {
@@ -513,14 +507,16 @@ export default function Product() {
                 <p className="text-sm font-medium text-muted">
                   Select Size <span className="text-muted-foreground">— {selectedSize}</span>
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setShowSizeGuide(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <Ruler className="h-3.5 w-3.5" />
-                  Size Guide
-                </button>
+                {hasSizeGuide && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSizeGuide(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Ruler className="h-3.5 w-3.5" />
+                    Size Guide
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 {(selectedVersion?.sizes ?? []).map((sizeRow) => {
@@ -720,7 +716,7 @@ export default function Product() {
 
       {/* Size guide modal */}
       <AnimatePresence>
-        {showSizeGuide && (
+        {showSizeGuide && hasSizeGuide && (
           <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/70 px-4"
             initial={{ opacity: 0 }}
@@ -752,14 +748,16 @@ export default function Product() {
                     <th className="py-2 font-medium">Size</th>
                     <th className="py-2 font-medium">Chest</th>
                     <th className="py-2 font-medium">Length</th>
+                    <th className="py-2 font-medium">Sleeve</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {SIZE_GUIDE.map((row) => (
+                  {sizeGuide.map((row) => (
                     <tr key={row.size} className="border-b border-border text-muted-foreground">
                       <td className="py-2 font-medium text-foreground">{row.size}</td>
                       <td className="py-2">{row.chest}</td>
                       <td className="py-2">{row.length}</td>
+                      <td className="py-2">{row.sleeve}</td>
                     </tr>
                   ))}
                 </tbody>

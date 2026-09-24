@@ -21,6 +21,7 @@ import {
   type ProductVersion,
   type ProductVersionInput,
   type ProductVersionSize,
+  type SizeGuideRow,
 } from '../../data/products';
 import { adjustStock } from '../../data/inventory';
 import { fetchCollections, type Collection } from '../../data/collections';
@@ -137,6 +138,71 @@ interface DraftVersion {
   preorderDays: string;
   isActive: boolean;
   sizes: DraftSize[];
+  /** Size Guide measurements, keyed by DraftSize.localId. Rows are always derived from `sizes`. */
+  guide: Record<string, SizeMeasurements>;
+}
+
+// --- Size Guide ---
+// Measurements are stored per size *identity* (existing size id / draft size
+// localId), never as a separate list of sizes — the guide's rows are always
+// derived from the version's actual sizes, so it can't drift from them.
+interface SizeMeasurements {
+  chest: string;
+  length: string;
+  sleeve: string;
+}
+
+const EMPTY_MEASUREMENTS: SizeMeasurements = { chest: '', length: '', sleeve: '' };
+
+/** A size that currently exists (or will exist after save) on a version. */
+interface GuideSize {
+  key: string;
+  size: string;
+}
+
+/** Sizes a saved version will have after this save: existing minus deleted, plus newly added. */
+function guideSizesForExisting(
+  version: ProductVersion,
+  deletedSizeIds: Set<string>,
+  newSizes: DraftSize[]
+): GuideSize[] {
+  return [
+    ...version.sizes
+      .filter((s) => !deletedSizeIds.has(s.id))
+      .map((s) => ({ key: s.id, size: s.size })),
+    ...newSizes
+      .filter((s) => s.size.trim())
+      .map((s) => ({ key: s.localId, size: s.size.trim().toUpperCase() })),
+  ];
+}
+
+function guideSizesForDraft(sizes: DraftSize[]): GuideSize[] {
+  return sizes
+    .filter((s) => s.size.trim())
+    .map((s) => ({ key: s.localId, size: s.size.trim().toUpperCase() }));
+}
+
+/** Builds the rows to save: only current sizes, skipping ones with no measurements. null when none. */
+function buildSizeGuide(
+  sizes: GuideSize[],
+  guide: Record<string, SizeMeasurements>
+): SizeGuideRow[] | null {
+  const rows: SizeGuideRow[] = [];
+  for (const { key, size } of sizes) {
+    const m = guide[key] ?? EMPTY_MEASUREMENTS;
+    const row = {
+      size,
+      chest: m.chest.trim(),
+      length: m.length.trim(),
+      sleeve: m.sleeve.trim(),
+    };
+    if (row.chest || row.length || row.sleeve) rows.push(row);
+  }
+  return rows.length > 0 ? rows : null;
+}
+
+function sameSizeGuide(a: SizeGuideRow[] | null, b: SizeGuideRow[] | null | undefined): boolean {
+  return JSON.stringify(a) === JSON.stringify(b && b.length > 0 ? b : null);
 }
 
 function emptyDraftSize(): DraftSize {
@@ -156,6 +222,7 @@ function emptyDraftVersion(): DraftVersion {
     preorderDays: '14',
     isActive: true,
     sizes: [emptyDraftSize()],
+    guide: {},
   };
 }
 
@@ -175,10 +242,19 @@ type ExistingVersionEdit = Pick<
   | 'careInstructions'
   | 'isPreorder'
   | 'preorderDays'
->;
+> & {
+  /** Size Guide measurements keyed by existing size id (or new-size localId). */
+  guide: Record<string, SizeMeasurements>;
+};
 
 function existingVersionEditFrom(version: ProductVersion): ExistingVersionEdit {
+  const guide: Record<string, SizeMeasurements> = {};
+  for (const s of version.sizes) {
+    const row = version.sizeGuide?.find((r) => r.size === s.size);
+    if (row) guide[s.id] = { chest: row.chest, length: row.length, sleeve: row.sleeve };
+  }
   return {
+    guide,
     versionName: version.versionName,
     productType: version.productType,
     material: version.material ?? '',
@@ -246,7 +322,8 @@ function existingVersionEditChanged(version: ProductVersion, edit: ExistingVersi
  */
 function existingVersionEditToInput(
   version: ProductVersion,
-  edit: ExistingVersionEdit
+  edit: ExistingVersionEdit,
+  sizeGuide: SizeGuideRow[] | null
 ): ProductVersionInput {
   return {
     versionName: edit.versionName.trim(),
@@ -263,6 +340,7 @@ function existingVersionEditToInput(
     preorderDays: edit.isPreorder ? Number(edit.preorderDays) : null,
     isActive: version.isActive,
     sortOrder: version.sortOrder,
+    sizeGuide,
   };
 }
 
@@ -342,6 +420,54 @@ function SizeDraftRow({
       >
         Remove
       </button>
+    </div>
+  );
+}
+
+/**
+ * Size Guide editor. One row per size the version actually has — there is no
+ * way to add a size here; sizes are managed in the size sections above/below.
+ */
+function SizeGuideEditor({
+  sizes,
+  guide,
+  onChange,
+}: {
+  sizes: GuideSize[];
+  guide: Record<string, SizeMeasurements>;
+  onChange: (key: string, patch: Partial<SizeMeasurements>) => void;
+}) {
+  const fields = ['chest', 'length', 'sleeve'] as const;
+  return (
+    <div className="space-y-2">
+      <span className={fieldLabelClass()}>Size Guide</span>
+      {sizes.length === 0 ? (
+        <p className="text-xs text-muted">Add sizes to this version to fill in its size guide.</p>
+      ) : (
+        <div className="grid grid-cols-[3rem_repeat(3,minmax(0,1fr))] items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wide text-muted">Size</span>
+          {fields.map((f) => (
+            <span key={f} className="text-[10px] uppercase tracking-wide text-muted">
+              {f}
+            </span>
+          ))}
+          {sizes.map(({ key, size }) => (
+            <div key={key} className="contents">
+              <span className="text-sm font-medium text-foreground">{size}</span>
+              {fields.map((f) => (
+                <input
+                  key={f}
+                  value={guide[key]?.[f] ?? ''}
+                  onChange={(e) => onChange(key, { [f]: e.target.value })}
+                  aria-label={`${size} ${f}`}
+                  className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+                  placeholder={f === 'sleeve' ? '7½"' : '20"'}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -603,6 +729,14 @@ function ExistingVersionCard({
           ))}
         </div>
       </div>
+
+      <SizeGuideEditor
+        sizes={guideSizesForExisting(version, deletedSizeIds, newSizes)}
+        guide={edit.guide}
+        onChange={(key, patch) =>
+          onEditChange({ guide: { ...edit.guide, [key]: { ...(edit.guide[key] ?? EMPTY_MEASUREMENTS), ...patch } } })
+        }
+      />
     </div>
   );
 }
@@ -784,6 +918,14 @@ function DraftVersionCard({
           ))}
         </div>
       </div>
+
+      <SizeGuideEditor
+        sizes={guideSizesForDraft(version.sizes)}
+        guide={version.guide}
+        onChange={(key, patch) =>
+          onChange({ guide: { ...version.guide, [key]: { ...(version.guide[key] ?? EMPTY_MEASUREMENTS), ...patch } } })
+        }
+      />
     </div>
   );
 }
@@ -1315,8 +1457,20 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         for (const version of product.versions) {
           const edit = versionEdits[version.id];
           if (!edit) continue;
-          if (existingVersionEditChanged(version, edit)) {
-            await updateProductVersion(version.id, existingVersionEditToInput(version, edit));
+          // Rebuilt from the sizes that still exist, so rows for sizes deleted
+          // this session (or already gone) are dropped rather than kept stale.
+          const sizeGuide = buildSizeGuide(
+            guideSizesForExisting(version, deletedSizeIds, newExistingSizes[version.id] ?? []),
+            edit.guide
+          );
+          if (
+            existingVersionEditChanged(version, edit) ||
+            !sameSizeGuide(sizeGuide, version.sizeGuide)
+          ) {
+            await updateProductVersion(
+              version.id,
+              existingVersionEditToInput(version, edit, sizeGuide)
+            );
           }
         }
       }
@@ -1358,6 +1512,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
           preorderDays: v.isPreorder ? preorderDaysValue : null,
           isActive: v.isActive,
           sortOrder: (product?.versions.length ?? 0) + draftVersions.indexOf(v),
+          sizeGuide: buildSizeGuide(guideSizesForDraft(v.sizes), v.guide),
         };
         const newVersion = await createProductVersion(savedProduct.id, versionInput);
 
