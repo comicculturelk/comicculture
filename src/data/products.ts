@@ -53,6 +53,14 @@ export interface ProductVersionSize {
   createdAt: string;
 }
 
+/** One row of a version's Size Guide — display-ready measurement strings (e.g. `18"`, `7¼"`), matching how sizing has always been shown. */
+export interface SizeGuideRow {
+  size: string;
+  chest: string;
+  length: string;
+  sleeve: string;
+}
+
 /** A specific apparel offering of a product (e.g. "Jersey", "Oversized — Black"). */
 export interface ProductVersion {
   id: string;
@@ -69,6 +77,8 @@ export interface ProductVersion {
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
+  /** Version-specific Size Guide rows. Null/undefined when not yet configured for this version. */
+  sizeGuide?: SizeGuideRow[] | null;
   sizes: ProductVersionSize[];
 }
 
@@ -115,6 +125,7 @@ interface ProductVersionRow {
   preorder_days: number | null;
   is_active: boolean;
   sort_order: number;
+  size_guide: SizeGuideRow[] | null;
   created_at: string;
   // Present only when fetched via the nested product select below.
   sizes?: ProductVersionSizeRow[];
@@ -191,6 +202,7 @@ function mapRowToVersion(row: ProductVersionRow): ProductVersion {
     preorderDays: row.preorder_days ?? undefined,
     isActive: row.is_active,
     sortOrder: row.sort_order,
+    sizeGuide: row.size_guide ?? null,
     createdAt: row.created_at,
     sizes: (row.sizes ?? [])
       .slice()
@@ -591,6 +603,7 @@ export interface ProductVersionInput {
   preorderDays?: number | null;
   isActive?: boolean;
   sortOrder?: number;
+  sizeGuide?: SizeGuideRow[] | null;
 }
 
 function mapVersionInputToRow(productId: string, input: ProductVersionInput) {
@@ -610,6 +623,7 @@ function mapVersionInputToRow(productId: string, input: ProductVersionInput) {
     preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
     is_active: input.isActive ?? true,
     sort_order: input.sortOrder ?? 0,
+    size_guide: input.sizeGuide ?? null,
   };
 }
 
@@ -646,10 +660,11 @@ function mapVersionInputToUpdateRow(input: ProductVersionInput) {
     preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
     is_active: input.isActive ?? true,
     sort_order: input.sortOrder ?? 0,
+    size_guide: input.sizeGuide ?? null,
   };
 }
 
-/** Updates a version's metadata (versionName, productType, material, fit, color, images, careInstructions, isPreorder, preorderDays, isActive, sortOrder). Does not touch its sizes. */
+/** Updates a version's metadata (versionName, productType, material, fit, color, images, careInstructions, isPreorder, preorderDays, isActive, sortOrder, sizeGuide). Does not touch its sizes. */
 export async function updateProductVersion(
   id: string,
   input: ProductVersionInput
@@ -840,6 +855,7 @@ export async function duplicateProduct(product: Product): Promise<Product> {
       preorderDays: version.preorderDays,
       isActive: version.isActive,
       sortOrder: version.sortOrder,
+      sizeGuide: version.sizeGuide,
     });
 
     for (const size of version.sizes) {
