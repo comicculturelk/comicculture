@@ -363,7 +363,7 @@ export default function Product() {
         >
           {/* Product image gallery */}
           <div className="flex-shrink-0 lg:w-1/2">
-            <div className="relative aspect-square overflow-hidden bg-background">
+            <div className="relative overflow-hidden bg-background">
               <motion.img
                 key={displayedImage}
                 src={displayedImage}
@@ -372,7 +372,7 @@ export default function Product() {
                     ? `${product.name} — image ${currentImageIndex + 1} of ${galleryImages.length}`
                     : product.name
                 }
-                className="h-full w-full object-cover"
+                className="block w-full h-auto"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -427,13 +427,13 @@ export default function Product() {
                     onClick={() => setActiveImage(img)}
                     aria-label={`View image ${index + 1} of ${galleryImages.length}`}
                     aria-current={displayedImage === img}
-                    className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                    className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-background transition-all ${
                       displayedImage === img
                         ? 'border-primary'
                         : 'border-border hover:border-foreground'
                     }`}
                   >
-                    <img src={img} alt="" className="h-full w-full object-cover" />
+                    <img src={img} alt="" className="h-full w-full object-contain" />
                   </button>
                 ))}
               </div>

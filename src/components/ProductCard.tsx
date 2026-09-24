@@ -31,12 +31,12 @@ export default function ProductCard({ product, index }: ProductCardProps) {
           </span>
         </div>
 
-        {/* Product image — clean, no overlay */}
-        <div className="relative mt-4 aspect-[3/4] overflow-hidden bg-background">
+        {/* Product image — sized to the image's own aspect ratio, never cropped */}
+        <div className="relative mt-4 overflow-hidden bg-background">
           <img
             src={product.image}
             alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            className="block w-full h-auto transition-transform duration-500 ease-out group-hover:scale-105"
           />
 
           {product.featured && (
