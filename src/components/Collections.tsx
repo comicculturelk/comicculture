@@ -1,59 +1,17 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Lock, ArrowUpRight } from 'lucide-react';
-import { fetchCollections, type Collection } from '../data/collections';
+import type { Collection } from '../data/collections';
 
 interface CollectionsProps {
-  collections?: Collection[];
-  loading?: boolean;
-  error?: string | null;
+  collections: Collection[];
+  loading: boolean;
+  error: string | null;
 }
 
-// Props are optional so this stays compatible with callers that render
-// <Collections /> with no data (e.g. Shop.tsx) — it self-fetches in that
-// case, same as it did before the homepage redesign. Callers that already
-// fetch collections themselves (e.g. Home.tsx) can pass them in directly
-// to avoid a duplicate request.
-export default function Collections({
-  collections: collectionsProp,
-  loading: loadingProp,
-  error: errorProp,
-}: CollectionsProps) {
-  const isControlled = collectionsProp !== undefined;
-
-  const [selfCollections, setSelfCollections] = useState<Collection[]>([]);
-  const [selfLoading, setSelfLoading] = useState(true);
-  const [selfError, setSelfError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isControlled) return;
-
-    let cancelled = false;
-
-    fetchCollections()
-      .then((data) => {
-        if (!cancelled) {
-          setSelfCollections(data);
-          setSelfLoading(false);
-        }
-      })
-      .catch((err: Error) => {
-        if (!cancelled) {
-          setSelfError(err.message);
-          setSelfLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isControlled]);
-
-  const collections = isControlled ? collectionsProp : selfCollections;
-  const loading = isControlled ? loadingProp ?? false : selfLoading;
-  const error = isControlled ? errorProp ?? null : selfError;
-
+// Home.tsx fetches collections itself and passes them in directly, so this
+// component just renders whatever it's given.
+export default function Collections({ collections, loading, error }: CollectionsProps) {
   return (
     <section id="collections" className="relative py-20 lg:py-28">
       <div className="absolute inset-0 bg-background">
