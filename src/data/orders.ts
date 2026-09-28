@@ -39,6 +39,13 @@ export interface CreateOrderInput {
   receiptPath?: string;
 }
 
+/**
+ * The only error text createOrder() ever throws. Raw Supabase/PostgreSQL
+ * messages are logged for debugging but never propagated to the UI.
+ */
+export const CHECKOUT_ERROR_MESSAGE =
+  'Unable to place your order. Please try again. If the problem continues, contact us.';
+
 export interface CreateOrderResult {
   orderId: string;
   orderReference: string;
@@ -84,12 +91,14 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   });
 
   if (error) {
-    throw new Error(error.message);
+    console.error('Order creation failed:', error);
+    throw new Error(CHECKOUT_ERROR_MESSAGE);
   }
 
   const result = (data as CreateOrderRpcRow[] | null)?.[0];
   if (!result) {
-    throw new Error('Order was not created — no result returned.');
+    console.error('Order creation returned no result.');
+    throw new Error(CHECKOUT_ERROR_MESSAGE);
   }
 
   // Fire-and-forget: the order is fully saved at this point, so a failure

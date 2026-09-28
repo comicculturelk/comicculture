@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
-import { createOrder } from '../data/orders';
+import { CHECKOUT_ERROR_MESSAGE, createOrder } from '../data/orders';
 import { formatPrice, getPreorderMessage } from '../data/products';
 import { uploadFile } from '../lib/storage';
 import { STORE_CONFIG } from '../config/store';
@@ -148,9 +148,8 @@ export default function Checkout() {
       const { path: uploadedPath } = await uploadFile('payment-receipts', path, file, 'private');
       setReceiptPath(uploadedPath);
     } catch (err) {
-      setReceiptError(
-        err instanceof Error ? err.message : 'Failed to upload receipt. Please try again.'
-      );
+      console.error('Receipt upload failed:', err);
+      setReceiptError('Failed to upload receipt. Please try again.');
       setReceiptFileName(null);
     } finally {
       setReceiptUploading(false);
@@ -212,12 +211,10 @@ export default function Checkout() {
           requiresPaymentVerification: paymentMethod === 'BANK_TRANSFER',
         },
       });
-    } catch (err) {
-      setSubmitError(
-        err instanceof Error
-          ? err.message
-          : 'Something went wrong placing your order. Please try again.'
-      );
+    } catch {
+      // Never render the thrown error's text — createOrder() logs the
+      // technical details; customers only ever see this controlled message.
+      setSubmitError(CHECKOUT_ERROR_MESSAGE);
       setIsSubmitting(false);
     }
   };
