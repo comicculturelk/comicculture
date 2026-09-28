@@ -11,7 +11,6 @@ export type PaymentStatus =
   | 'failed';
 
 export interface CreateOrderInput {
-  orderReference: string;
   fullName: string;
   phone: string;
   email: string;
@@ -40,23 +39,29 @@ export interface CreateOrderInput {
   receiptPath?: string;
 }
 
+export interface CreateOrderResult {
+  orderId: string;
+  orderReference: string;
+}
+
 interface CreateOrderRpcRow {
   order_id: string;
+  order_reference: string;
   subtotal: number;
   delivery_fee: number;
   total: number;
 }
 
-export async function createOrder(input: CreateOrderInput): Promise<void> {
-  // Single server-side RPC does everything that touches money, stock, or
-  // payment status: validates + decrements stock, looks up each item's
-  // real price from `products`, computes subtotal/delivery_fee/total
-  // itself, derives payment_status from payment_method + receipt presence
-  // (never accepted as a client parameter), and inserts the order +
-  // order_items rows atomically. See
-  // supabase/migrations/20260903030000_harden_create_order_payment_status_search_path.sql.
+export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
+  // Single server-side RPC does everything that touches money, stock,
+  // payment status, or the order reference: validates + decrements stock,
+  // looks up each item's real price from `products`, computes
+  // subtotal/delivery_fee/total itself, derives payment_status from
+  // payment_method + receipt presence, and generates order_reference from
+  // a database sequence — none of these are accepted as client
+  // parameters — then inserts the order + order_items rows atomically.
+  // See supabase/migrations/20260927010000_generate_order_reference_server_side.sql.
   const { data, error } = await supabase.rpc('create_order', {
-    p_order_reference: input.orderReference,
     p_full_name: input.fullName,
     p_phone: input.phone,
     p_email: input.email.trim() || null,
@@ -84,10 +89,12 @@ export async function createOrder(input: CreateOrderInput): Promise<void> {
 
   const result = (data as CreateOrderRpcRow[] | null)?.[0];
   if (!result) {
-    throw new Error(`Order ${input.orderReference} was not created — no result returned.`);
+    throw new Error('Order was not created — no result returned.');
   }
 
   // Fire-and-forget: the order is fully saved at this point, so a failure
   // to email the admin should never surface as a checkout error.
   void notifyAdminOfNewOrder(result.order_id);
+
+  return { orderId: result.order_id, orderReference: result.order_reference };
 }

@@ -180,11 +180,8 @@ export default function Checkout() {
     setSubmitError(null);
     setIsSubmitting(true);
 
-    const orderReference = `CC-${Date.now().toString().slice(-6)}`;
-
     try {
-      await createOrder({
-        orderReference,
+      const { orderReference } = await createOrder({
         fullName: form.fullName.trim(),
         phone: form.phone.trim(),
         email: form.email,
