@@ -16,6 +16,7 @@ import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
 import TrackOrder from './pages/TrackOrder';
 import ReturnPolicy from './pages/ReturnPolicy';
+import TermsAndConditions from './pages/TermsAndConditions';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="/track-order" element={<TrackOrder />} />
           <Route path="/return-policy" element={<ReturnPolicy />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

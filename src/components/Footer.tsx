@@ -8,6 +8,7 @@ const infoLinks = [
   { label: 'Contact', to: '/contact' },
   { label: 'Track Order', to: '/track-order' },
   { label: 'Return & Exchange Policy', to: '/return-policy' },
+  { label: 'Terms & Conditions', to: '/terms-and-conditions' },
 ];
 
 export default function Footer() {
@@ -23,7 +24,7 @@ export default function Footer() {
       />
 
       <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
           {/* Logo */}
           <motion.div className="flex items-center gap-2" whileHover={{ scale: 1.02 }}>
             <div className="relative flex h-9 w-9 items-center justify-center">
@@ -35,8 +36,8 @@ export default function Footer() {
               />
             </div>
             <div className="flex flex-col">
-              <span className="font-display text-base text-foreground leading-none">COMIC</span>
-              <span className="font-display text-base text-primary leading-none">CULTURE</span>
+              <span className="font-display text-base leading-none text-foreground">COMIC</span>
+              <span className="font-display text-base leading-none text-primary">CULTURE</span>
             </div>
           </motion.div>
 
@@ -79,8 +80,8 @@ export default function Footer() {
         </nav>
 
         {/* Bottom */}
-        <div className="mt-8 pt-8 border-t border-border text-center">
-          <p className="text-sm text-muted flex items-center justify-center gap-1">
+        <div className="mt-8 border-t border-border pt-8 text-center">
+          <p className="flex items-center justify-center gap-1 text-sm text-muted">
             Made with <Heart className="h-4 w-4 text-primary" /> in Sri Lanka
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
