@@ -41,15 +41,21 @@ export default function Home() {
     };
   }, []);
 
-  // "New Arrivals" is simply the first slice of the existing product feed.
+  // Keep homepage merchandising newest-first without changing the shop's
+  // default product order.
+  const newestFirstProducts = [...products].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  // "New Arrivals" is the first slice of the newest-first product feed.
   // "More To Explore" uses whatever is left over so we never show the same
   // products twice; if there isn't enough inventory for a second distinct
   // set, we fall back to items already flagged `featured` in the data, and
   // if even that yields nothing, the section is hidden rather than faking
   // a second row of the same products.
-  const newArrivals = products.slice(0, NEW_ARRIVALS_COUNT);
-  const remaining = products.slice(NEW_ARRIVALS_COUNT);
-  const moreToExplore = remaining.length > 0 ? remaining : products.filter((p) => p.featured);
+  const newArrivals = newestFirstProducts.slice(0, NEW_ARRIVALS_COUNT);
+  const remaining = newestFirstProducts.slice(NEW_ARRIVALS_COUNT);
+  const moreToExplore = remaining.length > 0 ? remaining : newestFirstProducts.filter((p) => p.featured);
   const showMoreToExplore = !productsLoading && !productsError && moreToExplore.length > 0;
 
   return (
