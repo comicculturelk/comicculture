@@ -80,6 +80,7 @@ interface OrderRow {
   order_reference: string;
   full_name: string;
   phone: string;
+  mobile_phone: string | null;
   address_line1: string;
   address_line2: string | null;
   city: string;
@@ -296,6 +297,9 @@ export default function AdminOrders() {
                           WhatsApp
                         </a>
                       </div>
+                      {order.mobile_phone && (
+                        <p className="mt-1 text-muted-foreground">Mobile: {order.mobile_phone}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-wide text-muted">Address</p>

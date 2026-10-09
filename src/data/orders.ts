@@ -13,6 +13,7 @@ export type PaymentStatus =
 export interface CreateOrderInput {
   fullName: string;
   phone: string;
+  mobilePhone: string;
   email: string;
   addressLine1: string;
   addressLine2: string;
@@ -71,6 +72,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const { data, error } = await supabase.rpc('create_order', {
     p_full_name: input.fullName,
     p_phone: input.phone,
+    p_mobile_phone: input.mobilePhone.trim() || null,
     p_email: input.email.trim() || null,
     p_address_line1: input.addressLine1,
     p_address_line2: input.addressLine2.trim() || null,

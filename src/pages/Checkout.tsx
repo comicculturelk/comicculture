@@ -35,6 +35,7 @@ const DISTRICTS = [
 interface CheckoutForm {
   fullName: string;
   phone: string;
+  mobilePhone: string;
   email: string;
   addressLine1: string;
   addressLine2: string;
@@ -46,6 +47,7 @@ interface CheckoutForm {
 const EMPTY_FORM: CheckoutForm = {
   fullName: '',
   phone: '',
+  mobilePhone: '',
   email: '',
   addressLine1: '',
   addressLine2: '',
@@ -113,6 +115,9 @@ export default function Checkout() {
       next.phone = 'Phone number is required';
     } else if (!PHONE_REGEX.test(form.phone.trim())) {
       next.phone = 'Enter a valid phone number';
+    }
+    if (form.mobilePhone.trim() && !PHONE_REGEX.test(form.mobilePhone.trim())) {
+      next.mobilePhone = 'Enter a valid mobile number';
     }
     if (form.email.trim() && !EMAIL_REGEX.test(form.email.trim())) {
       next.email = 'Enter a valid email address';
@@ -183,6 +188,7 @@ export default function Checkout() {
       const { orderReference } = await createOrder({
         fullName: form.fullName.trim(),
         phone: form.phone.trim(),
+        mobilePhone: form.mobilePhone.trim(),
         email: form.email,
         addressLine1: form.addressLine1.trim(),
         addressLine2: form.addressLine2,
@@ -327,6 +333,17 @@ export default function Checkout() {
                     className={inputClass(!!errors.phone)}
                     placeholder="07X XXX XXXX"
                     autoComplete="tel"
+                  />
+                </FormField>
+
+                <FormField label="Mobile Number (Optional)" error={errors.mobilePhone}>
+                  <input
+                    type="tel"
+                    value={form.mobilePhone}
+                    onChange={(e) => handleChange('mobilePhone', e.target.value)}
+                    className={inputClass(!!errors.mobilePhone)}
+                    placeholder="07X XXX XXXX"
+                    autoComplete="tel-national"
                   />
                 </FormField>
 
