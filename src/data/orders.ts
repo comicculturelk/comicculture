@@ -73,7 +73,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     p_full_name: input.fullName,
     p_phone: input.phone,
     p_mobile_phone: input.mobilePhone.trim() || null,
-    p_email: input.email.trim() || null,
+    p_email: input.email.trim(),
     p_address_line1: input.addressLine1,
     p_address_line2: input.addressLine2.trim() || null,
     p_city: input.city,

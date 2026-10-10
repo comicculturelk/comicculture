@@ -81,6 +81,7 @@ interface OrderRow {
   full_name: string;
   phone: string;
   mobile_phone: string | null;
+  email: string | null;
   address_line1: string;
   address_line2: string | null;
   city: string;
@@ -285,6 +286,14 @@ export default function AdminOrders() {
                     <div>
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Customer</p>
                       <p className="mt-1 font-medium text-foreground">{order.full_name}</p>
+                      {order.email && (
+                        <a
+                          href={`mailto:${order.email}`}
+                          className="mt-1 inline-block text-primary transition-colors hover:text-foreground"
+                        >
+                          {order.email}
+                        </a>
+                      )}
                       <div className="mt-1 flex items-center gap-2">
                         <p className="text-muted-foreground">{order.phone}</p>
                         <a

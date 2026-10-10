@@ -119,7 +119,9 @@ export default function Checkout() {
     if (form.mobilePhone.trim() && !PHONE_REGEX.test(form.mobilePhone.trim())) {
       next.mobilePhone = 'Enter a valid mobile number';
     }
-    if (form.email.trim() && !EMAIL_REGEX.test(form.email.trim())) {
+    if (!form.email.trim()) {
+      next.email = 'Email is required';
+    } else if (!EMAIL_REGEX.test(form.email.trim())) {
       next.email = 'Enter a valid email address';
     }
     if (!form.addressLine1.trim()) next.addressLine1 = 'Address is required';
@@ -348,9 +350,10 @@ export default function Checkout() {
                 </FormField>
 
                 <div className="sm:col-span-2">
-                  <FormField label="Email" error={errors.email}>
+                  <FormField label="Email" required error={errors.email}>
                     <input
                       type="email"
+                      required
                       value={form.email}
                       onChange={(e) => handleChange('email', e.target.value)}
                       className={inputClass(!!errors.email)}
