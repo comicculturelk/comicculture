@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, Plus, Search } from 'lucide-react';
 import {
   fetchProducts,
   deleteProduct,
@@ -19,6 +19,7 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const [view, setView] = useState<View>('list');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -102,7 +103,12 @@ export default function AdminProducts() {
   });
   const productsByCollection = new Map<string, Product[]>();
   const unassignedProducts: Product[] = [];
-  products.forEach((product) => {
+  const matchingProducts = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    if (!term) return products;
+    return products.filter((product) => [product.name, product.collection, ...product.versions.flatMap((version) => [version.versionName, ...version.sizes.map((size) => size.sku)])].some((value) => value.toLocaleLowerCase().includes(term)));
+  }, [products, search]);
+  matchingProducts.forEach((product) => {
     const matchingNames = collectionsByName.get(product.collection.trim().toLocaleLowerCase()) ?? [];
     const collectionId = product.collectionId && collectionIds.has(product.collectionId)
       ? product.collectionId
@@ -173,6 +179,7 @@ export default function AdminProducts() {
       )}
       {error && <p className="text-sm text-primary">{error}</p>}
       {loading && <p className="text-muted-foreground">Loading products...</p>}
+      <label className="relative block max-w-xl text-xs text-muted-foreground"><Search className="absolute left-3 top-[2.1rem] h-4 w-4" /><span>Search products, editions, collections, or SKU</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="e.g. Spider-Man or SKU" className="mt-1 w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground" /></label>
 
       {!loading && products.length === 0 && collections.length === 0 && (
         <p className="text-muted">No products yet. Add your first one to get started.</p>
@@ -182,7 +189,7 @@ export default function AdminProducts() {
         <div className="space-y-5">
           {collections.map((collection) => {
             const collectionProducts = productsByCollection.get(collection.id) ?? [];
-            const expanded = expandedCollections.has(collection.id);
+            const expanded = Boolean(search.trim()) || expandedCollections.has(collection.id);
             const panelId = `admin-products-${collection.id}`;
             return (
               <section key={collection.id} className="admin-collection-group">

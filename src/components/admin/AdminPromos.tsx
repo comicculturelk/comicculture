@@ -30,6 +30,7 @@ export default function AdminPromos() {
   const [maxRedemptions, setMaxRedemptions] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const loadPromos = useCallback(async () => {
     setLoading(true);
@@ -74,7 +75,7 @@ export default function AdminPromos() {
     }
 
     setSaving(true);
-    const { error: saveError } = await supabaseAdmin.from('promo_codes').insert({
+    const payload = {
       code: code.trim().toUpperCase(),
       discount_type: discountType,
       discount_value: value,
@@ -82,10 +83,15 @@ export default function AdminPromos() {
       max_redemptions: limit,
       starts_at: starts?.toISOString() ?? null,
       expires_at: expires?.toISOString() ?? null,
-    });
-    if (saveError) setError(saveError.code === '23505' ? 'That promo code already exists.' : 'Could not create the promo code.');
+    };
+    const result = editingId
+      ? await supabaseAdmin.from('promo_codes').update(payload).eq('id', editingId)
+      : await supabaseAdmin.from('promo_codes').insert(payload);
+    const saveError = result.error;
+    if (saveError) setError(saveError.code === '23505' ? 'That promo code already exists.' : 'Could not save the promo code.');
     else {
-      setNotice('Promo code created.');
+      setNotice(editingId ? 'Promo code updated. Existing redemptions remain unchanged.' : 'Promo code created.');
+      setEditingId(null);
       setCode('');
       setDiscountValue('');
       setMaxRedemptions('');
@@ -94,6 +100,20 @@ export default function AdminPromos() {
       await loadPromos();
     }
     setSaving(false);
+  };
+
+  const editPromo = (promo: PromoCode) => {
+    if (promo.usage_count > 0) return;
+    setEditingId(promo.id);
+    setCode(promo.code);
+    setDiscountType(promo.discount_type);
+    setDiscountValue(String(promo.discount_value));
+    setMinimumSubtotal(String(promo.minimum_subtotal));
+    setMaxRedemptions(promo.max_redemptions == null ? '' : String(promo.max_redemptions));
+    setStartsAt(promo.starts_at ? new Date(promo.starts_at).toISOString().slice(0, 16) : '');
+    setExpiresAt(promo.expires_at ? new Date(promo.expires_at).toISOString().slice(0, 16) : '');
+    setNotice('Editing unused promo. Used promo terms are locked to preserve redemption history.');
+    setError(null);
   };
 
   const togglePromo = async (promo: PromoCode) => {
@@ -141,7 +161,7 @@ export default function AdminPromos() {
         </label>
         {error && <p role="alert" className="text-sm text-primary md:col-span-2">{error}</p>}
         {notice && <p role="status" className="text-sm text-green-400 md:col-span-2">{notice}</p>}
-        <button type="submit" disabled={saving} className="btn-primary md:col-span-2">{saving ? 'Saving…' : 'Create promo code'}</button>
+        <div className="flex gap-2 md:col-span-2"><button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : editingId ? 'Save promo changes' : 'Create promo code'}</button>{editingId && <button type="button" onClick={() => { setEditingId(null); setCode(''); setDiscountValue(''); setMinimumSubtotal('0'); setMaxRedemptions(''); setStartsAt(''); setExpiresAt(''); }} className="btn-outline">Cancel edit</button>}</div>
       </form>
 
       {loading ? <p className="text-sm text-muted-foreground">Loading promo codes…</p> : promos.length === 0 ? (
@@ -159,7 +179,7 @@ export default function AdminPromos() {
                 </p>
                 {(promo.starts_at || promo.expires_at) && <p className="mt-1 text-xs text-muted">{promo.starts_at ? `Starts ${new Date(promo.starts_at).toLocaleString()}` : 'Available now'}{promo.expires_at ? ` · Expires ${new Date(promo.expires_at).toLocaleString()}` : ''}</p>}
               </div>
-              <button type="button" onClick={() => void togglePromo(promo)} className="btn-outline text-xs">{promo.is_active ? 'Deactivate' : 'Activate'}</button>
+              <div className="flex gap-2"><button type="button" disabled={saving || promo.usage_count > 0} title={promo.usage_count > 0 ? 'Terms lock after first redemption' : 'Edit promo terms'} onClick={() => editPromo(promo)} className="btn-outline text-xs disabled:opacity-40">Edit</button><button type="button" onClick={() => void togglePromo(promo)} className="btn-outline text-xs">{promo.is_active ? 'Deactivate' : 'Activate'}</button></div>
             </article>
           ))}
         </div>

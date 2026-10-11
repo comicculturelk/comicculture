@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
-import { fetchProducts, getStockForSize, type Product } from '../../data/products';
+import { fetchProducts, type Product } from '../../data/products';
 import { formatDate, LOW_STOCK_THRESHOLD } from '../../lib/admin';
 import StatusBadge from './StatusBadge';
 
@@ -22,41 +22,18 @@ interface DashboardOrderRow {
   created_at: string;
 }
 
-interface DashboardOrderItemRow {
-  name: string;
-  quantity: number;
-}
-
-function isSameDay(iso: string, reference: Date): boolean {
-  const d = new Date(iso);
-  return (
-    d.getFullYear() === reference.getFullYear() &&
-    d.getMonth() === reference.getMonth() &&
-    d.getDate() === reference.getDate()
-  );
+interface DashboardSummary {
+  total_orders: number;
+  orders_today: number;
+  pending_orders: number;
+  completed_orders: number;
+  collected_revenue: number;
+  collected_order_count: number;
+  best_seller: { name: string; quantity: number } | null;
+  net_items_ordered: number;
 }
 
 type CardAccent = 'default' | 'warning' | 'danger';
-
-/**
- * Unique size labels across a product's active versions. Sizes now live on
- * `ProductVersion` (not directly on `Product`), so this is the new
- * equivalent of the old flat `product.sizes` list.
- */
-function getActiveSizes(product: Product): string[] {
-  const seen = new Set<string>();
-  product.versions
-    .filter((v) => v.isActive)
-    .forEach((v) => v.sizes.forEach((s) => seen.add(s.size)));
-  return Array.from(seen);
-}
-
-/** Total stock for a size, aggregated across all of a product's active versions. */
-function getTotalStockForSize(product: Product, size: string): number {
-  return product.versions
-    .filter((v) => v.isActive)
-    .reduce((sum, v) => sum + getStockForSize(v, size), 0);
-}
 
 const CARD_ACCENT_STYLES: Record<CardAccent, string> = {
   default: 'text-foreground',
@@ -120,10 +97,11 @@ function DashboardSection({
 
 export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => void }) {
   const [orders, setOrders] = useState<DashboardOrderRow[]>([]);
-  const [orderItems, setOrderItems] = useState<DashboardOrderItemRow[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,22 +111,23 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
       setError(null);
 
       try {
-        const [ordersRes, itemsRes, productsData] = await Promise.all([
+        const [ordersRes, summaryRes, productsData] = await Promise.all([
           supabaseAdmin
             .from('orders')
             .select('order_reference, full_name, total, status, created_at')
-            .order('created_at', { ascending: false }),
-          supabaseAdmin.from('order_items').select('name, quantity'),
+            .order('created_at', { ascending: false })
+            .limit(6),
+          supabaseAdmin.rpc('admin_dashboard_summary'),
           fetchProducts(),
         ]);
 
         if (cancelled) return;
 
         if (ordersRes.error) throw new Error(ordersRes.error.message);
-        if (itemsRes.error) throw new Error(itemsRes.error.message);
+        if (summaryRes.error) throw new Error(summaryRes.error.message);
 
         setOrders((ordersRes.data ?? []) as DashboardOrderRow[]);
-        setOrderItems((itemsRes.data ?? []) as DashboardOrderItemRow[]);
+        setSummary(summaryRes.data as DashboardSummary);
         setProducts(productsData);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard data');
@@ -161,92 +140,71 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   if (loading) return <p className="text-muted-foreground">Loading dashboard...</p>;
   if (error) return <p className="text-primary">{error}</p>;
 
-  const today = new Date();
-  const totalOrders = orders.length;
-  const ordersToday = orders.filter((o) => isSameDay(o.created_at, today)).length;
-  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
-  const completedOrders = orders.filter((o) => o.status === 'delivered').length;
-  const nonCancelledOrders = orders.filter((o) => o.status !== 'cancelled');
-  const totalRevenue = nonCancelledOrders.reduce((sum, o) => sum + Number(o.total), 0);
-  const avgOrderValue = nonCancelledOrders.length > 0 ? totalRevenue / nonCancelledOrders.length : 0;
-  const completedShare = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
+  const metrics = summary ?? { total_orders: 0, orders_today: 0, pending_orders: 0, completed_orders: 0, collected_revenue: 0, collected_order_count: 0, best_seller: null, net_items_ordered: 0 };
+  const completedShare = metrics.total_orders > 0 ? Math.round((metrics.completed_orders / metrics.total_orders) * 100) : 0;
 
-  // Products that have at least one size at or below the low-stock threshold,
-  // with the specific sizes that need attention — reused for both the KPI
-  // card and the "Needs Restocking" panel below.
+  // Inventory belongs to each sellable edition + size, so keep the alert at
+  // that exact granularity instead of summing stock across versions.
   let outOfStockCount = 0;
-  const attentionProducts: { product: Product; sizes: { size: string; qty: number }[] }[] = [];
+  const attentionVersions: { product: Product; versionName: string; sizes: { size: string; qty: number }[] }[] = [];
   for (const product of products) {
-    const flaggedSizes: { size: string; qty: number }[] = [];
-    for (const size of getActiveSizes(product)) {
-      const qty = getTotalStockForSize(product, size);
-      if (qty <= 0) outOfStockCount += 1;
-      if (qty <= LOW_STOCK_THRESHOLD) flaggedSizes.push({ size, qty });
-    }
-    if (flaggedSizes.length > 0) attentionProducts.push({ product, sizes: flaggedSizes });
-  }
-
-  const salesByName = new Map<string, number>();
-  let totalItemsSold = 0;
-  for (const item of orderItems) {
-    totalItemsSold += item.quantity;
-    salesByName.set(item.name, (salesByName.get(item.name) ?? 0) + item.quantity);
-  }
-  let bestSeller: string | null = null;
-  let bestSellerQty = 0;
-  for (const [name, qty] of salesByName) {
-    if (qty > bestSellerQty) {
-      bestSeller = name;
-      bestSellerQty = qty;
+    for (const version of product.versions.filter((item) => item.isActive)) {
+      const flaggedSizes = version.sizes
+        .filter((item) => item.stock <= LOW_STOCK_THRESHOLD)
+        .map((item) => ({ size: item.size, qty: item.stock }));
+      outOfStockCount += flaggedSizes.filter((item) => item.qty <= 0).length;
+      if (flaggedSizes.length > 0) attentionVersions.push({ product, versionName: version.versionName, sizes: flaggedSizes });
     }
   }
-
-  const recentOrders = orders.slice(0, 6);
+  const attentionProductCount = new Set(attentionVersions.map((item) => item.product.id)).size;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="font-display text-xl text-foreground tracking-wide">Overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">A snapshot of how the store is doing right now.</p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">All-time orders and collected payments; inventory alerts are per edition and size.</p>
+          <button type="button" onClick={() => setRefreshKey((value) => value + 1)} className="btn-outline text-xs">Refresh overview</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <DashboardCard
           icon={ShoppingBag}
           label="Total Orders"
-          value={totalOrders}
-          subtext={ordersToday > 0 ? `${ordersToday} today` : 'No orders today'}
+          value={metrics.total_orders}
+          subtext={`${metrics.orders_today} today · all time`}
         />
         <DashboardCard
           icon={Clock}
           label="Pending Orders"
-          value={pendingOrders}
-          subtext={pendingOrders > 0 ? 'Needs confirmation' : 'All caught up'}
-          accent={pendingOrders > 0 ? 'warning' : 'default'}
+          value={metrics.pending_orders}
+          subtext={metrics.pending_orders > 0 ? 'Needs attention' : 'All caught up'}
+          accent={metrics.pending_orders > 0 ? 'warning' : 'default'}
         />
         <DashboardCard
           icon={CheckCircle2}
           label="Completed Orders"
-          value={completedOrders}
+          value={metrics.completed_orders}
           subtext={`${completedShare}% of total`}
         />
         <DashboardCard
           icon={Wallet}
           label="Revenue"
-          value={`Rs. ${totalRevenue.toLocaleString()}`}
-          subtext={`Rs. ${Math.round(avgOrderValue).toLocaleString()} avg order`}
+          value={`Rs. ${Number(metrics.collected_revenue).toLocaleString()}`}
+          subtext={`Rs. ${Math.round(Number(metrics.collected_order_count) ? Number(metrics.collected_revenue) / Number(metrics.collected_order_count) : 0).toLocaleString()} avg collected order`}
         />
         <DashboardCard
           icon={AlertTriangle}
           label="Low Stock Products"
-          value={attentionProducts.length}
+          value={attentionProductCount}
           subtext={outOfStockCount > 0 ? `${outOfStockCount} sizes out of stock` : 'Nothing out of stock'}
-          accent={outOfStockCount > 0 ? 'danger' : attentionProducts.length > 0 ? 'warning' : 'default'}
+          accent={outOfStockCount > 0 ? 'danger' : attentionProductCount > 0 ? 'warning' : 'default'}
         />
       </div>
 
@@ -256,11 +214,11 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
             title="Recent Orders"
             action={onViewOrders ? { label: 'View all', onClick: onViewOrders } : undefined}
           >
-            {recentOrders.length === 0 ? (
+            {orders.length === 0 ? (
               <p className="text-sm text-muted-foreground">No orders yet.</p>
             ) : (
               <div className="divide-y divide-border">
-                {recentOrders.map((order) => (
+                {orders.map((order) => (
                   <div
                     key={order.order_reference}
                     className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
@@ -283,13 +241,14 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
 
         <div className="flex flex-col gap-6">
           <DashboardSection title="Needs Restocking">
-            {attentionProducts.length === 0 ? (
+            {attentionVersions.length === 0 ? (
               <p className="text-sm text-muted-foreground">All stock levels look healthy.</p>
             ) : (
               <div className="space-y-3">
-                {attentionProducts.slice(0, 5).map(({ product, sizes }) => (
-                  <div key={product.id}>
+                {attentionVersions.slice(0, 5).map(({ product, versionName, sizes }) => (
+                  <div key={`${product.id}-${versionName}`}>
                     <p className="text-sm font-medium text-foreground">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">{versionName}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {sizes.map(({ size, qty }) => (
                         <span
@@ -306,23 +265,23 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
                     </div>
                   </div>
                 ))}
-                {attentionProducts.length > 5 && (
-                  <p className="text-xs text-muted">+{attentionProducts.length - 5} more products</p>
+                {attentionVersions.length > 5 && (
+                  <p className="text-xs text-muted">+{attentionVersions.length - 5} more editions</p>
                 )}
               </div>
             )}
           </DashboardSection>
 
           <DashboardSection title="Best Seller">
-            {bestSeller ? (
+            {metrics.best_seller ? (
               <div className="flex items-center gap-3">
                 <div className="rounded-full bg-primary/10 p-2 text-primary">
                   <TrendingUp className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="font-display text-sm text-foreground tracking-wide">{bestSeller}</p>
+                  <p className="font-display text-sm text-foreground tracking-wide">{metrics.best_seller.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {bestSellerQty} sold · {totalItemsSold} items sold in total
+                    {metrics.best_seller.quantity} ordered · {metrics.net_items_ordered} net items ordered
                   </p>
                 </div>
               </div>

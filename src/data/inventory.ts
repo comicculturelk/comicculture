@@ -56,6 +56,7 @@ export interface FetchMovementsOptions {
   changeType?: MovementType;
   productId?: string;
   limit?: number;
+  offset?: number;
 }
 
 export async function fetchInventoryMovements(
@@ -64,8 +65,11 @@ export async function fetchInventoryMovements(
   let query = supabaseAdmin
     .from('inventory_movements')
     .select('*')
-    .order('created_at', { ascending: false })
-    .limit(options.limit ?? 100);
+    .order('created_at', { ascending: false });
+
+  const limit = options.limit ?? 100;
+  const offset = options.offset ?? 0;
+  query = query.range(offset, offset + limit - 1);
 
   if (options.changeType) query = query.eq('change_type', options.changeType);
   if (options.productId) query = query.eq('product_id', options.productId);

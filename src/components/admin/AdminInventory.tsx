@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { PackagePlus, SlidersHorizontal } from 'lucide-react';
+import { PackagePlus, Search, SlidersHorizontal } from 'lucide-react';
 import { fetchProducts, type Product } from '../../data/products';
 import {
   restockProduct,
@@ -39,15 +39,15 @@ function StockActionForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const qty = Number(quantity);
-    if (!qty || qty === 0) {
-      setError('Enter a quantity');
+    if (!Number.isInteger(qty) || qty === 0 || (action.kind === 'restock' && qty < 1)) {
+      setError(action.kind === 'restock' ? 'Enter a positive whole number to restock.' : 'Enter a non-zero whole number.');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
       if (action.kind === 'restock') {
-        await restockProduct(action.versionSizeId, Math.abs(qty), note.trim() || undefined);
+        await restockProduct(action.versionSizeId, qty, note.trim() || undefined);
       } else {
         await adjustStock(action.versionSizeId, qty, reason, note.trim() || undefined);
       }
@@ -68,6 +68,8 @@ function StockActionForm({
         {action.kind === 'restock' ? 'Quantity received' : 'Adjustment (+/-)'}
         <input
           type="number"
+          min={action.kind === 'restock' ? 1 : undefined}
+          step="1"
           autoFocus
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
@@ -127,6 +129,7 @@ export default function AdminInventory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<StockAction>(null);
+  const [search, setSearch] = useState('');
 
   const loadProducts = () => {
     setLoading(true);
@@ -145,10 +148,14 @@ export default function AdminInventory() {
 
   if (loading) return <p className="text-muted-foreground">Loading products...</p>;
 
+  const visibleProducts = products.filter((product) => `${product.name} ${product.collection} ${product.versions.flatMap((version) => `${version.versionName} ${version.sizes.map((size) => size.sku).join(' ')}`).join(' ')}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+
   return (
     <div className="space-y-4">
       {error && <p className="text-primary">{error}</p>}
-      {products.map((product) => (
+      <label className="relative block max-w-xl text-xs text-muted-foreground"><Search className="absolute left-3 top-[2.1rem] h-4 w-4" /><span>Search inventory by product, edition, or SKU</span><input value={search} onChange={(event) => setSearch(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground" /></label>
+      {visibleProducts.length === 0 && <p className="text-sm text-muted-foreground">No matching inventory.</p>}
+      {visibleProducts.map((product) => (
         <div key={product.id} className="glass rounded-2xl p-6">
           <p className="font-display text-lg text-foreground tracking-wide">{product.name}</p>
           {product.versions.length === 0 && (

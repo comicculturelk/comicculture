@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   MessageCircle,
   CheckCircle2,
@@ -11,6 +11,16 @@ import { formatDate } from '../../lib/admin';
 import StatusBadge from './StatusBadge';
 
 const STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
+const PAYMENT_STATUSES = ['pending', 'awaiting_payment', 'awaiting_verification', 'paid', 'failed', 'refunded'] as const;
+const PAGE_SIZE = 25;
+const NEXT_STATUSES: Record<string, string[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['packed', 'cancelled'],
+  packed: ['shipped', 'cancelled'],
+  shipped: ['delivered'],
+  delivered: [],
+  cancelled: [],
+};
 
 function toWhatsAppLink(phone: string, customerName: string, orderReference: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -29,6 +39,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
   awaiting_verification: 'border-blue-500/40 bg-blue-500/20 text-blue-400',
   paid: 'border-green-500/40 bg-green-500/20 text-green-400',
   failed: 'border-red-500/40 bg-red-500/20 text-red-400',
+  refunded: 'border-purple-500/40 bg-purple-500/20 text-purple-400',
 };
 
 function formatPaymentStatus(status: string): string {
@@ -99,6 +110,7 @@ interface OrderRow {
   courier_name: string | null;
   tracking_number: string | null;
   tracking_url: string | null;
+  refund_reference: string | null;
   created_at: string;
   order_items: OrderItemRow[];
 }
@@ -109,6 +121,14 @@ export default function AdminOrders() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | (typeof STATUSES)[number]>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | (typeof PAYMENT_STATUSES)[number]>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
   const [receiptLoadFailed, setReceiptLoadFailed] = useState<Set<string>>(new Set());
@@ -116,6 +136,29 @@ export default function AdminOrders() {
   const [shipmentDrafts, setShipmentDrafts] = useState<Record<string, { courierName: string; trackingNumber: string; trackingUrl: string }>>({});
   const [shipmentSavingId, setShipmentSavingId] = useState<string | null>(null);
   const [shipmentErrors, setShipmentErrors] = useState<Record<string, string>>({});
+  const [orderErrors, setOrderErrors] = useState<Record<string, string>>({});
+  const [cancellingOrder, setCancellingOrder] = useState<OrderRow | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [refundConfirmed, setRefundConfirmed] = useState(false);
+  const [refundReference, setRefundReference] = useState('');
+  const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    if (!printOrder) return;
+    const timer = window.setTimeout(() => window.print(), 50);
+    const finish = () => setPrintOrder(null);
+    window.addEventListener('afterprint', finish, { once: true });
+    return () => { window.clearTimeout(timer); window.removeEventListener('afterprint', finish); };
+  }, [printOrder]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(0);
+      setSearch(searchInput.replace(/[\\,()"%_*]/g, ' ').trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const saveShipment = async (order: OrderRow) => {
     const draft = shipmentDrafts[order.id] ?? {
@@ -137,18 +180,23 @@ export default function AdminOrders() {
 
     setShipmentSavingId(order.id);
     setShipmentErrors((prev) => ({ ...prev, [order.id]: '' }));
-    const updates = {
-      courier_name: draft.courierName.trim() || null,
-      tracking_number: draft.trackingNumber.trim() || null,
-      tracking_url: trackingUrl,
-    };
-    const { error: updateError } = await supabaseAdmin.from('orders').update(updates).eq('id', order.id);
-    if (updateError) {
-      setShipmentErrors((prev) => ({ ...prev, [order.id]: 'Could not save tracking details. Please try again.' }));
-    } else {
+    const updates = { courier_name: draft.courierName.trim() || null, tracking_number: draft.trackingNumber.trim() || null, tracking_url: trackingUrl };
+    try {
+      const { error: updateError } = await supabaseAdmin.rpc('admin_save_order_tracking', {
+        p_order_id: order.id,
+        p_courier_name: updates.courier_name,
+        p_tracking_number: updates.tracking_number,
+        p_tracking_url: updates.tracking_url,
+      });
+      if (updateError) throw updateError;
       setOrders((prev) => prev.map((item) => item.id === order.id ? { ...item, ...updates } : item));
+      setShipmentDrafts((prev) => { const next = { ...prev }; delete next[order.id]; return next; });
+      setShipmentErrors((prev) => ({ ...prev, [order.id]: '' }));
+    } catch (e) {
+      setShipmentErrors((prev) => ({ ...prev, [order.id]: e instanceof Error ? e.message : 'Could not save tracking details.' }));
+    } finally {
+      setShipmentSavingId(null);
     }
-    setShipmentSavingId(null);
   };
 
   const loadReceiptUrl = async (order: OrderRow) => {
@@ -175,89 +223,140 @@ export default function AdminOrders() {
 
   const handleVerifyPayment = async (orderId: string, outcome: 'paid' | 'failed') => {
     setVerifyingId(orderId);
-    // Confirming payment also advances the order workflow to "confirmed" —
-    // status stays independent of payment_status everywhere else in the
-    // app, but this one action deliberately moves both together, since a
-    // verified Bank Transfer order is, by definition, ready to be packed.
-    // Rejecting only flips payment_status; the order workflow is untouched
-    // so an admin can decide how to handle it (contact customer, cancel, etc).
-    const updates =
-      outcome === 'paid'
-        ? { payment_status: 'paid', status: 'confirmed' }
-        : { payment_status: 'failed' };
-
-    const { error: updateError } = await supabaseAdmin.from('orders').update(updates).eq('id', orderId);
-
-    if (!updateError) {
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)));
+    setOrderErrors((prev) => ({ ...prev, [orderId]: '' }));
+    try {
+      const { error: updateError } = await supabaseAdmin.rpc('admin_verify_order_payment', {
+        p_order_id: orderId,
+        p_outcome: outcome,
+        p_note: null,
+      });
+      if (updateError) throw updateError;
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? {
+        ...o,
+        payment_status: outcome,
+        status: outcome === 'paid' ? 'confirmed' : o.status,
+      } : o)));
+    } catch (e) {
+      setOrderErrors((prev) => ({ ...prev, [orderId]: e instanceof Error ? e.message : 'Could not update payment status.' }));
+    } finally {
+      setVerifyingId(null);
     }
-    setVerifyingId(null);
   };
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
+    const request = ++requestId.current;
     setLoading(true);
-    const { data, error: fetchError } = await supabaseAdmin
-      .from('orders')
-      .select('*, order_items(*)')
-      .order('created_at', { ascending: false });
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
+    setError(null);
+    try {
+      let query = supabaseAdmin.from('orders').select('*, order_items(*)', { count: 'exact' }).order('created_at', { ascending: false });
+      if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+      if (paymentFilter !== 'all') query = query.eq('payment_status', paymentFilter);
+      if (dateFrom) query = query.gte('created_at', new Date(`${dateFrom}T00:00:00`).toISOString());
+      if (dateTo) {
+        const dateEnd = new Date(`${dateTo}T00:00:00`);
+        dateEnd.setDate(dateEnd.getDate() + 1);
+        query = query.lt('created_at', dateEnd.toISOString());
+      }
+      if (search) query = query.or(`order_reference.ilike.*${search}*,full_name.ilike.*${search}*,phone.ilike.*${search}*,email.ilike.*${search}*,tracking_number.ilike.*${search}*`);
+      const { data, count, error: fetchError } = await query.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+      if (fetchError) throw fetchError;
+      if (request !== requestId.current) return;
       setOrders((data ?? []) as OrderRow[]);
-      setError(null);
+      setTotalCount(count ?? 0);
+    } catch (e) {
+      if (request === requestId.current) setError(e instanceof Error ? e.message : 'Could not load orders.');
+    } finally {
+      if (request === requestId.current) setLoading(false);
     }
-    setLoading(false);
+  }, [dateFrom, dateTo, page, paymentFilter, search, statusFilter]);
+
+  useEffect(() => { void loadOrders(); }, [loadOrders, refreshKey]);
+
+  const handleStatusChange = async (order: OrderRow, status: string, cancellation?: { reason: string; refundConfirmed: boolean; refundReference: string }) => {
+    if (status === 'cancelled' && !cancellation) {
+      setCancellingOrder(order);
+      setCancelReason('');
+      setRefundConfirmed(false);
+      setRefundReference('');
+      return;
+    }
+    setOrderErrors((prev) => ({ ...prev, [order.id]: '' }));
+    setUpdatingId(order.id);
+    try {
+      const { error: updateError } = await supabaseAdmin.rpc('admin_transition_order', {
+        p_order_id: order.id,
+        p_next_status: status,
+        p_note: cancellation?.reason ?? null,
+        p_refund_confirmed: cancellation?.refundConfirmed ?? false,
+        p_refund_reference: cancellation?.refundReference ?? null,
+      });
+      if (updateError) throw updateError;
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? {
+        ...o,
+        status,
+        payment_status: cancellation?.refundConfirmed ? 'refunded' : status === 'delivered' && o.payment_method === 'COD' ? 'paid' : o.payment_status,
+        refund_reference: cancellation?.refundReference || o.refund_reference,
+      } : o)));
+      setCancellingOrder(null);
+    } catch (e) {
+      setOrderErrors((prev) => ({ ...prev, [order.id]: e instanceof Error ? e.message : 'Could not update order status.' }));
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
-
-  const handleStatusChange = async (orderId: string, status: string) => {
-    setUpdatingId(orderId);
-    const { error: updateError } = await supabaseAdmin
-      .from('orders')
-      .update({ status })
-      .eq('id', orderId);
-
-    if (!updateError) {
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
-    }
-    setUpdatingId(null);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const submitCancellation = () => {
+    if (cancellingOrder) void handleStatusChange(cancellingOrder, 'cancelled', {
+      reason: cancelReason.trim(), refundConfirmed, refundReference: refundReference.trim(),
+    });
   };
 
-  const filteredOrders =
-    statusFilter === 'all' ? orders : orders.filter((o) => o.status === statusFilter);
+  if (printOrder) return (
+    <main className="mx-auto max-w-xl bg-white p-8 text-black print:max-w-none">
+      <div className="flex items-start justify-between border-b-2 border-black pb-4"><div><p className="text-xs font-bold uppercase tracking-widest">ComicCulture · Packing slip</p><h1 className="mt-2 text-2xl font-black">{printOrder.order_reference}</h1></div><p className="text-right text-sm">{formatDate(printOrder.created_at)}<br />{printOrder.status.toUpperCase()}</p></div>
+      <section className="mt-6"><h2 className="text-xs font-bold uppercase tracking-widest">Ship to</h2><p className="mt-2 font-bold">{printOrder.full_name}</p><p>{printOrder.phone}{printOrder.mobile_phone ? ` · ${printOrder.mobile_phone}` : ''}</p>{printOrder.email && <p>{printOrder.email}</p>}<p className="mt-2">{printOrder.address_line1}{printOrder.address_line2 ? `, ${printOrder.address_line2}` : ''}<br />{printOrder.city}, {printOrder.district} {printOrder.postal_code ?? ''}</p></section>
+      <table className="mt-6 w-full border-collapse text-sm"><thead><tr className="border-b border-black text-left"><th className="py-2">Item</th><th className="py-2">Size / SKU</th><th className="py-2 text-right">Qty</th></tr></thead><tbody>{printOrder.order_items.map((item) => <tr key={item.id} className="border-b border-gray-300"><td className="py-3">{item.name}{item.is_preorder ? ' · PREORDER' : ''}</td><td className="py-3">{item.size}{item.sku ? ` · ${item.sku}` : ''}</td><td className="py-3 text-right">{item.quantity}</td></tr>)}</tbody></table>
+      <div className="mt-4 flex justify-between border-t-2 border-black pt-3 font-bold"><span>Order total · {formatPaymentMethod(printOrder.payment_method ?? '')}</span><span>Rs. {printOrder.total}</span></div>
+      <p className="mt-10 border-t border-dashed border-black pt-3 text-center text-xs">Thank you for supporting ComicCulture.</p>
+    </main>
+  );
 
   return (
     <>
       {loading && <p className="text-muted-foreground">Loading orders...</p>}
-      {error && <p className="text-primary">{error}</p>}
+      {error && <p role="alert" className="text-primary">{error}</p>}
 
-      <div className="admin-filter-row mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter orders by status">
-        {(['all', ...STATUSES] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setStatusFilter(s)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-              statusFilter === s
-                ? 'border-primary bg-primary/20 text-primary'
-                : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-5">
+        <label className="text-xs text-muted-foreground md:col-span-2">Search orders
+          <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Order, customer, phone, email, tracking" className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+        </label>
+        <label className="text-xs text-muted-foreground">Payment
+          <select value={paymentFilter} onChange={(event) => { setPage(0); setPaymentFilter(event.target.value as typeof paymentFilter); }} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
+            <option value="all">All payments</option>{PAYMENT_STATUSES.map((item) => <option key={item} value={item}>{formatPaymentStatus(item)}</option>)}
+          </select>
+        </label>
+        <label className="text-xs text-muted-foreground">From
+          <input type="date" value={dateFrom} onChange={(event) => { setPage(0); setDateFrom(event.target.value); }} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+        </label>
+        <label className="text-xs text-muted-foreground">To
+          <input type="date" value={dateTo} onChange={(event) => { setPage(0); setDateTo(event.target.value); }} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
+        </label>
       </div>
+      <div className="admin-filter-row mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter orders by status">
+        {(['all', ...STATUSES] as const).map((s) => (
+          <button key={s} type="button" onClick={() => { setPage(0); setStatusFilter(s); }} className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize ${statusFilter === s ? 'border-primary bg-primary/20 text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}>{s}</button>
+        ))}
+        <button type="button" onClick={() => setRefreshKey((value) => value + 1)} className="btn-outline ml-auto text-xs">Refresh</button>
+      </div>
+      <p className="mb-3 text-xs text-muted-foreground">{totalCount} matching order{totalCount === 1 ? '' : 's'}</p>
 
-      {!loading && filteredOrders.length === 0 && (
-        <p className="text-muted">No orders match this filter.</p>
+      {!loading && orders.length === 0 && (
+        <p className="text-muted">No orders match these filters.</p>
       )}
 
       <div className="space-y-4">
-        {filteredOrders.map((order) => {
+        {orders.map((order) => {
           const isExpanded = expandedIds.has(order.id);
           return (
             <div key={order.id} className="glass rounded-2xl p-6">
@@ -294,10 +393,10 @@ export default function AdminOrders() {
                       <select
                         value={order.status}
                         disabled={updatingId === order.id}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                        onChange={(e) => void handleStatusChange(order, e.target.value)}
                         className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
                       >
-                        {STATUSES.map((s) => (
+                        {[order.status, ...(NEXT_STATUSES[order.status] ?? [])].map((s) => (
                           <option key={s} value={s} className="bg-background">
                             {s}
                           </option>
@@ -307,6 +406,7 @@ export default function AdminOrders() {
                   </div>
                 </div>
               </div>
+              {orderErrors[order.id] && <p role="alert" className="mt-3 text-sm text-primary">{orderErrors[order.id]}</p>}
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-4 text-sm">
                 <div>
@@ -328,6 +428,7 @@ export default function AdminOrders() {
               >
                 {isExpanded ? 'Hide Details' : 'View Details'}
               </button>
+              <button type="button" onClick={() => setPrintOrder(order)} className="ml-4 text-xs font-medium text-muted transition-colors hover:text-foreground">Print packing slip</button>
 
               {isExpanded && (
                 <>
@@ -395,6 +496,7 @@ export default function AdminOrders() {
                       ))}
                     </ul>
                   </div>
+                  {order.refund_reference && <p className="mt-3 text-xs text-muted-foreground">Refund reference: {order.refund_reference}</p>}
 
                   <div className="mt-4 border-t border-border pt-4">
                     <p className="mb-3 text-xs uppercase tracking-wide text-muted">Courier tracking</p>
@@ -497,6 +599,26 @@ export default function AdminOrders() {
           );
         })}
       </div>
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <button type="button" disabled={page === 0 || loading} onClick={() => setPage((value) => Math.max(0, value - 1))} className="btn-outline text-xs disabled:opacity-50">Previous</button>
+        <span className="text-xs text-muted-foreground">Page {Math.min(page + 1, totalPages)} of {totalPages}</span>
+        <button type="button" disabled={page + 1 >= totalPages || loading} onClick={() => setPage((value) => value + 1)} className="btn-outline text-xs disabled:opacity-50">Next</button>
+      </div>
+      {cancellingOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" className="glass w-full max-w-lg space-y-4 rounded-2xl p-6">
+            <h2 id="cancel-order-title" className="font-display text-xl text-foreground">Cancel {cancellingOrder.order_reference}?</h2>
+            <p className="text-sm text-muted-foreground">This restores the reserved inventory. Record the reason for the audit history.</p>
+            <label className="block text-xs text-muted-foreground">Cancellation reason<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} required minLength={3} rows={3} className="mt-1 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground" /></label>
+            {cancellingOrder.payment_status === 'paid' && <>
+              <label className="flex items-center gap-2 text-sm text-foreground"><input type="checkbox" checked={refundConfirmed} onChange={(event) => setRefundConfirmed(event.target.checked)} />I have completed the customer refund</label>
+              <label className="block text-xs text-muted-foreground">Refund reference<input value={refundReference} onChange={(event) => setRefundReference(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" /></label>
+            </>}
+            {orderErrors[cancellingOrder.id] && <p role="alert" className="text-sm text-primary">{orderErrors[cancellingOrder.id]}</p>}
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setCancellingOrder(null)} className="btn-outline text-sm">Keep order</button><button type="button" disabled={updatingId === cancellingOrder.id || cancelReason.trim().length < 3 || (cancellingOrder.payment_status === 'paid' && (!refundConfirmed || !refundReference.trim()))} onClick={submitCancellation} className="btn-primary text-sm disabled:opacity-50">{updatingId === cancellingOrder.id ? 'Cancelling…' : 'Confirm cancellation'}</button></div>
+          </section>
+        </div>
+      )}
     </>
   );
 }

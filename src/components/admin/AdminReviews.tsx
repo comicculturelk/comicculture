@@ -25,6 +25,7 @@ export default function AdminReviews() {
   const [reviewText, setReviewText] = useState('');
   const [product, setProduct] = useState('');
   const [rating, setRating] = useState('5');
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -45,21 +46,36 @@ export default function AdminReviews() {
     setSaving(true);
     setError(null);
     setNotice(null);
-    const { error: saveError } = await supabaseAdmin.from('customer_reviews').insert({
+    const payload = {
       customer_name: name.trim(),
       location: location.trim() || null,
       review_text: reviewText.trim(),
       product_name: product.trim() || null,
       rating: Number(rating),
-      is_published: false,
-    });
+    };
+    const result = editingReviewId
+      ? await supabaseAdmin.from('customer_reviews').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editingReviewId)
+      : await supabaseAdmin.from('customer_reviews').insert({ ...payload, is_published: false });
+    const saveError = result.error;
     if (saveError) setError('Could not save this review. Check the fields and try again.');
     else {
+      setEditingReviewId(null);
       setName(''); setLocation(''); setReviewText(''); setProduct(''); setRating('5');
-      setNotice('Review saved as a draft. Publish it when you have permission to share it.');
+      setNotice(editingReviewId ? 'Review updated. Its publication status is unchanged.' : 'Review saved as a draft. Publish it when you have permission to share it.');
       await loadReviews();
     }
     setSaving(false);
+  };
+
+  const editReview = (review: CustomerReview) => {
+    setEditingReviewId(review.id);
+    setName(review.customer_name);
+    setLocation(review.location ?? '');
+    setReviewText(review.review_text);
+    setProduct(review.product_name ?? '');
+    setRating(String(review.rating));
+    setNotice('Editing review content keeps its current draft or published state.');
+    setError(null);
   };
 
   const togglePublished = async (review: CustomerReview) => {
@@ -96,7 +112,7 @@ export default function AdminReviews() {
         </label>
         {error && <p role="alert" className="text-sm text-primary md:col-span-2">{error}</p>}
         {notice && <p role="status" className="text-sm text-green-400 md:col-span-2">{notice}</p>}
-        <button type="submit" disabled={saving} className="btn-primary md:col-span-2">{saving ? 'Saving…' : 'Save review draft'}</button>
+        <div className="flex gap-2 md:col-span-2"><button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : editingReviewId ? 'Save review' : 'Save review draft'}</button>{editingReviewId && <button type="button" onClick={() => { setEditingReviewId(null); setName(''); setLocation(''); setReviewText(''); setProduct(''); setRating('5'); }} className="btn-outline">Cancel edit</button>}</div>
       </form>
 
       {loading ? <p className="text-sm text-muted-foreground">Loading reviews…</p> : reviews.length === 0 ? (
@@ -114,9 +130,7 @@ export default function AdminReviews() {
                 <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{review.review_text}</p>
                 <p className="mt-2 text-xs text-muted">{[review.location, new Date(review.created_at).toLocaleDateString()].filter(Boolean).join(' · ')}</p>
               </div>
-              <button type="button" onClick={() => void togglePublished(review)} className="btn-outline shrink-0 text-xs">
-                {review.is_published ? 'Hide review' : 'Publish review'}
-              </button>
+              <div className="flex shrink-0 gap-2"><button type="button" onClick={() => editReview(review)} className="btn-outline text-xs">Edit</button><button type="button" onClick={() => void togglePublished(review)} className="btn-outline text-xs">{review.is_published ? 'Hide review' : 'Publish review'}</button></div>
             </article>
           ))}
         </div>
