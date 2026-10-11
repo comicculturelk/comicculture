@@ -7,7 +7,7 @@ import {
   ADJUSTMENT_REASONS,
   type AdjustmentReason,
 } from '../../data/inventory';
-import { LOW_STOCK_THRESHOLD } from '../../pages/Admin';
+import { LOW_STOCK_THRESHOLD } from '../../lib/admin';
 
 /**
  * A stock action targets one product_version_sizes row directly — the

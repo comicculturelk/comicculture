@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { getSignedUrl } from '../../lib/storage';
-import { formatDate, StatusBadge } from '../../pages/Admin';
+import { formatDate } from '../../lib/admin';
+import StatusBadge from './StatusBadge';
 
 const STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
 
@@ -92,6 +93,11 @@ interface OrderRow {
   payment_method: string | null;
   payment_status: string;
   receipt_url: string | null;
+  promo_code: string | null;
+  discount_amount: number;
+  courier_name: string | null;
+  tracking_number: string | null;
+  tracking_url: string | null;
   created_at: string;
   order_items: OrderItemRow[];
 }
@@ -106,6 +112,43 @@ export default function AdminOrders() {
   const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
   const [receiptLoadFailed, setReceiptLoadFailed] = useState<Set<string>>(new Set());
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [shipmentDrafts, setShipmentDrafts] = useState<Record<string, { courierName: string; trackingNumber: string; trackingUrl: string }>>({});
+  const [shipmentSavingId, setShipmentSavingId] = useState<string | null>(null);
+  const [shipmentErrors, setShipmentErrors] = useState<Record<string, string>>({});
+
+  const saveShipment = async (order: OrderRow) => {
+    const draft = shipmentDrafts[order.id] ?? {
+      courierName: order.courier_name ?? '',
+      trackingNumber: order.tracking_number ?? '',
+      trackingUrl: order.tracking_url ?? '',
+    };
+    let trackingUrl: string | null = draft.trackingUrl.trim() || null;
+    if (trackingUrl) {
+      try {
+        const parsed = new URL(trackingUrl);
+        if (parsed.protocol !== 'https:') throw new Error();
+        trackingUrl = parsed.toString();
+      } catch {
+        setShipmentErrors((prev) => ({ ...prev, [order.id]: 'Enter a valid HTTPS tracking link.' }));
+        return;
+      }
+    }
+
+    setShipmentSavingId(order.id);
+    setShipmentErrors((prev) => ({ ...prev, [order.id]: '' }));
+    const updates = {
+      courier_name: draft.courierName.trim() || null,
+      tracking_number: draft.trackingNumber.trim() || null,
+      tracking_url: trackingUrl,
+    };
+    const { error: updateError } = await supabaseAdmin.from('orders').update(updates).eq('id', order.id);
+    if (updateError) {
+      setShipmentErrors((prev) => ({ ...prev, [order.id]: 'Could not save tracking details. Please try again.' }));
+    } else {
+      setOrders((prev) => prev.map((item) => item.id === order.id ? { ...item, ...updates } : item));
+    }
+    setShipmentSavingId(null);
+  };
 
   const loadReceiptUrl = async (order: OrderRow) => {
     if (!order.receipt_url || receiptUrls[order.id]) return;
@@ -269,7 +312,12 @@ export default function AdminOrders() {
                   <p className="font-medium text-foreground">{order.full_name}</p>
                   <p className="text-muted">{order.phone}</p>
                 </div>
-                <p className="font-display text-lg text-primary">Rs. {order.total}</p>
+                <div className="text-right">
+                  {order.discount_amount > 0 && (
+                    <p className="text-xs text-green-400">{order.promo_code} · −Rs. {order.discount_amount}</p>
+                  )}
+                  <p className="font-display text-lg text-primary">Rs. {order.total}</p>
+                </div>
               </div>
 
               <button
@@ -344,6 +392,47 @@ export default function AdminOrders() {
                         </li>
                       ))}
                     </ul>
+                  </div>
+
+                  <div className="mt-4 border-t border-border pt-4">
+                    <p className="mb-3 text-xs uppercase tracking-wide text-muted">Courier tracking</p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      {([
+                        ['courierName', 'Courier / delivery service', order.courier_name ?? ''],
+                        ['trackingNumber', 'Tracking number', order.tracking_number ?? ''],
+                        ['trackingUrl', 'Tracking link (HTTPS)', order.tracking_url ?? ''],
+                      ] as const).map(([field, label, savedValue]) => (
+                        <label key={field} className="text-xs text-muted-foreground">
+                          {label}
+                          <input
+                            type={field === 'trackingUrl' ? 'url' : 'text'}
+                            value={shipmentDrafts[order.id]?.[field] ?? savedValue}
+                            onChange={(event) => setShipmentDrafts((prev) => ({
+                              ...prev,
+                              [order.id]: {
+                                courierName: prev[order.id]?.courierName ?? order.courier_name ?? '',
+                                trackingNumber: prev[order.id]?.trackingNumber ?? order.tracking_number ?? '',
+                                trackingUrl: prev[order.id]?.trackingUrl ?? order.tracking_url ?? '',
+                                [field]: event.target.value,
+                              },
+                            }))}
+                            placeholder={field === 'trackingUrl' ? 'https://courier.example/track/…' : ''}
+                            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={shipmentSavingId === order.id}
+                        onClick={() => void saveShipment(order)}
+                        className="btn-outline text-xs"
+                      >
+                        {shipmentSavingId === order.id ? 'Saving…' : 'Save tracking details'}
+                      </button>
+                      {shipmentErrors[order.id] && <p role="alert" className="text-xs text-primary">{shipmentErrors[order.id]}</p>}
+                    </div>
                   </div>
 
                   {order.payment_method === 'BANK_TRANSFER' && (

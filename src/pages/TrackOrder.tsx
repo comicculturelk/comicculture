@@ -212,6 +212,24 @@ export default function TrackOrder() {
                 </div>
               )}
 
+              {(result.courier_name || result.tracking_number || result.tracking_url) && (
+                <div className="mt-4 rounded-lg border border-border bg-background px-4 py-3 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">Delivery tracking</p>
+                  {result.courier_name && <p className="mt-1 text-foreground">Courier: {result.courier_name}</p>}
+                  {result.tracking_number && <p className="mt-1 text-muted-foreground">Tracking number: {result.tracking_number}</p>}
+                  {result.tracking_url && (
+                    <a
+                      href={result.tracking_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex text-primary underline underline-offset-4 hover:text-foreground"
+                    >
+                      Track with the courier
+                    </a>
+                  )}
+                </div>
+              )}
+
               {isCancelled ? (
                 <div className="mt-6 flex items-center gap-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
                   <XCircle className="h-5 w-5 shrink-0" />

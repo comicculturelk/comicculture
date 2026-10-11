@@ -38,6 +38,7 @@ export interface CreateOrderInput {
    * enabled when paymentMethod is BANK_TRANSFER; absent for COD.
    */
   receiptPath?: string;
+  promoCode?: string;
 }
 
 /**
@@ -50,6 +51,11 @@ export const CHECKOUT_ERROR_MESSAGE =
 export interface CreateOrderResult {
   orderId: string;
   orderReference: string;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  discountAmount: number;
+  notificationToken: string;
 }
 
 interface CreateOrderRpcRow {
@@ -58,6 +64,8 @@ interface CreateOrderRpcRow {
   subtotal: number;
   delivery_fee: number;
   total: number;
+  discount_amount: number;
+  notification_token: string;
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
@@ -69,7 +77,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   // a database sequence — none of these are accepted as client
   // parameters — then inserts the order + order_items rows atomically.
   // See supabase/migrations/20260927010000_generate_order_reference_server_side.sql.
-  const { data, error } = await supabase.rpc('create_order', {
+  const { data, error } = await supabase.rpc('create_order_with_notification_token', {
     p_full_name: input.fullName,
     p_phone: input.phone,
     p_mobile_phone: input.mobilePhone.trim() || null,
@@ -90,6 +98,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       size: item.size,
       quantity: item.quantity,
     })),
+    p_promo_code: input.promoCode?.trim() || null,
   });
 
   if (error) {
@@ -105,7 +114,15 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
   // Fire-and-forget: the order is fully saved at this point, so a failure
   // to email the admin should never surface as a checkout error.
-  void notifyAdminOfNewOrder(result.order_id);
+  void notifyAdminOfNewOrder(result.order_id, result.notification_token);
 
-  return { orderId: result.order_id, orderReference: result.order_reference };
+  return {
+    orderId: result.order_id,
+    orderReference: result.order_reference,
+    subtotal: result.subtotal,
+    deliveryFee: result.delivery_fee,
+    total: result.total,
+    discountAmount: result.discount_amount,
+    notificationToken: result.notification_token,
+  };
 }

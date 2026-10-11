@@ -4,7 +4,7 @@ import {
   type InventoryMovement,
   type MovementType,
 } from '../../data/inventory';
-import { formatDate } from '../../pages/Admin';
+import { formatDate } from '../../lib/admin';
 
 const MOVEMENT_STYLES: Record<MovementType, string> = {
   sale: 'border-blue-500/40 bg-blue-500/20 text-blue-400',

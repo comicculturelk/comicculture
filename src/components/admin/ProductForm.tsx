@@ -35,6 +35,12 @@ interface ProductFormProps {
   onCancel: () => void;
 }
 
+function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  const copy = { ...record };
+  delete copy[key];
+  return copy;
+}
+
 function fieldLabelClass() {
   return 'text-xs uppercase tracking-wide text-muted';
 }
@@ -1130,14 +1136,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       }
       await deleteProductVersionSize(size.id);
       setDeletedSizeIds((prev) => new Set(prev).add(size.id));
-      setSizeEdits((prev) => {
-        const { [size.id]: _removed, ...rest } = prev;
-        return rest;
-      });
-      setStockEdits((prev) => {
-        const { [size.id]: _removed, ...rest } = prev;
-        return rest;
-      });
+      setSizeEdits((prev) => withoutKey(prev, size.id));
+      setStockEdits((prev) => withoutKey(prev, size.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete size');
     } finally {
@@ -1175,14 +1175,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       setDeletedVersionIds((prev) => new Set(prev).add(version.id));
 
       const sizeIds = new Set(version.sizes.map((s) => s.id));
-      setVersionEdits((prev) => {
-        const { [version.id]: _removed, ...rest } = prev;
-        return rest;
-      });
-      setNewExistingSizes((prev) => {
-        const { [version.id]: _removed, ...rest } = prev;
-        return rest;
-      });
+      setVersionEdits((prev) => withoutKey(prev, version.id));
+      setNewExistingSizes((prev) => withoutKey(prev, version.id));
       setSizeEdits((prev) =>
         Object.fromEntries(Object.entries(prev).filter(([id]) => !sizeIds.has(id)))
       );

@@ -16,6 +16,12 @@ const SITE_URL = 'https://comicculture.lk';
 // and any other private/utility route.
 const STATIC_PATHS = ['/', '/shop', '/about', '/faq', '/contact', '/return-policy'];
 
+interface SitemapResponse {
+  setHeader(name: string, value: string): void;
+  status(code: number): SitemapResponse;
+  send(body: string): void;
+}
+
 function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -30,7 +36,8 @@ function urlEntry(path: string): string {
   return `  <url>\n    <loc>${escapeXml(loc)}</loc>\n  </url>`;
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(_req: unknown, res: SitemapResponse) {
+  void _req;
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 

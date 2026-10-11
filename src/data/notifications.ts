@@ -10,15 +10,17 @@ import { supabase } from '../lib/supabase';
  * email failure here must never fail or delay the checkout flow. Errors
  * are logged, not thrown.
  */
-export async function notifyAdminOfNewOrder(orderId: string): Promise<void> {
-  try {
-    const { error } = await supabase.functions.invoke('send-order-notification', {
-      body: { orderId },
-    });
-    if (error) {
+export async function notifyAdminOfNewOrder(orderId: string, notificationToken: string): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const { error } = await supabase.functions.invoke('send-order-notification', {
+        body: { orderId, notificationToken },
+      });
+      if (!error) return;
       console.error('Order notification email failed:', error.message);
+    } catch (err) {
+      console.error('Order notification email failed:', err);
     }
-  } catch (err) {
-    console.error('Order notification email failed:', err);
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
   }
 }

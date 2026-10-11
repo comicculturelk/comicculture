@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import LoadingScreen from './components/LoadingScreen';
 import Navbar from './components/Navbar';
@@ -5,20 +6,21 @@ import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import ScrollToTop from './components/ScrollToTop';
 import { CartProvider } from './context/CartContext';
-import Home from './pages/Home';
-import Shop from './pages/Shop';
-import Product from './pages/Product';
-import About from './pages/About';
-import CollectionPage from './pages/CollectionPage';
-import FAQ from './pages/FAQ';
-import Contact from './pages/Contact';
-import Checkout from './pages/Checkout';
-import OrderSuccess from './pages/OrderSuccess';
-import TrackOrder from './pages/TrackOrder';
-import ReturnPolicy from './pages/ReturnPolicy';
-import TermsAndConditions from './pages/TermsAndConditions';
-import Admin from './pages/Admin';
-import NotFound from './pages/NotFound';
+
+const Home = lazy(() => import('./pages/Home'));
+const Shop = lazy(() => import('./pages/Shop'));
+const Product = lazy(() => import('./pages/Product'));
+const About = lazy(() => import('./pages/About'));
+const CollectionPage = lazy(() => import('./pages/CollectionPage'));
+const FAQ = lazy(() => import('./pages/FAQ'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
+const TrackOrder = lazy(() => import('./pages/TrackOrder'));
+const ReturnPolicy = lazy(() => import('./pages/ReturnPolicy'));
+const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
+const Admin = lazy(() => import('./pages/Admin'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 export default function App() {
   return (
@@ -27,22 +29,24 @@ export default function App() {
       <LoadingScreen />
       <Navbar />
       <main>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/product/:slug" element={<Product />} />
-          <Route path="/collections/:slug" element={<CollectionPage />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/order-success" element={<OrderSuccess />} />
-          <Route path="/track-order" element={<TrackOrder />} />
-          <Route path="/return-policy" element={<ReturnPolicy />} />
-          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Loading page…</div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/product/:slug" element={<Product />} />
+            <Route path="/collections/:slug" element={<CollectionPage />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-success" element={<OrderSuccess />} />
+            <Route path="/track-order" element={<TrackOrder />} />
+            <Route path="/return-policy" element={<ReturnPolicy />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </main>
       <Footer />
       <CartDrawer />

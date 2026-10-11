@@ -21,6 +21,7 @@ import { CHECKOUT_ERROR_MESSAGE, createOrder } from '../data/orders';
 import { formatPrice, getPreorderMessage } from '../data/products';
 import { uploadFile } from '../lib/storage';
 import { STORE_CONFIG } from '../config/store';
+import { supabase } from '../lib/supabase';
 
 const RECEIPT_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -70,7 +71,9 @@ export default function Checkout() {
   const [form, setForm] = useState<CheckoutForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number; subtotal: number } | null>(null);
   const [promoNote, setPromoNote] = useState<string | null>(null);
+  const [promoChecking, setPromoChecking] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -81,7 +84,8 @@ export default function Checkout() {
   const [preorderAck, setPreorderAck] = useState(false);
 
   const deliveryFee = STORE_CONFIG.deliveryFee;
-  const total = totalPrice + deliveryFee;
+  const currentPromo = appliedPromo?.subtotal === totalPrice ? appliedPromo : null;
+  const total = totalPrice + deliveryFee - (currentPromo?.discountAmount ?? 0);
 
   // Cross-reference cart items against loaded products to find which ones
   // are pre-orders, and their delivery timeframe. Cart items themselves
@@ -135,8 +139,14 @@ export default function Checkout() {
     e.target.value = ''; // allow re-selecting the same file after an error
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setReceiptError('Please upload an image of your receipt (JPG, PNG, etc.)');
+    const extensionsByMime: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+    };
+    const extension = extensionsByMime[file.type];
+    if (!extension) {
+      setReceiptError('Upload a JPG, PNG, or WebP image of your receipt.');
       return;
     }
     if (file.size > RECEIPT_MAX_BYTES) {
@@ -150,8 +160,7 @@ export default function Checkout() {
     setReceiptUploading(true);
 
     try {
-      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
-      const path = `${crypto.randomUUID()}.${ext}`;
+      const path = `${crypto.randomUUID()}.${extension}`;
       const { path: uploadedPath } = await uploadFile('payment-receipts', path, file, 'private');
       setReceiptPath(uploadedPath);
     } catch (err) {
@@ -163,10 +172,26 @@ export default function Checkout() {
     }
   };
 
-  const handleApplyPromo = (e: FormEvent) => {
+  const handleApplyPromo = async (e: FormEvent) => {
     e.preventDefault();
     if (!promoCode.trim()) return;
-    setPromoNote("Promo codes aren't available just yet — check back soon!");
+    setPromoChecking(true);
+    setAppliedPromo(null);
+    setPromoNote(null);
+    const { data, error } = await supabase.rpc('preview_promo_code', {
+      p_code: promoCode.trim().toUpperCase(),
+      p_subtotal: totalPrice,
+    });
+    if (error) {
+      setPromoNote('We could not check that code right now. Please try again.');
+    } else if (typeof data === 'number' && data > 0) {
+      const code = promoCode.trim().toUpperCase();
+      setAppliedPromo({ code, discountAmount: data, subtotal: totalPrice });
+      setPromoNote(`${code} applied: ${formatPrice(data)} off.`);
+    } else {
+      setPromoNote('That code is invalid, expired, or your order does not meet its minimum.');
+    }
+    setPromoChecking(false);
   };
 
   // Bank Transfer requires a successfully uploaded receipt before the order
@@ -182,12 +207,13 @@ export default function Checkout() {
     if (Object.keys(nextErrors).length > 0) return;
     if (receiptBlocksSubmit) return;
     if (preorderBlocksSubmit) return;
+    if (promoChecking) return;
 
     setSubmitError(null);
     setIsSubmitting(true);
 
     try {
-      const { orderReference } = await createOrder({
+      const { orderReference, total: authoritativeTotal } = await createOrder({
         fullName: form.fullName.trim(),
         phone: form.phone.trim(),
         mobilePhone: form.mobilePhone.trim(),
@@ -203,6 +229,7 @@ export default function Checkout() {
         items,
         paymentMethod,
         receiptPath: receiptPath ?? undefined,
+        promoCode: currentPromo?.code,
       });
 
       clearCart();
@@ -211,7 +238,7 @@ export default function Checkout() {
           orderReference,
           customerName: form.fullName,
           totalItems,
-          total,
+          total: authoritativeTotal,
           paymentMethod,
           // OrderSuccess.tsx should check this and render "Payment
           // Verification Required" instead of "Order Confirmed" for
@@ -567,7 +594,7 @@ export default function Checkout() {
                       {receiptFileName ?? 'Choose receipt image (JPG, PNG — max 5MB)'}
                       <input
                         type="file"
-                        accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                         onChange={handleReceiptChange}
                         className="hidden"
                       />
@@ -605,20 +632,29 @@ export default function Checkout() {
                   <input
                     type="text"
                     value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
+                    onChange={(e) => {
+                      setPromoCode(e.target.value.toUpperCase());
+                      setAppliedPromo(null);
+                      setPromoNote(null);
+                    }}
                     className={`${inputClass(false)} pl-9`}
                     placeholder="Enter promo code"
                   />
                 </div>
                 <button
                   type="button"
-                  onClick={handleApplyPromo}
+                  onClick={(e) => void handleApplyPromo(e)}
+                  disabled={promoChecking || !promoCode.trim()}
                   className="btn-outline px-6 py-2.5 text-sm"
                 >
-                  Apply
+                  {promoChecking ? 'Checking…' : currentPromo ? 'Applied' : 'Apply'}
                 </button>
               </div>
-              {promoNote && <p className="mt-2 text-xs text-muted-foreground">{promoNote}</p>}
+              {(promoNote || (appliedPromo && !currentPromo)) && (
+                <p role="status" className={`mt-2 text-xs ${currentPromo ? 'text-green-400' : 'text-muted-foreground'}`}>
+                  {appliedPromo && !currentPromo ? 'Your cart changed. Apply the code again to update the discount.' : promoNote}
+                </p>
+              )}
             </div>
           </motion.div>
 
@@ -671,6 +707,12 @@ export default function Checkout() {
                 <span>Delivery</span>
                 <span>{formatPrice(deliveryFee)}</span>
               </div>
+              {currentPromo && (
+                <div className="flex items-center justify-between text-green-400">
+                  <span>Promo ({currentPromo.code})</span>
+                  <span>−{formatPrice(currentPromo.discountAmount)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between border-t border-border pt-2 font-display text-lg text-foreground">
                 <span>Total</span>
                 <span className="text-primary">{formatPrice(total)}</span>
@@ -685,7 +727,7 @@ export default function Checkout() {
 
             <button
               type="submit"
-              disabled={isSubmitting || receiptBlocksSubmit || preorderBlocksSubmit}
+              disabled={isSubmitting || receiptBlocksSubmit || preorderBlocksSubmit || promoChecking}
               className="btn-primary w-full"
             >
               {isSubmitting ? (

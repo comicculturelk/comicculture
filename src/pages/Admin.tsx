@@ -7,43 +7,8 @@ import AdminDashboard from '../components/admin/AdminDashboard';
 import AdminHistory from '../components/admin/AdminHistory';
 import AdminInventory from '../components/admin/AdminInventory';
 import AdminOrders from '../components/admin/AdminOrders';
-
-export const LOW_STOCK_THRESHOLD = 3;
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-export function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const hours24 = d.getHours();
-  const hours = hours24 % 12 || 12;
-  const minutes = d.getMinutes().toString().padStart(2, '0');
-  const ampm = hours24 >= 12 ? 'PM' : 'AM';
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${hours}:${minutes} ${ampm}`;
-}
-
-const STATUS_STYLES: Record<string, string> = {
-  pending: 'border-yellow-500/40 bg-yellow-500/20 text-yellow-400',
-  confirmed: 'border-blue-500/40 bg-blue-500/20 text-blue-400',
-  packed: 'border-purple-500/40 bg-purple-500/20 text-purple-400',
-  shipped: 'border-orange-500/40 bg-orange-500/20 text-orange-400',
-  delivered: 'border-green-500/40 bg-green-500/20 text-green-400',
-  cancelled: 'border-red-500/40 bg-red-500/20 text-red-400',
-};
-
-export function StatusBadge({ status }: { status: string }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${
-        STATUS_STYLES[status] ?? 'border-border bg-surface text-muted-foreground'
-      }`}
-    >
-      {status}
-    </span>
-  );
-}
+import AdminPromos from '../components/admin/AdminPromos';
+import AdminReviews from '../components/admin/AdminReviews';
 
 export default function Admin() {
   const [session, setSession] = useState<Session | null>(null);
@@ -117,7 +82,7 @@ function AdminLogin() {
 
 function AdminPanel() {
   const [view, setView] = useState<
-    'dashboard' | 'orders' | 'products' | 'collections' | 'inventory' | 'history'
+    'dashboard' | 'orders' | 'products' | 'collections' | 'inventory' | 'promos' | 'reviews' | 'history'
   >('orders');
 
   const handleSignOut = () => supabaseAdmin.auth.signOut();
@@ -128,9 +93,9 @@ function AdminPanel() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <h1 className="font-display text-3xl text-foreground tracking-wide">ADMIN</h1>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(
-                ['dashboard', 'orders', 'products', 'collections', 'inventory', 'history'] as const
+                ['dashboard', 'orders', 'products', 'collections', 'inventory', 'promos', 'reviews', 'history'] as const
               ).map((v) => (
                 <button
                   key={v}
@@ -156,6 +121,8 @@ function AdminPanel() {
         {view === 'products' && <AdminProducts />}
         {view === 'collections' && <AdminCollections />}
         {view === 'inventory' && <AdminInventory />}
+        {view === 'promos' && <AdminPromos />}
+        {view === 'reviews' && <AdminReviews />}
         {view === 'dashboard' && <AdminDashboard onViewOrders={() => setView('orders')} />}
         {view === 'history' && <AdminHistory />}
       </div>

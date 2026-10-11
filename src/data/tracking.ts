@@ -16,6 +16,9 @@ export interface TrackedOrder {
   subtotal: number;
   delivery_fee: number;
   total: number;
+  courier_name: string | null;
+  tracking_number: string | null;
+  tracking_url: string | null;
   items: TrackedOrderItem[];
 }
 

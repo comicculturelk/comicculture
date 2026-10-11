@@ -1,16 +1,15 @@
 // Supabase Edge Function: send-order-notification
 //
 // Called by the storefront immediately after an order + its items are
-// saved. Only an `orderId` is passed in — the function looks the order up
-// itself using the service-role key (auto-provided to every Edge Function
-// by Supabase, never exposed to the browser) and builds the email from
-// that authoritative row. This means:
+// saved. The caller passes an order ID and a one-time token returned only
+// by the checkout RPC. A service-role database claim enforces single-use
+// delivery; the function reads authoritative order data itself. This means:
 //   1. The client never has to duplicate order details into a second
 //      payload — the database row is the single source of truth.
 //   2. A customer can't spoof or tamper with what the admin sees, since
 //      arbitrary client-supplied order data is never trusted or rendered.
-//   3. If the order isn't in the database yet (or doesn't exist), we
-//      simply decline — nothing is sent.
+//   3. An order ID alone cannot trigger mail; the token is private to the
+//      successful checkout response and the database prevents replay.
 //
 // Required secrets (set via `supabase secrets set`, NOT the Vite .env
 // files — these must never reach the browser bundle):
@@ -49,6 +48,8 @@ interface OrderRow {
   subtotal: number;
   delivery_fee: number;
   total: number;
+  promo_code: string | null;
+  discount_amount: number;
   created_at: string;
   order_items: OrderItemRow[];
 }
@@ -125,7 +126,8 @@ interface ResendSendParams {
 async function sendViaResend(
   params: ResendSendParams,
   resendApiKey: string,
-  fromEmail: string
+  fromEmail: string,
+  idempotencyKey: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -133,6 +135,7 @@ async function sendViaResend(
       headers: {
         Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify({
         from: fromEmail,
@@ -259,6 +262,7 @@ function buildEmailHtml(order: OrderRow): string {
                     <td style="padding:3px 0;color:${muted};font-size:13px;">Delivery Fee</td>
                     <td style="padding:3px 0;color:${foreground};font-size:13px;text-align:right;">${formatMoney(order.delivery_fee)}</td>
                   </tr>
+                  ${order.discount_amount > 0 ? `<tr><td style="padding:3px 0;color:${muted};font-size:13px;">Promo ${escapeHtml(order.promo_code || '')}</td><td style="padding:3px 0;color:#16803c;font-size:13px;text-align:right;">−${formatMoney(order.discount_amount)}</td></tr>` : ''}
                   <tr>
                     <td style="padding:10px 0 0;color:${foreground};font-size:15px;font-weight:700;border-top:1px solid ${border};">Total</td>
                     <td style="padding:10px 0 0;color:${primary};font-size:18px;font-weight:700;text-align:right;border-top:1px solid ${border};">${formatMoney(order.total)}</td>
@@ -403,6 +407,7 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
                     <td style="padding:3px 0;color:${muted};font-size:13px;">Delivery Fee</td>
                     <td style="padding:3px 0;color:${foreground};font-size:13px;text-align:right;">${formatMoney(order.delivery_fee)}</td>
                   </tr>
+                  ${order.discount_amount > 0 ? `<tr><td style="padding:3px 0;color:${muted};font-size:13px;">Promo ${escapeHtml(order.promo_code || '')}</td><td style="padding:3px 0;color:#16803c;font-size:13px;text-align:right;">−${formatMoney(order.discount_amount)}</td></tr>` : ''}
                   <tr>
                     <td style="padding:10px 0 0;color:${foreground};font-size:15px;font-weight:700;border-top:1px solid ${border};">Total</td>
                     <td style="padding:10px 0 0;color:${primary};font-size:18px;font-weight:700;text-align:right;border-top:1px solid ${border};">${formatMoney(order.total)}</td>
@@ -494,10 +499,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { orderId } = await req.json().catch(() => ({}));
+    const { orderId, notificationToken } = await req.json().catch(() => ({}));
 
-    if (!orderId || typeof orderId !== 'string') {
-      return jsonResponse({ error: 'orderId is required' }, 400);
+    if (typeof orderId !== 'string' || !/^[0-9a-f-]{36}$/i.test(orderId)
+      || typeof notificationToken !== 'string' || !/^[0-9a-f-]{36}$/i.test(notificationToken)) {
+      return jsonResponse({ error: 'A valid order ID and notification token are required' }, 400);
     }
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -528,6 +534,18 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    const { data: lockId, error: claimError } = await supabase.rpc('claim_order_notification', {
+      p_order_id: orderId,
+      p_notification_token: notificationToken,
+    });
+    if (claimError) {
+      console.error('Could not claim order notification:', claimError.message);
+      return jsonResponse({ error: 'Unable to process notification' }, 500);
+    }
+    if (typeof lockId !== 'string') {
+      return jsonResponse({ error: 'Notification already sent or token invalid' }, 409);
+    }
+
     const { data: order, error } = await supabase
       .from('orders')
       .select('*, order_items(*)')
@@ -536,10 +554,12 @@ Deno.serve(async (req: Request) => {
 
     if (error) {
       console.error('Failed to load order:', error.message);
+      await supabase.rpc('complete_order_notification', { p_order_id: orderId, p_lock_id: lockId, p_success: false });
       return jsonResponse({ error: 'Failed to load order' }, 500);
     }
 
     if (!order) {
+      await supabase.rpc('complete_order_notification', { p_order_id: orderId, p_lock_id: lockId, p_success: false });
       return jsonResponse({ error: 'Order not found' }, 404);
     }
 
@@ -556,7 +576,8 @@ Deno.serve(async (req: Request) => {
         replyTo: typedOrder.email || undefined,
       },
       resendApiKey,
-      fromEmail
+      fromEmail,
+      `order-${orderId}-admin`
     );
 
     if (!adminResult.ok) {
@@ -579,7 +600,8 @@ Deno.serve(async (req: Request) => {
           replyTo: adminEmails[0],
         },
         resendApiKey,
-        fromEmail
+        fromEmail,
+        `order-${orderId}-customer`
       );
       customerSent = customerResult.ok;
       if (!customerResult.ok) {
@@ -591,13 +613,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const notificationSuccess = adminResult.ok && (!customerAttempted || customerSent);
+    const { error: completeError } = await supabase.rpc('complete_order_notification', {
+      p_order_id: orderId,
+      p_lock_id: lockId,
+      p_success: notificationSuccess,
+    });
+    if (completeError) console.error('Could not finalize order notification:', completeError.message);
+
     return jsonResponse(
       {
         success: adminResult.ok,
         admin: { sent: adminResult.ok },
         customer: { attempted: customerAttempted, sent: customerSent },
       },
-      adminResult.ok ? 200 : 502
+      notificationSuccess ? 200 : 502
     );
   } catch (err) {
     console.error('Unexpected error in send-order-notification:', err);

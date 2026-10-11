@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { fetchProducts, getStockForSize, type Product } from '../../data/products';
-import { formatDate, StatusBadge, LOW_STOCK_THRESHOLD } from '../../pages/Admin';
+import { formatDate, LOW_STOCK_THRESHOLD } from '../../lib/admin';
+import StatusBadge from './StatusBadge';
 
 interface DashboardOrderRow {
   order_reference: string;
