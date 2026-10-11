@@ -12,10 +12,11 @@ function AnimatedWord({
   className?: string;
 }) {
   return (
-    <span className={className}>
+    <span className={className} role="text" aria-label={text}>
       {text.split('').map((char, i) => (
         <motion.span
           key={i}
+          aria-hidden="true"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: delay + i * 0.035, duration: 0.4, ease: 'easeOut' }}
@@ -31,7 +32,7 @@ const wipeVariants = {
   visible: { clipPath: 'inset(0% 0% 0% 0%)' },
   exit: {
     clipPath: 'inset(0% 0% 100% 0%)',
-    transition: { duration: 0.7, ease: [0.76, 0, 0.24, 1] as const },
+    transition: { duration: 0.42, ease: [0.76, 0, 0.24, 1] as const },
   },
 };
 
@@ -72,7 +73,7 @@ export default function LoadingScreen() {
       // plays once for this mount either way.
     }
 
-    const timer = setTimeout(() => setLoading(false), 800);
+    const timer = setTimeout(() => setLoading(false), 1250);
     return () => clearTimeout(timer);
   }, [loading]);
 
@@ -80,7 +81,7 @@ export default function LoadingScreen() {
     <AnimatePresence>
       {loading && (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-background overflow-hidden"
+          className="comic-page fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-background"
           variants={wipeVariants}
           initial="visible"
           animate="visible"
@@ -90,39 +91,49 @@ export default function LoadingScreen() {
           <div className="absolute inset-0 halftone-overlay opacity-20" />
 
           {/* Stage 1 — comic page grid, riffles in behind the cover panel */}
-          <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-[2px] p-[2px]">
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-1 p-1 sm:gap-2 sm:p-2">
             {[...Array(6)].map((_, i) => (
               <motion.div
                 key={i}
-                className="relative bg-surface border border-border overflow-hidden"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.06, duration: 0.4, ease: 'easeOut' }}
+                className={`relative overflow-hidden border-2 border-foreground ${i === 1 ? 'bg-primary' : i === 4 ? 'bg-warning' : 'bg-surface'}`}
+                initial={{ opacity: 0, scale: 0.78, rotate: i % 2 === 0 ? -3 : 3 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ delay: i * 0.045, duration: 0.32, ease: 'easeOut' }}
               >
-                <div className="absolute inset-0 halftone-overlay opacity-20" />
+                <div className="absolute inset-0 halftone-overlay opacity-30" />
               </motion.div>
             ))}
           </div>
 
           {/* Stage 2 — the cover panel */}
           <motion.div
-            className="relative z-10 flex flex-col items-center border-2 border-foreground/15 bg-background px-12 py-10 sm:px-20 sm:py-14"
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.55, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="comic-panel relative z-10 flex flex-col items-center border-4 bg-surface px-8 py-9 sm:px-16 sm:py-12"
+            initial={{ opacity: 0, scale: 0.78, rotate: -3 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{ delay: 0.2, duration: 0.48, type: 'spring', stiffness: 180, damping: 16 }}
           >
             {/* Corner brackets */}
-            <span className="absolute -top-px -left-px h-6 w-6 border-l-2 border-t-2 border-primary" />
-            <span className="absolute -top-px -right-px h-6 w-6 border-r-2 border-t-2 border-primary" />
-            <span className="absolute -bottom-px -left-px h-6 w-6 border-l-2 border-b-2 border-primary" />
-            <span className="absolute -bottom-px -right-px h-6 w-6 border-r-2 border-b-2 border-primary" />
+            <span className="absolute -top-px -left-px h-7 w-7 border-l-4 border-t-4 border-primary" />
+            <span className="absolute -top-px -right-px h-7 w-7 border-r-4 border-t-4 border-primary" />
+            <span className="absolute -bottom-px -left-px h-7 w-7 border-l-4 border-b-4 border-primary" />
+            <span className="absolute -bottom-px -right-px h-7 w-7 border-r-4 border-b-4 border-primary" />
+
+            <motion.span
+              aria-hidden="true"
+              className="comic-burst absolute -right-5 -top-7 flex h-[4.5rem] w-[4.5rem] rotate-12 items-center justify-center border-2 border-foreground font-display text-xl text-foreground shadow-[3px_3px_0_#d21f38] sm:-right-7 sm:-top-8 sm:h-24 sm:w-24 sm:text-3xl"
+              initial={{ scale: 0, rotate: 35 }}
+              animate={{ scale: 1, rotate: 12 }}
+              transition={{ delay: 0.48, type: 'spring', stiffness: 320, damping: 12 }}
+            >
+              POW!
+            </motion.span>
 
             {/* Kicker */}
             <motion.span
-              className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground"
-              initial={{ opacity: 0, y: 8 }}
+              className="text-[10px] font-extrabold uppercase tracking-[0.28em] text-primary sm:text-xs sm:tracking-[0.35em]"
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.85, duration: 0.5 }}
+              transition={{ delay: 0.36, duration: 0.28 }}
             >
               ComicCulture Presents
             </motion.span>
@@ -131,30 +142,30 @@ export default function LoadingScreen() {
             <div className="mt-3 flex flex-col items-center leading-none">
               <AnimatedWord
                 text="COMIC"
-                delay={1.0}
-                className="font-display text-4xl sm:text-6xl tracking-wider text-foreground"
+                delay={0.4}
+                className="font-display text-4xl tracking-wider text-foreground sm:text-6xl"
               />
               <AnimatedWord
                 text="CULTURE"
-                delay={1.15}
-                className="font-display text-4xl sm:text-6xl tracking-wider text-gradient-red"
+                delay={0.52}
+                className="font-display text-4xl tracking-wider text-gradient-red sm:text-6xl"
               />
             </div>
 
             {/* Hairline rule */}
             <motion.div
-              className="mt-5 h-px w-20 origin-center bg-primary"
+              className="mt-5 h-1 w-24 origin-center border-y border-foreground bg-warning"
               initial={{ scaleX: 0, opacity: 0 }}
               animate={{ scaleX: 1, opacity: 1 }}
-              transition={{ delay: 1.7, duration: 0.5, ease: 'easeOut' }}
+              transition={{ delay: 0.78, duration: 0.3, ease: 'easeOut' }}
             />
 
             {/* Issue stamp */}
             <motion.span
-              className="mt-4 text-[11px] font-medium uppercase tracking-[0.25em] text-muted"
+              className="comic-caption mt-4 -rotate-1"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 1.95, duration: 0.4 }}
+              transition={{ delay: 0.84, duration: 0.25 }}
             >
               Issue N°01 · First Print
             </motion.span>
@@ -162,13 +173,13 @@ export default function LoadingScreen() {
 
           {/* Stage 3 — brand line + quiet loading pulse */}
           <motion.div
-            className="absolute bottom-16 flex items-center gap-2"
+            className="absolute bottom-8 flex items-center gap-2 px-4 text-center sm:bottom-10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 2.15, duration: 0.4 }}
+            transition={{ delay: 0.62, duration: 0.3 }}
           >
-            <p className="text-sm tracking-widest text-muted uppercase">
-              Every design is a chapter
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-foreground sm:text-sm sm:tracking-widest">
+              Opening your next issue
             </p>
             <span className="flex gap-1">
               {[0, 1, 2].map((i) => (
