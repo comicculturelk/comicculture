@@ -84,7 +84,7 @@ export default function CartDrawer() {
             transition={{ type: 'tween', duration: 0.3 }}
           >
             {/* Header */}
-            <div className="relative flex items-center justify-between border-b-4 border-foreground bg-warning px-5 py-4 sm:px-6">
+            <div className="relative flex items-center justify-between border-b-4 border-foreground bg-white px-5 py-4 sm:px-6">
               <div>
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-primary">ComicCulture · collector edition</p>
                 <h2 id="cart-title" className="mt-0.5 font-display text-2xl tracking-wide text-foreground sm:text-3xl">THE PULL LIST</h2>

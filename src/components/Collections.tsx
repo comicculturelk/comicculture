@@ -14,7 +14,7 @@ export default function Collections({ collections, loading, error }: Collections
   const reduceMotion = useReducedMotion();
 
   return (
-    <section id="collections" className="comic-page relative isolate overflow-hidden border-y-2 border-foreground bg-[#f1eee8] py-20 lg:py-28">
+    <section id="collections" className="comic-page relative isolate overflow-hidden border-y-2 border-foreground bg-white py-20 lg:py-28">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(17,17,17,0.12)_1px,transparent_0)] bg-[size:9px_9px] opacity-25 [mask-image:linear-gradient(90deg,black,transparent_45%,black)]" />
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-20 h-64 w-64 rounded-full border-[28px] border-primary/5" />
 
@@ -85,7 +85,7 @@ export default function Collections({ collections, loading, error }: Collections
 
                   <div aria-hidden="true" className="pointer-events-none absolute inset-2 border border-white/40" />
 
-                  <span className="absolute left-5 top-5 z-10 -rotate-3 border border-foreground bg-[#fff1c2] px-2.5 py-1 font-display text-xs uppercase tracking-[0.16em] text-foreground shadow-[3px_3px_0_rgba(140,31,46,0.9)]">
+                  <span className="absolute left-5 top-5 z-10 -rotate-3 border border-foreground bg-white px-2.5 py-1 font-display text-xs uppercase tracking-[0.16em] text-foreground shadow-[3px_3px_0_rgba(140,31,46,0.9)]">
                     CC · {String(index + 1).padStart(2, '0')}
                   </span>
 

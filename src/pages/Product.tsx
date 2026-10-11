@@ -734,7 +734,7 @@ export default function Product() {
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mb-4 flex items-center justify-between border-b-4 border-foreground bg-warning px-5 py-4">
+              <div className="mb-4 flex items-center justify-between border-b-4 border-foreground bg-white px-5 py-4">
                 <div>
                   <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-primary">Know your fit</p>
                   <h3 className="font-display text-2xl text-foreground tracking-wide">SIZE GUIDE</h3>
