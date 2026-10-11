@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import ProductFilters from '../components/ProductFilters';
 import NotFound from './NotFound';
 import { useProducts } from '../hooks/useProducts';
-import { filterProducts, getUniqueSizes, getPriceBounds } from '../data/products';
+import { filterProducts, getUniqueSizes, getPriceBounds, sortProducts, type ProductSort } from '../data/products';
 import { fetchCollectionBySlug, type Collection } from '../data/collections';
 import SEO, { type JsonLdBlock } from '../components/SEO';
 
@@ -48,7 +48,15 @@ export default function CollectionPage() {
     setCollectionError(null);
     setCollection(null);
 
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) {
+        setCollectionError('This collection is taking longer than expected to load.');
+        setCollectionLoading(false);
+      }
+    }, 12000);
+
     if (!slug) {
+      window.clearTimeout(timeout);
       setCollectionLoading(false);
       return;
     }
@@ -56,12 +64,15 @@ export default function CollectionPage() {
     fetchCollectionBySlug(slug)
       .then((data) => {
         if (!cancelled) {
+          window.clearTimeout(timeout);
           setCollection(data);
+          setCollectionError(null);
           setCollectionLoading(false);
         }
       })
       .catch((err: Error) => {
         if (!cancelled) {
+          window.clearTimeout(timeout);
           setCollectionError(err.message);
           setCollectionLoading(false);
         }
@@ -69,6 +80,7 @@ export default function CollectionPage() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, [slug]);
 
@@ -87,6 +99,8 @@ export default function CollectionPage() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [priceLimit, setPriceLimit] = useState<number | null>(null);
   const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [sort, setSort] = useState<ProductSort>('recommended');
 
   const effectivePriceLimit = priceLimit ?? priceBounds.max;
 
@@ -97,21 +111,24 @@ export default function CollectionPage() {
         size: selectedSize,
         maxPrice: priceLimit !== null ? priceLimit : null,
         featuredOnly,
+        availableOnly,
       }),
-    [collectionProducts, search, selectedSize, priceLimit, featuredOnly]
+    [collectionProducts, search, selectedSize, priceLimit, featuredOnly, availableOnly]
   );
+  const orderedFilteredProducts = useMemo(() => sortProducts(filteredProducts, sort), [filteredProducts, sort]);
 
   const hasActiveFilters =
     search.trim() !== '' ||
     selectedSize !== null ||
     (priceLimit !== null && priceLimit < priceBounds.max) ||
-    featuredOnly;
+    featuredOnly || availableOnly;
 
   const handleReset = () => {
     setSearch('');
     setSelectedSize(null);
     setPriceLimit(null);
     setFeaturedOnly(false);
+    setAvailableOnly(false);
   };
 
   // Collection lookup finished and nothing was found — same 404 behavior
@@ -248,9 +265,14 @@ export default function CollectionPage() {
 
         {/* Error state */}
         {error && !loading && (
-          <p className="text-center text-primary">
-            Couldn't load products right now. Please refresh the page.
-          </p>
+          <div role="alert" className="mx-auto max-w-lg rounded-xl border border-border bg-surface p-6 text-center">
+            <p className="font-medium text-foreground">{error.includes('collection') ? 'We couldn’t load this collection.' : 'We couldn’t load the products.'}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Please check your connection and try again.</p>
+            <button type="button" onClick={() => window.location.reload()} className="btn-outline mt-5">
+              <RefreshCw aria-hidden="true" className="h-4 w-4" />
+              Try again
+            </button>
+          </div>
         )}
 
         {/* Search & filters */}
@@ -268,7 +290,17 @@ export default function CollectionPage() {
             onFeaturedChange={setFeaturedOnly}
             onReset={handleReset}
             hasActiveFilters={hasActiveFilters}
+            sort={sort}
+            onSortChange={setSort}
+            availableOnly={availableOnly}
+            onAvailableChange={setAvailableOnly}
           />
+        )}
+
+        {!loading && !error && collectionProducts.length > 0 && (
+          <p role="status" className="mb-5 text-sm text-muted-foreground">
+            Showing <span className="font-medium text-foreground">{orderedFilteredProducts.length}</span> of {collectionProducts.length} designs
+          </p>
         )}
 
         {/* Empty state — no products in collection at all */}
@@ -286,10 +318,10 @@ export default function CollectionPage() {
         )}
 
         {/* Product grid */}
-        {!loading && !error && filteredProducts.length > 0 && (
+        {!loading && !error && orderedFilteredProducts.length > 0 && (
           <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             <AnimatePresence mode="popLayout">
-              {filteredProducts.map((product, index) => (
+              {orderedFilteredProducts.map((product, index) => (
                 <motion.div
                   key={product.id}
                   layout

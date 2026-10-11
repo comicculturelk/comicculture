@@ -340,13 +340,27 @@ export interface ProductFilters {
   size?: string | null;
   maxPrice?: number | null;
   featuredOnly?: boolean;
+  collection?: string | null;
+  availableOnly?: boolean;
 }
 
-/** All distinct sizes available across a product's versions. */
+export type ProductSort = 'recommended' | 'newest' | 'price-ascending' | 'price-descending' | 'name';
+
+/** Sizes visitors can currently select across active versions. */
 function getProductSizes(product: Pick<Product, 'versions'>): string[] {
   const seen = new Set<string>();
-  product.versions.forEach((v) => v.sizes.forEach((s) => seen.add(s.size)));
+  const activeVersions = product.versions.filter((version) => version.isActive);
+  const versions = activeVersions.length ? activeVersions : product.versions;
+  versions.forEach((version) => version.sizes.forEach((size) => {
+    if (version.isPreorder || size.stock > 0) seen.add(size.size);
+  }));
   return Array.from(seen);
+}
+
+export function isProductAvailable(product: Pick<Product, 'versions'>): boolean {
+  const activeVersions = product.versions.filter((version) => version.isActive);
+  const versions = activeVersions.length ? activeVersions : product.versions;
+  return versions.some((version) => version.isPreorder || version.sizes.some((size) => size.stock > 0));
 }
 
 /**
@@ -367,7 +381,7 @@ export function getProductMinPrice(product: Pick<Product, 'versions'>): number {
 }
 
 export function filterProducts(products: Product[], filters: ProductFilters): Product[] {
-  const { search, size, maxPrice, featuredOnly } = filters;
+  const { search, size, maxPrice, featuredOnly, collection, availableOnly } = filters;
   const query = search?.trim().toLowerCase();
 
   return products.filter((product) => {
@@ -377,6 +391,10 @@ export function filterProducts(products: Product[], filters: ProductFilters): Pr
       if (!haystack.includes(query)) return false;
     }
     if (size && !getProductSizes(product).includes(size)) return false;
+    if (collection && product.collection !== collection) return false;
+    if (availableOnly) {
+      if (!isProductAvailable(product)) return false;
+    }
     // "maxPrice" is satisfied if the product has at least one option at or
     // under that price (its cheapest version-size), matching a typical
     // "starting from" storefront price filter.
@@ -384,6 +402,24 @@ export function filterProducts(products: Product[], filters: ProductFilters): Pr
     if (featuredOnly && !product.featured) return false;
     return true;
   });
+}
+
+export function sortProducts(products: Product[], sort: ProductSort): Product[] {
+  const sorted = [...products];
+  switch (sort) {
+    case 'newest':
+      return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    case 'price-ascending':
+      return sorted.sort((a, b) => getProductMinPrice(a) - getProductMinPrice(b));
+    case 'price-descending':
+      return sorted.sort((a, b) => getProductMinPrice(b) - getProductMinPrice(a));
+    case 'name':
+      return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    case 'recommended':
+    default:
+      return sorted.sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured))
+        || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
 }
 
 /** Unique sizes present across a product list's versions, de-duplicated. */

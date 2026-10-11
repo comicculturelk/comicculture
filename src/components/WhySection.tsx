@@ -1,23 +1,24 @@
 import { motion } from 'framer-motion';
 import { Star, Sparkles, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const features = [
   {
     icon: Star,
-    title: 'Premium Quality Fabrics',
-    description: 'Carefully selected materials designed for comfort, durability, and a premium feel. Crafted for everyday wear, whether you\'re styling it casually or making a statement.',
+    title: 'Made for the everyday',
+    description: 'Explore T-shirt and jersey styles that bring your favorite worlds into your everyday rotation.',
     color: 'from-primary to-primary-hover',
   },
   {
     icon: Sparkles,
-    title: 'Unique fan-inspired Designs',
-    description: 'Inspired by iconic characters, stories, and universes across comics and pop culture. Each piece is designed for fans who want to showcase what they love in their own style.',
+    title: 'Fan-inspired artwork',
+    description: 'Original designs draw on the comics, characters, and pop-culture worlds fans recognize and love.',
     color: 'from-secondary to-secondary-glow',
   },
   {
     icon: Clock,
-    title: 'Growing Collections',
-    description: 'Explore a constantly evolving range of designs inspired by comics, characters, and pop culture. Discover new styles made for every kind of fan.',
+    title: 'Find your collection',
+    description: 'Browse current designs and collection drops, with live stock and sizes shown on each product.',
     color: 'from-purple-500 to-pink-500',
   },
 ];
@@ -40,10 +41,10 @@ export default function WhySection() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            WHY <span className="text-gradient-red">COMICCULTURE</span>
+            FAN CULTURE. <span className="text-gradient-red">EVERYDAY WEAR.</span>
           </h2>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-            We don't just make T-shirts. We create wearable art inspired by the stories you love.
+            Based in Colombo, Sri Lanka, ComicCulture makes apparel inspired by the comics and pop culture fans love.
           </p>
         </motion.div>
 
@@ -80,6 +81,12 @@ export default function WhySection() {
               </div>
             </motion.div>
           ))}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link to="/shop" className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-5 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary">
+            Explore the collection
+          </Link>
         </div>
       </div>
     </section>

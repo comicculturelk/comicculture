@@ -49,8 +49,7 @@ export default function FinalCTA() {
           viewport={{ once: true }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          Six issues are already live. The rest of the universe is still being drawn.
-          Get your chapter before it's out of print.
+          Find the design that speaks to your fandom, then make it part of your everyday rotation.
         </motion.p>
 
         <motion.div

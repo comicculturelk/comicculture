@@ -72,7 +72,7 @@ export default function LoadingScreen() {
       // plays once for this mount either way.
     }
 
-    const timer = setTimeout(() => setLoading(false), 2500);
+    const timer = setTimeout(() => setLoading(false), 800);
     return () => clearTimeout(timer);
   }, [loading]);
 

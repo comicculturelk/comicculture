@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import ProductFilters from '../components/ProductFilters';
 import { useProducts } from '../hooks/useProducts';
-import { filterProducts, getUniqueSizes, getPriceBounds } from '../data/products';
+import { filterProducts, getUniqueSizes, getPriceBounds, sortProducts, type ProductSort } from '../data/products';
 import SEO from '../components/SEO';
 
 const SITE_URL = 'https://comicculture.lk';
 
 export default function Shop() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isNewest = searchParams.get('sort') === 'newest';
 
   const { products, loading, error } = useProducts();
@@ -18,12 +18,19 @@ export default function Shop() {
   // fetchProducts() already returns the full active catalog in its default
   // (oldest-first) order. `sort=newest` re-sorts a copy by createdAt
   // descending; otherwise that default order is preserved untouched.
-  const sortedProducts = useMemo(() => {
-    if (!isNewest) return products;
-    return [...products].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [products, isNewest]);
+  const [sort, setSort] = useState<ProductSort>(isNewest ? 'newest' : 'recommended');
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+  const [availableOnly, setAvailableOnly] = useState(false);
+
+  useEffect(() => {
+    if (isNewest) setSort('newest');
+  }, [isNewest]);
+
+  const sortedProducts = useMemo(() => sortProducts(products, sort), [products, sort]);
+  const collectionOptions = useMemo(
+    () => Array.from(new Set(products.map((product) => product.collection))).sort((a, b) => a.localeCompare(b)),
+    [products]
+  );
 
   const sizes = useMemo(() => getUniqueSizes(sortedProducts), [sortedProducts]);
   const priceBounds = useMemo(() => getPriceBounds(sortedProducts), [sortedProducts]);
@@ -42,21 +49,25 @@ export default function Shop() {
         size: selectedSize,
         maxPrice: priceLimit !== null ? priceLimit : null,
         featuredOnly,
+        collection: selectedCollection,
+        availableOnly,
       }),
-    [sortedProducts, search, selectedSize, priceLimit, featuredOnly]
+    [sortedProducts, search, selectedSize, priceLimit, featuredOnly, selectedCollection, availableOnly]
   );
 
   const hasActiveFilters =
     search.trim() !== '' ||
     selectedSize !== null ||
     (priceLimit !== null && priceLimit < priceBounds.max) ||
-    featuredOnly;
+    featuredOnly || selectedCollection !== null || availableOnly;
 
   const handleReset = () => {
     setSearch('');
     setSelectedSize(null);
     setPriceLimit(null);
     setFeaturedOnly(false);
+    setSelectedCollection(null);
+    setAvailableOnly(false);
   };
 
   const pageTitle = isNewest ? 'New Arrivals' : 'Shop All';
@@ -118,7 +129,24 @@ export default function Shop() {
               onFeaturedChange={setFeaturedOnly}
               onReset={handleReset}
               hasActiveFilters={hasActiveFilters}
+              sort={sort}
+              onSortChange={(nextSort) => {
+                setSort(nextSort);
+                if (nextSort === 'newest') setSearchParams({ sort: 'newest' }, { replace: true });
+                else setSearchParams({}, { replace: true });
+              }}
+              collections={collectionOptions}
+              selectedCollection={selectedCollection}
+              onCollectionChange={setSelectedCollection}
+              availableOnly={availableOnly}
+              onAvailableChange={setAvailableOnly}
             />
+          )}
+
+          {!loading && !error && sortedProducts.length > 0 && (
+            <p role="status" className="mb-5 text-sm text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{filteredProducts.length}</span> of {sortedProducts.length} designs
+            </p>
           )}
 
           {/* Empty state — no products in the catalog at all */}

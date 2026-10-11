@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { formatPrice, getProductMinPrice, type Product } from '../data/products';
+import { formatPrice, getProductMinPrice, isProductAvailable, type Product } from '../data/products';
 
 const MotionLink = motion.create(Link);
 
@@ -31,13 +31,20 @@ export default function ProductCard({ product, index }: ProductCardProps) {
           </span>
         </div>
 
-        {/* Product image — sized to the image's own aspect ratio, never cropped */}
-        <div className="relative mt-4 overflow-hidden bg-background">
+        {/* A consistent image frame keeps product rows aligned across the catalog. */}
+        <div className="relative mt-4 aspect-[4/5] overflow-hidden bg-background">
           <img
             src={product.image}
             alt={product.name}
-            className="block w-full h-auto transition-transform duration-500 ease-out group-hover:scale-105"
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />
+
+          {!isProductAvailable(product) && (
+            <span className="absolute left-3 top-3 inline-flex items-center rounded-full border border-border bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
+              Sold out
+            </span>
+          )}
 
           {product.featured && (
             <span className="absolute top-3 right-3 inline-flex items-center rounded-full border border-border bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">

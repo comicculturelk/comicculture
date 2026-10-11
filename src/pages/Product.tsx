@@ -628,12 +628,12 @@ export default function Product() {
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
-                Secure ordering
+                COD or bank transfer
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Link to="/return-policy" className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-primary">
                 <RefreshCw className="h-4 w-4 flex-shrink-0 text-primary" />
-                7-day exchange
-              </div>
+                Read exchange policy
+              </Link>
             </div>
 
             {/* Accordion: details, materials, care, shipping */}
@@ -689,11 +689,11 @@ export default function Product() {
                 isOpen={openSection === 'shipping'}
                 onToggle={() => toggleSection('shipping')}
               >
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Orders are dispatched within 1-2 business days and typically arrive within
-                  2-4 business days island-wide. If an item doesn't fit right, reach out to us
-                  on WhatsApp within 7 days of delivery to arrange a free size exchange.
-                </p>
+                <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+                  <p>Orders are usually dispatched within 1–2 business days and arrive within 2–4 business days across Sri Lanka. The delivery fee is shown at checkout.</p>
+                  <p>For a size exchange or change-of-mind return, contact us within 3 days of delivery. Exchanges depend on stock, and return delivery charges may apply. Damaged or incorrect items are handled under the full policy.</p>
+                  <Link to="/return-policy" className="inline-flex font-medium text-primary underline underline-offset-4 hover:text-primary-hover">Read the return and exchange policy</Link>
+                </div>
               </AccordionItem>
             </div>
           </div>

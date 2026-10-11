@@ -174,6 +174,31 @@ export default function ReturnPolicy() {
           </p>
         </motion.div>
 
+        <div className="mb-8 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Quick guide</p>
+              <h2 className="mt-2 font-display text-xl tracking-wide text-foreground">What to know before requesting an exchange</h2>
+            </div>
+            <Link to="/contact" className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary-hover">Contact support</Link>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="font-display text-2xl text-foreground">3 days</p>
+              <p className="mt-1 text-sm text-muted-foreground">Contact us within 3 days for change-of-mind returns or damaged and incorrect items.</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="font-display text-2xl text-foreground">Stock dependent</p>
+              <p className="mt-1 text-sm text-muted-foreground">Size exchanges depend on the replacement size being available.</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="font-display text-2xl text-foreground">Keep it unused</p>
+              <p className="mt-1 text-sm text-muted-foreground">Change-of-mind returns must be unworn, unwashed, and include original tags and packaging.</p>
+            </div>
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">This summary is a guide; the full policy below covers eligibility, delivery charges, and the request process.</p>
+        </div>
+
         <div className="space-y-6">
           {SECTIONS.map((section, index) => (
             <motion.div

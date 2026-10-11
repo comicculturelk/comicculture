@@ -345,7 +345,7 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
         <div className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Desktop Hero Focus</span>
           <HeroFocusPicker
-            hint="Drag to choose what's visible on wide screens."
+            hint="Drag the image or use the sliders to choose the focal point in the hero's right-side desktop panel."
             image={coverImage || null}
             value={heroFocusDesktop || '50% center'}
             onChange={setHeroFocusDesktop}
@@ -360,13 +360,14 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
             // real Hero.
             aspectClassName="aspect-[16/9]"
             matchViewportAspect
+            viewportWidthFraction={0.6}
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Mobile Hero Focus</span>
           <HeroFocusPicker
-            hint="Drag to choose what's visible on phones/tablets."
+            hint="Drag the image or use the sliders to choose the focal point on phones and tablets."
             image={coverImage || null}
             value={heroFocusMobile || '50% center'}
             onChange={setHeroFocusMobile}

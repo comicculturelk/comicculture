@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Instagram, MessageCircle, Mail, MapPin, Send } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const contactMethods = [
   {
@@ -79,6 +80,23 @@ export default function Contact() {
               </div>
             </motion.a>
           ))}
+        </div>
+
+        <div className="mb-12 grid gap-3 sm:grid-cols-2">
+          <Link to="/track-order" className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary/50">
+            <span>
+              <span className="block text-xs font-semibold uppercase tracking-wide text-primary">Already ordered?</span>
+              <span className="mt-1 block text-sm text-foreground">Track your delivery</span>
+            </span>
+            <span aria-hidden="true" className="text-lg text-primary transition-transform group-hover:translate-x-1">→</span>
+          </Link>
+          <Link to="/return-policy" className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary/50">
+            <span>
+              <span className="block text-xs font-semibold uppercase tracking-wide text-primary">Order support</span>
+              <span className="mt-1 block text-sm text-foreground">Read exchange and return steps</span>
+            </span>
+            <span aria-hidden="true" className="text-lg text-primary transition-transform group-hover:translate-x-1">→</span>
+          </Link>
         </div>
 
         {/* Location card */}

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
-import { Plus, Minus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Plus, Minus, Search, MessageCircle, PackageSearch } from 'lucide-react';
 
 const faqs = [
   {
@@ -55,6 +56,14 @@ const faqs = [
 
 export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
+  const [search, setSearch] = useState('');
+
+  const visibleFaqs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return faqs.map((faq, index) => ({ faq, index })).filter(({ faq }) =>
+      !query || `${faq.question} ${faq.answer}`.toLowerCase().includes(query)
+    );
+  }, [search]);
 
   const toggle = (index: number) => {
     setOpen(open === index ? null : index);
@@ -82,10 +91,22 @@ export default function FAQ() {
         </motion.div>
 
         {/* FAQ items */}
-        <div className="space-y-4">
-          {faqs.map((faq, index) => (
+        <label className="relative mb-6 block">
+          <span className="sr-only">Search frequently asked questions</span>
+          <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search delivery, sizing, returns..."
+            className="min-h-12 w-full rounded-xl border border-border bg-surface px-4 pl-11 text-sm text-foreground outline-none transition-colors placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/15"
+          />
+        </label>
+
+        <div className="space-y-3">
+          {visibleFaqs.map(({ faq, index }) => (
             <motion.div
-              key={index}
+              key={faq.question}
               className="glass rounded-xl overflow-hidden"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -93,7 +114,10 @@ export default function FAQ() {
               transition={{ delay: index * 0.1, duration: 0.4 }}
             >
               <button
+                type="button"
                 onClick={() => toggle(index)}
+                aria-expanded={open === index}
+                aria-controls={`faq-answer-${index}`}
                 className="w-full flex items-center justify-between p-5 text-left"
               >
                 <span className="font-display text-lg text-foreground tracking-wide pr-8">
@@ -114,6 +138,9 @@ export default function FAQ() {
               <AnimatePresence>
                 {open === index && (
                   <motion.div
+                    id={`faq-answer-${index}`}
+                    role="region"
+                    aria-label={faq.question}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -127,6 +154,22 @@ export default function FAQ() {
               </AnimatePresence>
             </motion.div>
           ))}
+          {visibleFaqs.length === 0 && (
+            <p role="status" className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-muted-foreground">
+              No answers matched that search. Try a different term or contact us.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <Link to="/track-order" className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 text-sm font-medium text-foreground transition-colors hover:border-primary/50">
+            <span className="inline-flex items-center gap-3"><PackageSearch aria-hidden="true" className="h-5 w-5 text-primary" />Track an existing order</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+          <Link to="/contact" className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 text-sm font-medium text-foreground transition-colors hover:border-primary/50">
+            <span className="inline-flex items-center gap-3"><MessageCircle aria-hidden="true" className="h-5 w-5 text-primary" />Still need help?</span>
+            <span aria-hidden="true">→</span>
+          </Link>
         </div>
       </div>
     </section>

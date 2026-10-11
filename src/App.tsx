@@ -6,12 +6,13 @@ import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import ScrollToTop from './components/ScrollToTop';
 import { CartProvider } from './context/CartContext';
+import CollectionPage from './pages/CollectionPage';
+import NotFound from './pages/NotFound';
 
 const Home = lazy(() => import('./pages/Home'));
 const Shop = lazy(() => import('./pages/Shop'));
 const Product = lazy(() => import('./pages/Product'));
 const About = lazy(() => import('./pages/About'));
-const CollectionPage = lazy(() => import('./pages/CollectionPage'));
 const FAQ = lazy(() => import('./pages/FAQ'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Checkout = lazy(() => import('./pages/Checkout'));
@@ -20,7 +21,6 @@ const TrackOrder = lazy(() => import('./pages/TrackOrder'));
 const ReturnPolicy = lazy(() => import('./pages/ReturnPolicy'));
 const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const Admin = lazy(() => import('./pages/Admin'));
-const NotFound = lazy(() => import('./pages/NotFound'));
 
 export default function App() {
   return (

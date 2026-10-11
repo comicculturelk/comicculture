@@ -4,53 +4,48 @@ interface HeroFocusPickerProps {
   hint: string;
   /** Collection cover image URL, or null to show the empty state. */
   image: string | null;
-  /** Current stored object-position value, e.g. "50% center" or "70% center". Legacy/invalid values fall back to centered. */
+  /** Current stored object-position value, e.g. "50% center", "70% center", or "50% 30%". */
   value: string;
-  /** Called with a new "<percent>% center" value compatible with heroFocusDesktop/heroFocusMobile. */
+  /** Called with a CSS object-position value compatible with heroFocusDesktop/heroFocusMobile. */
   onChange: (value: string) => void;
   /** Tailwind aspect-ratio class for the preview box. Ignored (as a shape — kept as a pre-mount fallback) when matchViewportAspect is true. */
   aspectClassName: string;
   /**
-   * The real Hero is a full-viewport `min-h-screen` section, so its
-   * rendered proportions are normally close to the browser window's own
-   * width/height ratio. This is an approximation, not a pixel-perfect
-   * match: `min-h-screen` only sets a *minimum* height, so the section can
-   * render taller than the viewport if its content ever needs more room.
-   * Still, tracking the window's live ratio is far closer to reality than
-   * any fixed guess — whether an image crops horizontally or vertically
-   * genuinely depends on the viewer's window shape (a maximized wide
-   * monitor mostly crops vertically; a narrower/taller window crops the
-   * same image horizontally instead).
+   * Track the viewport dimensions for a responsive hero preview. The image
+   * panel can occupy less than the full viewport width, supplied below.
    */
   matchViewportAspect?: boolean;
+  /** The fraction of the live viewport width occupied by the hero image. */
+  viewportWidthFraction?: number;
 }
 
-/** Reads the horizontal percentage out of a stored object-position string. */
-function parsePercent(value: string): number {
-  const match = /^(-?\d+(?:\.\d+)?)%/.exec(value.trim());
-  if (!match) return 50;
-  const n = Number(match[1]);
-  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 50;
+function parsePercent(value: string): [number, number] {
+  const parts = value.trim().split(/\s+/);
+  const parse = (part: string | undefined) => {
+    if (!part || part === 'center') return 50;
+    const match = /^(-?\d+(?:\.\d+)?)%$/.exec(part);
+    if (!match) return 50;
+    const number = Number(match[1]);
+    return Number.isFinite(number) ? Math.min(100, Math.max(0, number)) : 50;
+  };
+  return [parse(parts[0]), parse(parts[1])];
 }
 
 /**
  * Visual focal-point picker for a collection's hero image. Renders the cover
  * image the same way the real Hero does (object-cover + object-position) in
- * a preview box, and lets the admin drag left/right to change the
- * horizontal focus instead of typing a percentage.
+ * a preview box, and lets the admin drag in either direction or use
+ * accessible sliders to adjust the focal point.
  *
  * The preview box is either a fixed Tailwind aspect ratio (representative
  * of a device class we can't literally measure, e.g. mobile) or, with
- * `matchViewportAspect`, an approximation of the admin's own live window
- * ratio (closer to reality for desktop, since the real Hero's container is
- * a full-viewport section — see the prop doc for the caveat).
+ * `matchViewportAspect`, an approximation of the real hero image panel's
+ * live ratio. The preview is an estimate because the hero has a minimum
+ * height and its final height can exceed that on short or narrow screens.
  *
  * The drag is mapped 1:1 to how far the image actually shifts on screen: we
- * measure how much the image overflows the preview box once scaled to
- * cover it, and convert pointer movement into that same range. If the image
- * doesn't overflow horizontally at this aspect ratio (it's being cropped
- * vertically instead), there is no left/right seam to move — dragging is
- * disabled and the UI says so, rather than silently doing nothing.
+ * measure how much the image overflows the preview box on both axes once
+ * scaled to cover it, and convert pointer movement into that same range.
  */
 export default function HeroFocusPicker({
   hint,
@@ -59,25 +54,31 @@ export default function HeroFocusPicker({
   onChange,
   aspectClassName,
   matchViewportAspect,
+  viewportWidthFraction = 1,
 }: HeroFocusPickerProps) {
-  const percent = parsePercent(value);
+  const [positionX, positionY] = parsePercent(value);
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
-  const dragRef = useRef<{ startX: number; startPercent: number; overflowPx: number } | null>(
-    null
-  );
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    startPercentX: number;
+    startPercentY: number;
+    overflowPx: { x: number; y: number };
+  } | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [canDrag, setCanDrag] = useState(true);
+  const [overflow, setOverflow] = useState({ x: 0, y: 0 });
   const [viewportAspect, setViewportAspect] = useState(
-    () => window.innerWidth / window.innerHeight
+    () => (window.innerWidth * viewportWidthFraction) / Math.min(820, window.innerHeight)
   );
 
   useEffect(() => {
     if (!matchViewportAspect) return;
-    const update = () => setViewportAspect(window.innerWidth / window.innerHeight);
+    const update = () =>
+      setViewportAspect((window.innerWidth * viewportWidthFraction) / Math.min(820, window.innerHeight));
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-  }, [matchViewportAspect]);
+  }, [matchViewportAspect, viewportWidthFraction]);
 
   const boxStyle = matchViewportAspect ? { aspectRatio: String(viewportAspect) } : undefined;
   const boxClassName = matchViewportAspect ? '' : aspectClassName;
@@ -85,46 +86,45 @@ export default function HeroFocusPicker({
   const computeOverflowPx = useCallback(() => {
     const container = containerRef.current;
     const img = imgRef.current;
-    if (!container || !img || !img.naturalWidth || !img.naturalHeight) return 0;
+    if (!container || !img || !img.naturalWidth || !img.naturalHeight) return { x: 0, y: 0 };
     const containerW = container.clientWidth;
     const containerH = container.clientHeight;
-    const imgAspect = img.naturalWidth / img.naturalHeight;
-    const containerAspect = containerW / containerH;
-    // Image is relatively taller/narrower than the box: object-cover scales
-    // it to match width, overflow (and cropping) happens vertically instead.
-    if (imgAspect <= containerAspect) return 0;
-    const scaledWidth = containerH * imgAspect;
-    return scaledWidth - containerW;
+    const scale = Math.max(containerW / img.naturalWidth, containerH / img.naturalHeight);
+    return {
+      x: Math.max(0, img.naturalWidth * scale - containerW),
+      y: Math.max(0, img.naturalHeight * scale - containerH),
+    };
   }, []);
 
-  // Re-checks whether there's any horizontal room to drag. Depends on
+  // Re-checks the available crop room. Depends on
   // viewportAspect so it re-runs after a desktop resize actually changes the
   // box's proportions (a fixed-ratio box like mobile's never needs this
   // more than once, since its aspect stays constant regardless of size).
-  const updateCanDrag = useCallback(() => {
-    setCanDrag(computeOverflowPx() > 0);
+  const updateOverflow = useCallback(() => {
+    setOverflow(computeOverflowPx());
   }, [computeOverflowPx]);
 
   useEffect(() => {
-    updateCanDrag();
-  }, [updateCanDrag, viewportAspect]);
+    updateOverflow();
+  }, [updateOverflow, viewportAspect]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const overflowPx = computeOverflowPx();
-    if (overflowPx <= 0) return;
+    if (overflowPx.x <= 0 && overflowPx.y <= 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { startX: e.clientX, startPercent: percent, overflowPx };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startPercentX: positionX, startPercentY: positionY, overflowPx };
     setDragging(true);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragRef.current) return;
-    const { startX, startPercent, overflowPx } = dragRef.current;
-    // Dragging right reveals more of the image's left side, so it should
-    // decrease the position percentage — hence the negation.
-    const deltaPercent = (-(e.clientX - startX) / overflowPx) * 100;
-    const next = Math.min(100, Math.max(0, Math.round(startPercent + deltaPercent)));
-    onChange(`${next}% center`);
+    const { startX, startY, startPercentX, startPercentY, overflowPx } = dragRef.current;
+    // Follow the pointer as if the image itself were being dragged.
+    const deltaX = overflowPx.x > 0 ? (-(e.clientX - startX) / overflowPx.x) * 100 : 0;
+    const deltaY = overflowPx.y > 0 ? (-(e.clientY - startY) / overflowPx.y) * 100 : 0;
+    const nextX = Math.min(100, Math.max(0, Math.round(startPercentX + deltaX)));
+    const nextY = Math.min(100, Math.max(0, Math.round(startPercentY + deltaY)));
+    onChange(`${nextX}% ${nextY}%`);
   };
 
   const endDrag = () => {
@@ -146,7 +146,7 @@ export default function HeroFocusPicker({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-end">
-        <span className="text-[11px] text-muted-foreground">{percent}%</span>
+        <span className="text-[11px] text-muted-foreground">{positionX}% · {positionY}%</span>
       </div>
       <div
         ref={containerRef}
@@ -155,10 +155,10 @@ export default function HeroFocusPicker({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onLostPointerCapture={endDrag}
-        aria-disabled={!canDrag}
+        aria-hidden="true"
         style={boxStyle}
         className={`relative touch-none select-none overflow-hidden rounded-lg border border-border ${
-          dragging ? 'cursor-grabbing' : canDrag ? 'cursor-grab' : 'cursor-not-allowed'
+          dragging ? 'cursor-grabbing' : overflow.x > 0 || overflow.y > 0 ? 'cursor-grab' : 'cursor-not-allowed'
         } ${boxClassName}`}
       >
         <img
@@ -166,13 +166,41 @@ export default function HeroFocusPicker({
           src={image}
           alt=""
           draggable={false}
-          onLoad={updateCanDrag}
+          onLoad={updateOverflow}
           className="h-full w-full object-cover"
-          style={{ objectPosition: `${percent}% center` }}
+          style={{ objectPosition: `${positionX}% ${positionY}%` }}
         />
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+          Horizontal focus <span className="sr-only">{positionX} percent</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={positionX}
+            disabled={overflow.x <= 0}
+            aria-label="Horizontal image focus"
+            onChange={(event) => onChange(`${event.target.value}% ${positionY}%`)}
+            className="w-full accent-primary disabled:opacity-40"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+          Vertical focus <span className="sr-only">{positionY} percent</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={positionY}
+            disabled={overflow.y <= 0}
+            aria-label="Vertical image focus"
+            onChange={(event) => onChange(`${positionX}% ${event.target.value}%`)}
+            className="w-full accent-primary disabled:opacity-40"
+          />
+        </label>
+      </div>
       <p className="text-[11px] text-muted-foreground">
-        {canDrag ? hint : 'No horizontal room to crop at this preview ratio — nothing to drag.'}
+        {overflow.x > 0 || overflow.y > 0 ? hint : 'This image fills the preview at this ratio, so there is no crop to adjust.'}
       </p>
     </div>
   );

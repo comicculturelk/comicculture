@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowDown, ShoppingBag } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ShoppingBag } from 'lucide-react';
 import CornerFrame from './CornerFrame';
 import type { Collection } from '../data/collections';
 
@@ -21,11 +21,8 @@ interface Slide {
   ctaHref: string;
 }
 
-const AUTOPLAY_MS = 5000;
 const DEFAULT_HERO_FOCUS = '50% center';
 
-// Used only when there are no live collections with a cover image yet —
-// keeps the hero from breaking rather than inventing fake collection data.
 const FALLBACK_SLIDE: Slide = {
   key: 'fallback',
   label: 'ComicCulture',
@@ -44,173 +41,125 @@ function truncate(text: string, max: number): string {
 }
 
 export default function Hero({ collections }: HeroProps) {
-  const { scrollY } = useScroll();
-  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
-
+  const reduceMotion = useReducedMotion();
   const slides: Slide[] = useMemo(() => {
-    const live = collections.filter((c) => c.status === 'live' && c.coverImage);
+    const live = collections.filter((collection) => collection.status === 'live' && collection.coverImage);
     if (live.length === 0) return [FALLBACK_SLIDE];
-    return live.map((c) => ({
-      key: c.id,
-      label: c.tagline || 'Now Live',
-      headline: c.name.toUpperCase(),
-      subline: c.description ? truncate(c.description, 90) : 'Shop the latest drop.',
-      image: c.coverImage,
-      focusDesktop: c.heroFocusDesktop || DEFAULT_HERO_FOCUS,
-      focusMobile: c.heroFocusMobile || DEFAULT_HERO_FOCUS,
+    return live.map((collection) => ({
+      key: collection.id,
+      label: collection.tagline || 'Now Live',
+      headline: collection.name.toUpperCase(),
+      subline: collection.description ? truncate(collection.description, 90) : 'Shop the latest drop.',
+      image: collection.coverImage,
+      focusDesktop: collection.heroFocusDesktop || DEFAULT_HERO_FOCUS,
+      focusMobile: collection.heroFocusMobile || DEFAULT_HERO_FOCUS,
       ctaLabel: 'Shop Collection',
-      ctaHref: `/collections/${c.slug}`,
+      ctaHref: `/collections/${collection.slug}`,
     }));
   }, [collections]);
 
   const [index, setIndex] = useState(0);
-
-  // Reset to the first slide whenever the live collection set changes size
-  // (e.g. once the async fetch resolves) so we never land on a stale index.
-  useEffect(() => {
-    setIndex(0);
-  }, [slides.length]);
-
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    const id = setInterval(() => {
-      setIndex((i) => (i + 1) % slides.length);
-    }, AUTOPLAY_MS);
-    return () => clearInterval(id);
-  }, [slides.length]);
-
   const current = slides[index] ?? FALLBACK_SLIDE;
-  const isMultiSlide = slides.length > 1;
+  const multiSlide = slides.length > 1;
+
+  const moveSlide = (direction: -1 | 1) => {
+    setIndex((currentIndex) => (currentIndex + direction + slides.length) % slides.length);
+  };
 
   return (
-    <section id="home" className="relative min-h-screen overflow-hidden">
-      {/* Base background */}
-      <div className="absolute inset-0 bg-background">
-        <div className="absolute inset-0 halftone-overlay opacity-30" />
-        <motion.div
-          className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-primary/15 blur-3xl"
-          animate={{ opacity: [0.3, 0.45, 0.3] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
+    <section id="home" className="relative min-h-[min(760px,100svh)] overflow-hidden bg-background pt-24 lg:min-h-[min(820px,100svh)] lg:pt-20">
+      <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
-      {/* Slide image */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 lg:left-[40%]">
         <AnimatePresence mode="wait">
           {current.image && (
             <motion.img
               key={current.key}
               src={current.image}
-              alt={current.headline}
+              alt={`${current.headline} collection campaign`}
+              fetchPriority="high"
               className="h-full w-full object-cover object-[var(--hero-focus-mobile)] lg:object-[var(--hero-focus-desktop)]"
-              style={
-                {
-                  '--hero-focus-mobile': current.focusMobile,
-                  '--hero-focus-desktop': current.focusDesktop,
-                } as React.CSSProperties
-              }
-              initial={{ opacity: 0, scale: 1.03 }}
+              style={{
+                '--hero-focus-mobile': current.focusMobile,
+                '--hero-focus-desktop': current.focusDesktop,
+              } as React.CSSProperties}
+              initial={reduceMotion ? false : { opacity: 0, scale: 1.015 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
+              exit={reduceMotion ? undefined : { opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.45 }}
             />
           )}
         </AnimatePresence>
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/75 to-background/5 lg:bg-gradient-to-r lg:from-background lg:via-background/95 lg:via-35% lg:to-background/0" />
       </div>
-
-      {/* Legibility scrim — keeps centered text readable regardless of which
-          part of the artwork the focal position brings into view. Global,
-          not per-collection, to avoid a bespoke text system. */}
-      <div className="absolute inset-0 bg-background/35" />
-
-      {/* Masthead */}
-      <motion.div
-        className="absolute top-20 2xl:top-6 left-0 right-0 z-10 hidden items-center justify-between px-8 sm:flex"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 0.6 }}
-      >
-        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40">
-          ComicCulture Presents
-        </span>
-        {isMultiSlide && (
-          <span
-            className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40"
-            aria-live="polite"
-          >
-            {String(index + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
-          </span>
-        )}
-      </motion.div>
 
       <CornerFrame className="hidden sm:block" />
 
-      {/* Content */}
-      <motion.div
-        className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center"
-        style={{ opacity }}
-      >
+      <div className="relative z-10 mx-auto flex min-h-[min(660px,calc(100svh-6rem))] max-w-7xl flex-col justify-end px-6 pb-16 pt-28 sm:justify-center sm:pb-20 lg:min-h-[min(740px,calc(100svh-5rem))] lg:px-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={current.key}
-            initial={{ opacity: 0, y: 20 }}
+            className="max-w-2xl"
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.6 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+            transition={{ duration: reduceMotion ? 0 : 0.35 }}
           >
-            <span className="inline-block text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+              <span className="h-px w-7 bg-primary" />
               {current.label}
-            </span>
-
-            <h1 className="mt-4 font-display text-center text-6xl sm:text-7xl md:text-8xl tracking-wider leading-none text-foreground">
+            </p>
+            <h1 className="mt-5 max-w-xl font-display text-5xl leading-[0.92] tracking-wide text-foreground sm:text-6xl md:text-7xl lg:text-8xl">
               {current.headline}
             </h1>
-
-            <p className="mx-auto mt-6 max-w-xl text-balance text-lg md:text-xl text-muted">
+            <p className="mt-5 max-w-lg text-base leading-relaxed text-muted sm:text-lg">
               {current.subline}
             </p>
-
-            <div className="mt-10 flex justify-center">
-              <Link to={current.ctaHref} className="btn-primary">
-                <ShoppingBag className="h-5 w-5" />
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link to={current.ctaHref} className="btn-primary min-h-12">
+                <ShoppingBag aria-hidden="true" className="h-4 w-4" />
                 {current.ctaLabel}
+              </Link>
+              <Link to="/shop" className="inline-flex min-h-12 items-center gap-2 px-2 text-sm font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-primary">
+                Explore all designs
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Slide indicators */}
-        {isMultiSlide && (
-          <div className="mt-12 flex items-center gap-2" role="tablist" aria-label="Hero slides">
-            {slides.map((slide, i) => (
+        <div className="mt-12 flex items-center justify-between gap-4 sm:max-w-2xl">
+          <div className="flex items-center gap-3" aria-label={multiSlide ? `Campaign ${index + 1} of ${slides.length}` : undefined}>
+            {multiSlide ? slides.map((slide, slideIndex) => (
               <button
                 key={slide.key}
-                role="tab"
-                onClick={() => setIndex(i)}
-                aria-label={`Show slide ${i + 1}: ${slide.headline}`}
-                aria-selected={i === index}
-                tabIndex={i === index ? 0 : -1}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === index ? 'w-8 bg-primary' : 'w-1.5 bg-foreground/20'
-                }`}
+                type="button"
+                onClick={() => setIndex(slideIndex)}
+                aria-label={`Show ${slide.headline} campaign`}
+                aria-pressed={index === slideIndex}
+                className={`h-1.5 rounded-full transition-all ${index === slideIndex ? 'w-10 bg-primary' : 'w-5 bg-foreground/20 hover:bg-foreground/40'}`}
               />
-            ))}
+            )) : <span className="h-px w-10 bg-primary" />}
+            <span className="ml-2 text-xs font-semibold tabular-nums tracking-[0.18em] text-muted">
+              {String(index + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+            </span>
           </div>
-        )}
+          {multiSlide && (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => moveSlide(-1)} aria-label="Previous campaign" className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 text-foreground transition-colors hover:border-primary hover:text-primary">
+                <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => moveSlide(1)} aria-label="Next campaign" className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 text-foreground transition-colors hover:border-primary hover:text-primary">
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
-        {/* Scroll indicator */}
-        <motion.div
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.4 }}
-        >
-          <span className="text-xs uppercase tracking-widest text-muted">Scroll</span>
-          <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
-            <ArrowDown className="h-5 w-5 text-muted" />
-          </motion.div>
-        </motion.div>
-      </motion.div>
+      <a href="#collections" className="absolute bottom-5 right-6 z-10 hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted transition-colors hover:text-primary sm:inline-flex">
+        Scroll to explore <ArrowDown aria-hidden="true" className="h-4 w-4" />
+      </a>
     </section>
   );
 }
