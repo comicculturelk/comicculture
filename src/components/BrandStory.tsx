@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export default function BrandStory() {
   return (
-    <section className="relative overflow-hidden bg-surface py-24 lg:py-32">
+    <section className="comic-page relative overflow-hidden bg-surface py-24 lg:py-32">
       <div className="absolute inset-0 halftone-overlay opacity-20" />
 
       <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">

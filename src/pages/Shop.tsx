@@ -81,7 +81,7 @@ export default function Shop() {
         canonical={canonicalUrl}
         ogType="website"
       />
-      <section className="relative py-32 lg:py-40">
+      <section className="comic-page relative py-32 lg:py-40">
         {/* Background */}
         <div className="absolute inset-0 bg-background">
           <div className="absolute inset-0 bg-web-pattern opacity-20" />

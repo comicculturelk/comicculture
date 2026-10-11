@@ -12,7 +12,7 @@ const steps = [
 
 export default function Timeline() {
   return (
-    <section className="relative py-24 lg:py-32 overflow-hidden">
+    <section className="comic-page relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />

@@ -143,7 +143,7 @@ export default function TermsAndConditions() {
         jsonLd={[breadcrumbJsonLd]}
       />
 
-      <section className="relative min-h-screen bg-background py-24 lg:py-32">
+      <section className="comic-page relative min-h-screen bg-background py-24 lg:py-32">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
         <div className="relative z-10 mx-auto max-w-4xl px-6">

@@ -1,11 +1,12 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import CornerFrame from './CornerFrame';
 
 export default function FinalCTA() {
+  const reduceMotion = useReducedMotion();
   return (
-    <section className="relative overflow-hidden py-28 lg:py-36">
+    <section className="comic-page relative overflow-hidden border-y-2 border-foreground py-28 lg:py-36">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-surface to-background">
         <div className="absolute inset-0 halftone-overlay opacity-30" />
@@ -15,7 +16,7 @@ export default function FinalCTA() {
       {/* Glow */}
       <motion.div
         className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
-        animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.6, 0.4] }}
+        animate={reduceMotion ? undefined : { scale: [1, 1.15, 1], opacity: [0.4, 0.6, 0.4] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
       />
 

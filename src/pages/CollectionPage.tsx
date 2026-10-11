@@ -199,7 +199,7 @@ export default function CollectionPage() {
           jsonLd={[breadcrumbJsonLd, collectionPageJsonLd].filter((b): b is JsonLdBlock => b !== null)}
         />
       )}
-      <section className="relative py-32 lg:py-40">
+      <section className="comic-page relative py-32 lg:py-40">
       {/* Background */}
       <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-20" />

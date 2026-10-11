@@ -13,10 +13,10 @@ const infoLinks = [
 
 export default function Footer() {
   return (
-    <footer className="relative border-t border-border bg-background">
+    <footer className="comic-page relative border-t-4 border-foreground bg-background">
       {/* Animated top line */}
       <motion.div
-        className="absolute top-0 left-0 h-px bg-primary"
+        className="absolute top-0 left-0 h-1 bg-warning"
         initial={{ width: 0 }}
         whileInView={{ width: '100%' }}
         viewport={{ once: true }}

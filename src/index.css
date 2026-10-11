@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,35 +6,33 @@
 
 @layer base {
   :root {
-    /* Premium editorial light theme — Phase 2 (luxury/streetwear pass)
-       Approx balance: 85% white/light neutrals, 12% black/charcoal,
-       3% accent (deep red + secondary blue, both used sparingly). */
-    --color-background: #FAFAFA;
-    --color-surface: #F8F8F6;
-    --color-surface-hover: rgba(17, 17, 17, 0.04);
-    --color-foreground: #111111;
-    --color-muted: #666666;
-    --color-muted-foreground: #8C8C8C;
-    --color-primary: #8C1F2E;
-    --color-primary-hover: #6E1824;
+    /* Comic paper, black ink, publisher red, and pop-art blue. */
+    --color-background: #fff8e9;
+    --color-surface: #fffdf7;
+    --color-surface-hover: rgba(17, 17, 17, 0.07);
+    --color-foreground: #151515;
+    --color-muted: #4f4b45;
+    --color-muted-foreground: #57534e;
+    --color-primary: #d21f38;
+    --color-primary-hover: #a9142a;
     --color-primary-foreground: #FFFFFF;
     --color-secondary: #2563EB;
     --color-secondary-glow: #3B82F6;
-    --color-border: #E5E5E5;
+    --color-border: #9b927f;
     --color-success: #22c55e;
     --color-warning: #facc15;
     --color-danger: #ef4444;
 
-    --overlay-surface: rgba(17, 17, 17, 0.04);
+    --overlay-surface: rgba(255, 253, 247, 0.96);
     --overlay-muted: rgba(17, 17, 17, 0.08);
 
-    --shadow-soft: 0 20px 50px rgba(17, 17, 17, 0.10);
-    --shadow-primary-glow: 0 0 30px rgba(var(--color-primary-rgb), 0.4);
-    --shadow-secondary-glow: 0 0 30px rgba(var(--color-secondary-rgb), 0.4);
+    --shadow-soft: 5px 5px 0 rgba(17, 17, 17, 0.16);
+    --shadow-primary-glow: 0 0 24px rgba(var(--color-primary-rgb), 0.28);
+    --shadow-secondary-glow: 0 0 24px rgba(var(--color-secondary-rgb), 0.24);
 
-    --color-primary-rgb: 140 31 46;
-    --color-secondary-rgb: 37 99 235;
-    --color-foreground-rgb: 17 17 17;
+    --color-primary-rgb: 210 31 56;
+    --color-secondary-rgb: 31 89 198;
+    --color-foreground-rgb: 21 21 21;
   }
 
   html {
@@ -44,27 +42,49 @@
   }
 
   body {
-    /* Use semantic token for background to make intent clearer */
     @apply bg-background text-foreground font-sans;
+    background-image: radial-gradient(circle, rgba(21, 21, 21, 0.065) 0.75px, transparent 0.9px);
+    background-size: 13px 13px;
+    background-attachment: fixed;
+    font-weight: 450;
   }
 
   ::selection {
     /* selection uses primary color with dedicated on-primary text token */
-    @apply bg-primary text-primary-foreground;
+    @apply bg-warning text-foreground;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-secondary);
+    outline-offset: 3px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    border-width: 2px;
+    border-radius: 4px;
   }
 }
 
 @layer components {
   .glass {
-    @apply backdrop-blur-xl;
     background-color: var(--overlay-surface);
-    border: 1px solid rgba(var(--color-foreground-rgb), 0.1);
+    border: 2px solid var(--color-foreground);
+    border-radius: 7px !important;
+    box-shadow: 5px 5px 0 rgba(var(--color-foreground-rgb), 0.16);
   }
 
   .glass-dark {
-    @apply backdrop-blur-xl;
-    background-color: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(var(--color-foreground-rgb), 0.05);
+    background-color: rgba(21, 21, 21, 0.94);
+    border: 2px solid var(--color-foreground);
+    box-shadow: 5px 5px 0 rgba(var(--color-primary-rgb), 0.4);
   }
 
   .text-gradient-red {
@@ -84,23 +104,97 @@
   }
 
   .btn-primary {
-    /* kept visual exact but use semantic on-primary token for readable text */
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border-2 border-foreground bg-primary px-6 py-3 text-sm font-extrabold uppercase tracking-wide text-primary-foreground transition-all;
+    box-shadow: 4px 4px 0 var(--color-foreground);
   }
 
   .btn-primary:hover {
     @apply bg-primary-hover;
-    box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.5);
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--color-foreground);
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-foreground hover:text-background;
-    border-color: rgba(var(--color-foreground-rgb), 0.3);
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md border-2 border-foreground bg-surface px-6 py-3 text-sm font-extrabold uppercase tracking-wide text-foreground transition-all hover:bg-foreground hover:text-background;
+    box-shadow: 4px 4px 0 var(--color-foreground);
+  }
+
+  .btn-outline:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--color-foreground);
+  }
+
+  .comic-page {
+    isolation: isolate;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(21, 21, 21, 0.08) 1px, transparent 1.2px),
+      linear-gradient(135deg, transparent 0 48%, rgba(210, 31, 56, 0.025) 48% 52%, transparent 52%);
+    background-size: 14px 14px, 100% 100%;
+  }
+
+  .comic-page.bg-background {
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(21, 21, 21, 0.075) 1px, transparent 1.2px),
+      linear-gradient(135deg, transparent 0 48%, rgba(210, 31, 56, 0.025) 48% 52%, transparent 52%);
+    background-size: 14px 14px, 100% 100%;
+  }
+
+  .comic-panel {
+    border: 2px solid var(--color-foreground);
+    border-radius: 6px;
+    background-color: var(--color-surface);
+    box-shadow: 5px 5px 0 rgba(var(--color-foreground-rgb), 0.17);
+  }
+
+  .comic-caption {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 2px solid var(--color-foreground);
+    background: var(--color-warning);
+    padding: 0.35rem 0.7rem;
+    color: var(--color-foreground);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-transform: uppercase;
+    box-shadow: 3px 3px 0 var(--color-primary);
+  }
+
+  .comic-burst {
+    background: repeating-conic-gradient(from 0deg, #facc15 0deg 12deg, #ffe477 12deg 24deg);
+    clip-path: polygon(50% 0%, 57% 12%, 69% 3%, 72% 17%, 87% 13%, 85% 29%, 100% 35%, 89% 47%, 100% 59%, 84% 65%, 91% 80%, 75% 79%, 70% 96%, 57% 87%, 48% 100%, 40% 86%, 27% 97%, 25% 81%, 9% 83%, 15% 67%, 0% 59%, 12% 48%, 1% 36%, 17% 29%, 12% 14%, 29% 18%, 34% 2%, 45% 13%);
+  }
+
+  .comic-field {
+    border: 2px solid var(--color-foreground) !important;
+    border-radius: 4px !important;
+    background-color: var(--color-surface) !important;
+    box-shadow: 2px 2px 0 rgba(var(--color-foreground-rgb), 0.1);
+  }
+
+  .comic-field:focus {
+    border-color: var(--color-secondary) !important;
+    outline: 3px solid rgba(var(--color-secondary-rgb), 0.22) !important;
+    outline-offset: 1px;
   }
 
   .halftone-overlay {
-    background-image: radial-gradient(circle, rgba(var(--color-foreground-rgb), 0.1) 1px, transparent 1px);
-    background-size: 4px 4px;
+    background-image: radial-gradient(circle, rgba(var(--color-foreground-rgb), 0.16) 1.1px, transparent 1.25px);
+    background-size: 5px 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
   }
 }
 
@@ -122,20 +216,49 @@
   }
 }
 
-/* Custom scrollbar */
+/* Inked comic-panel scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-background);
+  background: #efe4ca;
+  border-left: 1px solid var(--color-foreground);
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-primary);
-  border-radius: 4px;
+  border: 2px solid #efe4ca;
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-primary-hover);
+}
+
+/* Apply the same sturdy inked treatment to native controls throughout the shop and admin. */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+select,
+textarea {
+  border: 2px solid var(--color-foreground);
+  border-radius: 4px;
+  background-color: var(--color-surface);
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-secondary);
+  outline: 3px solid rgba(var(--color-secondary-rgb), 0.2);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

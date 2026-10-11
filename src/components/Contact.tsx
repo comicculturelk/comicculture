@@ -28,7 +28,7 @@ const contactMethods = [
 
 export default function Contact() {
   return (
-    <section id="contact" className="relative py-24 lg:py-32 overflow-hidden">
+    <section id="contact" className="comic-page relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-15" />

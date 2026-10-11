@@ -92,7 +92,7 @@ export default function TrackOrder() {
   const hasPreorderItem = result ? result.items.some((item) => item.is_preorder) : false;
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-background px-6 py-24">
+    <section className="comic-page relative min-h-screen overflow-hidden bg-background px-6 py-24">
       <div className="absolute inset-0 bg-web-pattern opacity-20" />
       <div className="absolute inset-0 halftone-overlay opacity-30" />
 
@@ -108,7 +108,7 @@ export default function TrackOrder() {
 
         <form
           onSubmit={handleSubmit}
-          className="mt-10 rounded-lg border border-border bg-surface p-6 shadow-soft md:p-8"
+          className="comic-panel mt-10 p-6 md:p-8"
         >
           <label className="block text-xs uppercase tracking-wide text-muted">Order Reference</label>
           <input

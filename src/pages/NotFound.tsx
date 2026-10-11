@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom';
 
 export default function NotFound() {
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
+    <section className="comic-page relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
       {/* Background */}
       <div className="absolute inset-0 bg-web-pattern opacity-20" />
       <div className="absolute inset-0 halftone-overlay opacity-30" />
 
-      <div className="relative z-10">
+      <div className="comic-panel relative z-10 max-w-2xl p-8 sm:p-12">
         <p className="font-display text-8xl text-primary md:text-9xl">404</p>
         <h1 className="mt-4 font-display text-3xl text-foreground tracking-wide md:text-4xl">
           LOST IN THE <span className="text-gradient-red">MULTIVERSE</span>

@@ -23,7 +23,7 @@ interface ProductFiltersProps {
   onAvailableChange?: (value: boolean) => void;
 }
 
-const selectClass = 'min-h-11 rounded-full border border-border bg-surface px-4 text-sm text-foreground outline-none transition-colors focus:border-primary';
+const selectClass = 'comic-field min-h-11 bg-surface px-4 text-sm text-foreground outline-none transition-colors';
 
 export default function ProductFilters({
   search,
@@ -47,7 +47,7 @@ export default function ProductFilters({
   onAvailableChange,
 }: ProductFiltersProps) {
   return (
-    <div className="mb-8 space-y-4 rounded-2xl border border-border bg-surface/70 p-4 sm:p-5">
+    <div className="comic-panel mb-8 space-y-4 p-4 sm:p-5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(220px,1fr)_auto_auto]">
         <label className="relative block">
           <span className="sr-only">Search products</span>
@@ -57,7 +57,7 @@ export default function ProductFilters({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search designs, collections..."
-            className="min-h-11 w-full rounded-full border border-border bg-background py-2.5 pl-11 pr-4 text-sm text-foreground placeholder:text-muted transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+            className="comic-field min-h-11 w-full bg-background py-2.5 pl-11 pr-4 text-sm text-foreground placeholder:text-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15"
           />
         </label>
 
@@ -96,7 +96,7 @@ export default function ProductFilters({
                   type="button"
                   onClick={() => onSizeChange(isActive ? null : size)}
                   aria-pressed={isActive}
-                  className={`inline-flex min-h-10 items-center rounded-full border px-3.5 text-xs font-semibold uppercase tracking-wide transition-colors ${isActive ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted hover:border-primary/50 hover:text-foreground'}`}
+                  className={`inline-flex min-h-10 items-center rounded-sm border-2 px-3.5 text-xs font-extrabold uppercase tracking-wide transition-colors ${isActive ? 'border-foreground bg-primary text-primary-foreground shadow-[2px_2px_0_#151515]' : 'border-foreground/50 bg-surface text-muted hover:border-foreground hover:bg-warning/40 hover:text-foreground'}`}
                 >
                   {size}
                 </button>
@@ -109,7 +109,7 @@ export default function ProductFilters({
           type="button"
           onClick={() => onFeaturedChange(!featuredOnly)}
           aria-pressed={featuredOnly}
-          className={`min-h-10 rounded-full border px-3.5 text-xs font-semibold uppercase tracking-wide transition-colors ${featuredOnly ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted hover:border-primary/50 hover:text-foreground'}`}
+          className={`min-h-10 rounded-sm border-2 px-3.5 text-xs font-extrabold uppercase tracking-wide transition-colors ${featuredOnly ? 'border-foreground bg-primary text-primary-foreground shadow-[2px_2px_0_#151515]' : 'border-foreground/50 bg-surface text-muted hover:border-foreground hover:bg-warning/40 hover:text-foreground'}`}
         >
           Featured
         </button>
@@ -119,14 +119,14 @@ export default function ProductFilters({
             type="button"
             onClick={() => onAvailableChange(!availableOnly)}
             aria-pressed={availableOnly}
-            className={`min-h-10 rounded-full border px-3.5 text-xs font-semibold uppercase tracking-wide transition-colors ${availableOnly ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted hover:border-primary/50 hover:text-foreground'}`}
+            className={`min-h-10 rounded-sm border-2 px-3.5 text-xs font-extrabold uppercase tracking-wide transition-colors ${availableOnly ? 'border-foreground bg-primary text-primary-foreground shadow-[2px_2px_0_#151515]' : 'border-foreground/50 bg-surface text-muted hover:border-foreground hover:bg-warning/40 hover:text-foreground'}`}
           >
             In stock / preorder
           </button>
         )}
 
         {priceBounds.max > priceBounds.min && (
-          <label className="flex min-h-10 flex-1 items-center gap-3 rounded-full border border-border bg-background px-4 sm:max-w-xs">
+          <label className="comic-panel flex min-h-10 flex-1 items-center gap-3 px-4 sm:max-w-xs">
             <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted">Up to {formatPrice(priceLimit)}</span>
             <input
               aria-label="Maximum price"

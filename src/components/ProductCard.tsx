@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { formatPrice, getProductMinPrice, isProductAvailable, type Product } from '../data/products';
@@ -11,16 +11,17 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, index }: ProductCardProps) {
+  const reduceMotion = useReducedMotion();
   return (
     <MotionLink
       to={`/product/${product.slug}`}
       className="group block"
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
-      transition={{ delay: index * 0.08, duration: 0.5 }}
+      transition={{ delay: reduceMotion ? 0 : index * 0.08, duration: reduceMotion ? 0 : 0.5 }}
     >
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated">
+      <div className="comic-panel overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[7px_7px_0_#d21f38]">
         {/* Catalog label row */}
         <div className="flex items-center justify-between px-5 pt-5">
           <span className="font-display text-xs tracking-[0.25em] text-muted uppercase">
@@ -37,7 +38,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
             src={product.image}
             alt={product.name}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-105 motion-reduce:group-hover:scale-100"
           />
 
           {!isProductAvailable(product) && (
@@ -54,7 +55,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-border" />
+        <div className="h-1 border-y-2 border-foreground bg-warning" />
 
         {/* Info */}
         <div className="p-5">

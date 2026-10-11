@@ -27,7 +27,7 @@ export default function Admin() {
 
   if (checkingSession) {
     return (
-      <section className="flex min-h-screen items-center justify-center bg-background">
+      <section className="comic-page flex min-h-screen items-center justify-center bg-background">
         <p className="text-muted">Loading...</p>
       </section>
     );
@@ -52,7 +52,7 @@ function AdminLogin() {
   };
 
   return (
-    <section className="flex min-h-screen items-center justify-center bg-background px-6">
+    <section className="comic-page flex min-h-screen items-center justify-center bg-background px-6">
       <form onSubmit={handleSubmit} className="glass w-full max-w-sm space-y-4 rounded-2xl p-8">
         <h1 className="font-display text-2xl text-foreground tracking-wide">ADMIN LOGIN</h1>
         <input
@@ -88,7 +88,7 @@ function AdminPanel() {
   const handleSignOut = () => supabaseAdmin.auth.signOut();
 
   return (
-    <section className="min-h-screen bg-background px-6 py-24 lg:py-32">
+    <section className="comic-page min-h-screen bg-background px-6 py-24 lg:py-32">
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">

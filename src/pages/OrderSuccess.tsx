@@ -20,7 +20,7 @@ export default function OrderSuccess() {
   const hasOrderDetails = Boolean(state.orderReference);
 
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
+    <section className="comic-page relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
       <div className="absolute inset-0 bg-web-pattern opacity-20" />
       <div className="absolute inset-0 halftone-overlay opacity-30" />
 

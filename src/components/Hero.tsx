@@ -67,7 +67,7 @@ export default function Hero({ collections }: HeroProps) {
   };
 
   return (
-    <section id="home" className="relative min-h-[min(760px,100svh)] overflow-hidden bg-background pt-24 lg:min-h-[min(820px,100svh)] lg:pt-20">
+    <section id="home" className="comic-page relative min-h-[min(760px,100svh)] overflow-hidden border-b-4 border-foreground bg-background pt-24 lg:min-h-[min(820px,100svh)] lg:pt-20">
       <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
       <div className="absolute inset-0 lg:left-[40%]">
@@ -105,7 +105,7 @@ export default function Hero({ collections }: HeroProps) {
             exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
             transition={{ duration: reduceMotion ? 0 : 0.35 }}
           >
-            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+            <p className="comic-caption mb-2 -rotate-2">
               <span className="h-px w-7 bg-primary" />
               {current.label}
             </p>

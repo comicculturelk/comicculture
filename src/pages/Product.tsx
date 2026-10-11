@@ -324,7 +324,7 @@ export default function Product() {
         image={product.image}
         jsonLd={[productJsonLd, breadcrumbJsonLd]}
       />
-      <section className="relative min-h-screen bg-background py-24 lg:py-32">
+      <section className="comic-page relative min-h-screen bg-background py-24 lg:py-32">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
         <div className="relative z-10 mx-auto max-w-6xl px-6">
@@ -350,7 +350,7 @@ export default function Product() {
         </Link>
 
         <motion.div
-          className="flex flex-col overflow-hidden border border-border bg-surface lg:flex-row"
+          className="comic-panel flex flex-col overflow-hidden lg:flex-row"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}

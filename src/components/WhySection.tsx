@@ -25,7 +25,7 @@ const features = [
 
 export default function WhySection() {
   return (
-    <section id="about" className="relative py-24 lg:py-32 overflow-hidden">
+    <section id="about" className="comic-page relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-white/[0.02] to-background">
         <div className="absolute inset-0 halftone-overlay opacity-30" />

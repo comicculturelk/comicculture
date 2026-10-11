@@ -59,7 +59,7 @@ export default function Reviews() {
             {reviews.map((review, index) => (
               <motion.article
                 key={review.id}
-                className="border border-border bg-surface p-6 sm:p-8"
+                className="comic-panel p-6 sm:p-8"
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-50px' }}

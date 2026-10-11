@@ -14,7 +14,7 @@ export default function Collections({ collections, loading, error }: Collections
   const reduceMotion = useReducedMotion();
 
   return (
-    <section id="collections" className="relative isolate overflow-hidden border-y border-foreground/10 bg-[#f1eee8] py-20 lg:py-28">
+    <section id="collections" className="comic-page relative isolate overflow-hidden border-y-2 border-foreground bg-[#f1eee8] py-20 lg:py-28">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(17,17,17,0.12)_1px,transparent_0)] bg-[size:9px_9px] opacity-25 [mask-image:linear-gradient(90deg,black,transparent_45%,black)]" />
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-20 h-64 w-64 rounded-full border-[28px] border-primary/5" />
 
