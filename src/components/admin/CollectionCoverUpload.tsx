@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Upload, X, Loader2 } from 'lucide-react';
-import { uploadCollectionCoverImage, deleteCollectionCoverImage } from '../../data/collections';
+import { uploadCollectionCoverImage } from '../../data/collections';
 
 interface CollectionCoverUploadProps {
   /** Used to build a readable storage path (typically the collection's slug). */
@@ -31,23 +31,11 @@ export default function CollectionCoverUpload({
     setError(null);
     setUploading(true);
 
-    const previousUrl = value;
-
     try {
-      // Upload the replacement first — the old image is only touched after
-      // this succeeds, so a failed upload never leaves the form pointing at
-      // an image that doesn't exist.
+      // Keep the previous object intact until the collection form saves.
+      // Cancelling the form must never leave its saved URL broken.
       const newUrl = await uploadCollectionCoverImage(slugHint, file);
       onChange(newUrl);
-
-      if (previousUrl) {
-        // Best-effort cleanup. The new image is already saved and usable at
-        // this point, so a failure here shouldn't be treated as blocking —
-        // it just leaves the old file orphaned in storage.
-        deleteCollectionCoverImage(previousUrl).catch((err) => {
-          console.error('Failed to delete previous cover image:', err);
-        });
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload image');
     } finally {
@@ -58,16 +46,10 @@ export default function CollectionCoverUpload({
 
   const handleRemove = async () => {
     if (!value) return;
-    const url = value;
     setError(null);
+    // Stage the removal; deleting the object before the parent form saves
+    // can break a collection if the edit is cancelled.
     onChange(null);
-    try {
-      await deleteCollectionCoverImage(url);
-    } catch (err) {
-      // Field is already cleared for the admin; an orphaned storage file
-      // isn't worth surfacing as a blocking error.
-      console.error('Failed to delete cover image:', err);
-    }
   };
 
   return (

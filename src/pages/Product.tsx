@@ -195,12 +195,9 @@ export default function Product() {
   // Cotton"), and the specific sellable size within it. These — not the
   // product itself — now carry type/material/fit/color/images/care/preorder
   // and size/SKU/price/stock respectively.
-  const activeVersions =
-    product.versions.filter((v) => v.isActive).length > 0
-      ? product.versions.filter((v) => v.isActive)
-      : product.versions;
+  const activeVersions = product.versions.filter((v) => v.isActive);
   const selectedVersion =
-    product.versions.find((v) => v.id === selectedVersionId) ?? activeVersions[0];
+    activeVersions.find((v) => v.id === selectedVersionId) ?? activeVersions[0];
   const selectedVersionSize = selectedVersion?.sizes.find((s) => s.size === selectedSize);
   const sizeGuide = selectedVersion?.sizeGuide ?? [];
   const hasSizeGuide = sizeGuide.length > 0;
@@ -477,6 +474,11 @@ export default function Product() {
 
             {/* Version selector — only shown when a product actually offers
                 more than one apparel version (e.g. Jersey vs Oversized Cotton) */}
+            {activeVersions.length === 0 && (
+              <div role="status" className="comic-panel mt-8 border-primary bg-primary/10 px-4 py-3 text-sm font-bold text-foreground">
+                This edition is currently unavailable. Check back soon for the next drop.
+              </div>
+            )}
             {activeVersions.length > 1 && (
               <div className="mt-8">
                 <p className="comic-section-kicker mb-3">Choose your edition {selectedVersion && <span className="text-primary">· {selectedVersion.versionName}</span>}</p>
@@ -608,7 +610,9 @@ export default function Product() {
                 whileTap={{ scale: 0.98 }}
               >
                 <ShoppingBag aria-hidden="true" className="h-5 w-5" />
-                {availableStock === 0
+                {activeVersions.length === 0
+                  ? 'Currently Unavailable'
+                  : availableStock === 0
                   ? 'Sold Out'
                   : selectedVersion?.isPreorder
                     ? 'Pre-Order Now'

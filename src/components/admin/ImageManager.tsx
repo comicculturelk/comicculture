@@ -31,9 +31,16 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
     setError(null);
     try {
       const uploaded: string[] = [];
-      for (const file of Array.from(files)) {
-        const url = await uploadProductImage(slug, file);
-        uploaded.push(url);
+      try {
+        for (const file of Array.from(files)) {
+          const url = await uploadProductImage(slug, file);
+          uploaded.push(url);
+        }
+      } catch (err) {
+        // These URLs have not been attached to a saved product yet, so
+        // rolling back this incomplete batch cannot break existing records.
+        await Promise.allSettled(uploaded.map((url) => deleteProductImage(url)));
+        throw err;
       }
       onChange([...images, ...uploaded]);
     } catch (err) {
@@ -45,14 +52,9 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
   };
 
   const handleRemove = async (index: number) => {
-    const url = images[index];
     setError(null);
-    try {
-      await deleteProductImage(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete image');
-      return;
-    }
+    // Removal is staged in the form. The file must stay available until
+    // the admin saves the new product image list.
     onChange(images.filter((_, i) => i !== index));
   };
 

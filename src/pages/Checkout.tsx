@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { ChangeEvent, FormEvent, ReactNode } from 'react';
+import { cloneElement, isValidElement, useId, useState } from 'react';
+import type { ChangeEvent, FormEvent, ReactElement, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -338,11 +338,18 @@ export default function Checkout() {
             transition={{ duration: 0.5 }}
           >
             {/* Customer information */}
-            <div>
-              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">
-                CUSTOMER INFORMATION
-              </h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <section className="checkout-customer-info" aria-labelledby="checkout-customer-heading">
+              <div className="checkout-customer-heading">
+                <span className="checkout-customer-number" aria-hidden="true">01</span>
+                <div>
+                  <p className="checkout-customer-kicker">Your origin story</p>
+                  <h2 id="checkout-customer-heading" className="font-display text-2xl text-foreground tracking-wide">
+                    CUSTOMER INFORMATION
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Where should we send your haul?</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                 <FormField label="Full Name" required error={errors.fullName}>
                   <input
                     type="text"
@@ -455,7 +462,7 @@ export default function Checkout() {
                   />
                 </FormField>
               </div>
-            </div>
+            </section>
 
             {/* Delivery */}
             <div>
@@ -793,13 +800,27 @@ function FormField({
   error?: string;
   children: ReactNode;
 }) {
+  const id = useId();
+  const errorId = `${id}-error`;
+  const control = isValidElement(children)
+    ? cloneElement(children as ReactElement<{
+        id?: string;
+        'aria-invalid'?: boolean;
+        'aria-describedby'?: string;
+      }>, {
+        id,
+        'aria-invalid': Boolean(error),
+        'aria-describedby': error ? errorId : undefined,
+      })
+    : children;
+
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+      <label htmlFor={id} className="checkout-field-label mb-1.5 block text-sm font-medium text-muted-foreground">
         {label} {required && <span className="text-primary">*</span>}
       </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-primary">{error}</p>}
+      {control}
+      {error && <p id={errorId} className="mt-1 text-xs font-semibold text-primary">{error}</p>}
     </div>
   );
 }

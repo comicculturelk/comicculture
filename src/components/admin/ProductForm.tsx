@@ -1,18 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  createProduct,
-  updateProduct,
-  createProductVersion,
-  updateProductVersion,
   deleteProductVersion,
-  createProductVersionSize,
-  updateProductVersionSize,
   deleteProductVersionSize,
   hasOrderHistory,
   fetchProductBySlug,
   isSlugTaken,
   isSkuTaken,
   generateSku,
+  saveAdminProduct,
   PRODUCT_TYPES,
   PRODUCT_TYPE_LABELS,
   type Product,
@@ -23,7 +18,6 @@ import {
   type ProductVersionSize,
   type SizeGuideRow,
 } from '../../data/products';
-import { adjustStock } from '../../data/inventory';
 import { fetchCollections, type Collection } from '../../data/collections';
 import { slugify } from '../../lib/slug';
 import ImageManager from './ImageManager';
@@ -121,7 +115,7 @@ function OptionSelect({
 // ids (localId) key React state before a real DB id exists.
 
 // SKU is deliberately NOT part of this draft shape: for a size that doesn't
-// exist in the DB yet, the SKU is always derived from (product slug, version
+// exist in the DB yet, the SKU is always derived from (stable product ID, version
 // name, size) via generateSku() at render time (for the preview shown to the
 // admin) and again at submit time — never stored/typed here — so it can
 // never go stale if the version name changes after sizes were added.
@@ -207,10 +201,6 @@ function buildSizeGuide(
   return rows.length > 0 ? rows : null;
 }
 
-function sameSizeGuide(a: SizeGuideRow[] | null, b: SizeGuideRow[] | null | undefined): boolean {
-  return JSON.stringify(a) === JSON.stringify(b && b.length > 0 ? b : null);
-}
-
 function emptyDraftSize(): DraftSize {
   return { localId: crypto.randomUUID(), size: '', price: '', stock: '0' };
 }
@@ -274,10 +264,8 @@ function existingVersionEditFrom(version: ProductVersion): ExistingVersionEdit {
 
 /**
  * Editable SKU/price for a size that already exists in the database.
- * Deliberately excludes stock — stock keeps going through the separate
- * stockEdits/adjustStock() path above, never through this one or through
- * updateProductVersionSize() (whose input type already excludes stock at
- * the type level in products.ts).
+ * Stock is submitted as an absolute target with these fields, while the
+ * database records the correction through the inventory adjustment RPC.
  */
 interface ExistingSizeEdit {
   sku: string;
@@ -289,42 +277,8 @@ function existingSizeEditFrom(size: ProductVersionSize): ExistingSizeEdit {
 }
 
 /**
- * Whether an edit actually differs from the version as loaded — used to
- * skip calling updateProductVersion() for versions the admin didn't touch.
- * `images`, `isActive`, and `sortOrder` aren't part of this comparison
- * since Step 1 doesn't expose editing them; they're carried through
- * unchanged in existingVersionEditToInput() below regardless.
- */
-function existingVersionEditChanged(version: ProductVersion, edit: ExistingVersionEdit): boolean {
-  const nextCare = edit.careInstructions
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const currentCare = version.careInstructions ?? [];
-  const careChanged =
-    nextCare.length !== currentCare.length ||
-    nextCare.some((line, i) => line !== currentCare[i]);
-  const nextPreorderDays = edit.isPreorder ? Number(edit.preorderDays) : null;
-
-  return (
-    edit.versionName.trim() !== version.versionName ||
-    edit.productType !== version.productType ||
-    edit.material.trim() !== (version.material ?? '') ||
-    edit.fit.trim() !== (version.fit ?? '') ||
-    edit.color.trim() !== (version.color ?? '') ||
-    careChanged ||
-    edit.isPreorder !== version.isPreorder ||
-    nextPreorderDays !== (version.preorderDays ?? null)
-  );
-}
-
-/**
- * Builds the full ProductVersionInput updateProductVersion() expects.
- * updateProductVersion() overwrites every field it's given (it has no
- * partial-update mode), so images/isActive/sortOrder — none of which
- * Step 1 exposes for editing — are carried through from the version as
- * loaded rather than omitted, or they'd silently reset to their defaults
- * (images: null, isActive: true, sortOrder: 0).
+ * Builds the full version input for the atomic product save. Fields not
+ * edited here are carried through from the saved version.
  */
 function existingVersionEditToInput(
   version: ProductVersion,
@@ -359,14 +313,14 @@ function existingVersionEditToInput(
  */
 function SizeDraftRow({
   draft,
-  productSlug,
+  productId,
   versionName,
   onChange,
   onRemove,
 }: {
   draft: DraftSize;
   /** Current product slug — part of the auto-generated SKU. */
-  productSlug: string;
+  productId: string;
   /** Current version name (live-edited value, not necessarily saved yet) — part of the auto-generated SKU. */
   versionName: string;
   onChange: (patch: Partial<DraftSize>) => void;
@@ -375,7 +329,7 @@ function SizeDraftRow({
   // Always derived, never typed — recomputes live as size/version/slug
   // change, so it can never go stale. The same generateSku() call is made
   // again at submit time in handleSubmit, using whatever was last shown here.
-  const sku = generateSku(productSlug, versionName, draft.size);
+  const sku = generateSku(productId, versionName, draft.size);
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:items-end">
       <label className="flex flex-col gap-1">
@@ -480,12 +434,8 @@ function SizeGuideEditor({
 
 /**
  * Editable card for a version that already exists in the database.
- * Version metadata (name, type, material, fit, color, pre-order, care
- * instructions) is editable here and saved via updateProductVersion() on
- * submit. Existing sizes' SKU/price are editable via
- * updateProductVersionSize(); stock stays on the separate adjustStock()
- * path. New sizes can also be added to this version — they're created via
- * createProductVersionSize() on submit rather than updating an existing row.
+ * Version metadata, size pricing/SKUs, stock targets, and new sizes are
+ * submitted together through the atomic product save function.
  * Existing sizes can be deleted immediately (not deferred to submit) via
  * deleteProductVersionSize(), after a hasOrderHistory() check blocks
  * deletion of any size with existing order/inventory references.
@@ -493,7 +443,7 @@ function SizeGuideEditor({
 function ExistingVersionCard({
   version,
   edit,
-  productSlug,
+  productId,
   onEditChange,
   stockEdits,
   onStockChange,
@@ -512,7 +462,7 @@ function ExistingVersionCard({
   version: ProductVersion;
   edit: ExistingVersionEdit;
   /** Current product slug — threaded down to new-size rows for the auto-generated SKU preview. */
-  productSlug: string;
+  productId: string;
   onEditChange: (patch: Partial<ExistingVersionEdit>) => void;
   stockEdits: Record<string, string>;
   onStockChange: (sizeId: string, value: string) => void;
@@ -727,7 +677,7 @@ function ExistingVersionCard({
             <SizeDraftRow
               key={s.localId}
               draft={s}
-              productSlug={productSlug}
+              productId={productId}
               versionName={edit.versionName}
               onChange={(patch) => onNewSizeChange(s.localId, patch)}
               onRemove={() => onRemoveNewSize(s.localId)}
@@ -751,7 +701,7 @@ function ExistingVersionCard({
 function DraftVersionCard({
   version,
   index,
-  productSlug,
+  productId,
   onChange,
   onRemove,
   onAddSize,
@@ -761,8 +711,8 @@ function DraftVersionCard({
 }: {
   version: DraftVersion;
   index: number;
-  /** Current product slug — threaded down to size rows for the auto-generated SKU preview. */
-  productSlug: string;
+  /** Stable product ID — threaded down to size rows for SKU preview. */
+  productId: string;
   onChange: (patch: Partial<DraftVersion>) => void;
   onRemove: () => void;
   onAddSize: () => void;
@@ -916,7 +866,7 @@ function DraftVersionCard({
             <SizeDraftRow
               key={s.localId}
               draft={s}
-              productSlug={productSlug}
+              productId={productId}
               versionName={version.versionName}
               onChange={(patch) => onSizeChange(s.localId, patch)}
               onRemove={() => onRemoveSize(s.localId)}
@@ -937,6 +887,8 @@ function DraftVersionCard({
 }
 
 export default function ProductForm({ mode, product, onSaved, onCancel }: ProductFormProps) {
+  const [draftProductId] = useState(() => crypto.randomUUID());
+  const skuProductId = product?.id ?? draftProductId;
   // --- Product (design/story) fields ---
   const [name, setName] = useState(product?.name ?? '');
   const [slug, setSlug] = useState(product?.slug ?? '');
@@ -957,8 +909,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         : []
   );
 
-  // --- Existing versions (edit mode) — metadata is editable via
-  // updateProductVersion(); stock stays on its separate adjustStock() path.
+  // --- Existing versions (edit mode) — saved atomically with sizes and stock.
   const [versionEdits, setVersionEdits] = useState<Record<string, ExistingVersionEdit>>(() => {
     const map: Record<string, ExistingVersionEdit> = {};
     product?.versions.forEach((v) => {
@@ -973,8 +924,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     return map;
   });
 
-  // --- Existing sizes (edit mode) — SKU/price editable via
-  // updateProductVersionSize(); stock stays on the stockEdits/adjustStock() path above.
+  // --- Existing sizes (edit mode) — metadata and stock are saved atomically.
   const [sizeEdits, setSizeEdits] = useState<Record<string, ExistingSizeEdit>>(() => {
     const map: Record<string, ExistingSizeEdit> = {};
     product?.versions.forEach((v) =>
@@ -990,10 +940,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     mode === 'create' ? [emptyDraftVersion()] : []
   );
 
-  // --- New sizes being added to an existing (already-saved) version, keyed
-  // by that version's id. Each entry is created via createProductVersionSize()
-  // on submit — never updateProductVersionSize(), since there's no existing
-  // row to update.
+  // --- New sizes being added to an existing (already-saved) version.
   const [newExistingSizes, setNewExistingSizes] = useState<Record<string, DraftSize[]>>({});
 
   // --- Existing sizes deleted this session. Deletion happens immediately
@@ -1226,6 +1173,10 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       if (validSizes.length === 0) {
         return setError(`Add at least one size for "${v.versionName.trim()}".`);
       }
+      const labels = validSizes.map((size) => size.size.trim().toUpperCase());
+      if (new Set(labels).size !== labels.length) {
+        return setError(`Each size in "${v.versionName.trim()}" must be unique.`);
+      }
       for (const s of validSizes) {
         if (!s.size.trim()) {
           return setError(`Enter a size label for "${v.versionName.trim()}".`);
@@ -1267,10 +1218,18 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       }
     }
 
-    // Existing sizes whose SKU or price the admin actually changed this
-    // session — only these trigger validation/updateProductVersionSize()
-    // calls below; sizes with no edit, or whose edit matches the loaded
-    // data exactly, are left untouched.
+    const finalVersionNames = [
+      ...(product?.versions ?? [])
+        .filter((version) => !deletedVersionIds.has(version.id))
+        .map((version) => (versionEdits[version.id]?.versionName ?? version.versionName).trim()),
+      ...versionsToCreate.map((version) => version.versionName.trim()),
+    ].map((versionName) => versionName.toLocaleLowerCase());
+    if (new Set(finalVersionNames).size !== finalVersionNames.length) {
+      return setError('Each product version must have a unique name.');
+    }
+
+    // Existing sizes whose SKU or price changed need uniqueness checks.
+    // All retained sizes are included in the atomic write payload.
     const changedExistingSizes: Array<{
       id: string;
       versionName: string;
@@ -1307,9 +1266,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       }
     }
 
-    // New sizes being added to an existing (already-saved) version this
-    // session — each becomes a createProductVersionSize() call on submit,
-    // never updateProductVersionSize(), since there's no existing row.
+    // New sizes being added to an existing version, included in the same
+    // transaction as the product and other variant changes.
     const newExistingSizesFlat: Array<{
       versionId: string;
       versionName: string;
@@ -1325,7 +1283,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         );
         const sizeLabels = v.sizes
           .filter((sz) => !deletedSizeIds.has(sz.id))
-          .map((sz) => sz.size);
+          .map((sz) => sz.size.toUpperCase());
         // This version's name as it will actually be saved this submit —
         // the live edit if the admin renamed it this session, else its
         // current saved name — so the generated SKU always matches.
@@ -1349,7 +1307,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
               `Enter a valid stock quantity for the new size "${size}" in "${v.versionName}".`
             );
           }
-          if (sizeLabels.includes(size)) {
+        if (sizeLabels.includes(size.toUpperCase())) {
             return setError(`Size "${size}" already exists on "${v.versionName}".`);
           }
           sizeLabels.push(size);
@@ -1357,7 +1315,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
             versionId: v.id,
             versionName: v.versionName,
             size,
-            sku: generateSku(slug.trim(), effectiveVersionName, size),
+            sku: generateSku(skuProductId, effectiveVersionName, size),
             price: priceValue,
             stock: stockValue,
           });
@@ -1368,7 +1326,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     const newSkus = versionsToCreate.flatMap((v) =>
       v.sizes
         .filter((s) => s.size.trim())
-        .map((s) => generateSku(slug.trim(), v.versionName.trim(), s.size.trim().toUpperCase()))
+        .map((s) => generateSku(skuProductId, v.versionName.trim(), s.size.trim().toUpperCase()))
     );
     const allNewSkus = [...newSkus, ...newExistingSizesFlat.map((s) => s.sku)];
     const allSubmittedSkus = [...allNewSkus, ...changedExistingSizes.map((s) => s.sku)];
@@ -1400,6 +1358,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       }
 
       const productInput: ProductInput = {
+        id: skuProductId,
         name: name.trim(),
         slug: slug.trim(),
         collectionId,
@@ -1410,118 +1369,81 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         featured,
       };
 
-      const savedProduct =
-        mode === 'create'
-          ? await createProduct(productInput)
-          : await updateProduct(product!.id, productInput);
-
-      // Persist stock edits made to existing version-sizes (edit mode only).
-      // The UI still collects an absolute target ("set stock to X"), but the
-      // mutation itself now goes through adjustStock() as a delta — this
-      // locks the row, clamps at 0 server-side, and records an
-      // inventory_movements entry, instead of the old unconditional
-      // overwrite via updateProductStock(). The comparison base is still
-      // whatever was loaded when the form opened (see note above
-      // handleSubmit's stock loop) — adjustStock's row lock protects the
-      // eventual write, not this stale read.
-      if (mode === 'edit' && product) {
-        for (const version of product.versions) {
-          for (const size of version.sizes) {
-            const edited = stockEdits[size.id];
-            if (edited == null) continue;
-            const parsed = Number(edited);
-            if (!Number.isFinite(parsed)) continue;
-            const nextStock = Math.max(0, parsed);
-            const quantityChange = nextStock - size.stock;
-            if (quantityChange === 0) continue;
-            await adjustStock(
-              size.id,
-              quantityChange,
-              'correction',
-              `Stock corrected via product editor (${size.stock} → ${nextStock})`
-            );
-          }
-        }
-      }
-
-      // Persist metadata edits made to existing versions (edit mode only).
-      // Only versions whose edit actually differs from the loaded data
-      // trigger a call, so untouched versions never hit the database.
-      if (mode === 'edit' && product) {
-        for (const version of product.versions) {
-          const edit = versionEdits[version.id];
-          if (!edit) continue;
-          // Rebuilt from the sizes that still exist, so rows for sizes deleted
-          // this session (or already gone) are dropped rather than kept stale.
+      const existingVersions = (product?.versions ?? [])
+        .filter((version) => !deletedVersionIds.has(version.id))
+        .map((version) => {
+          const edit = versionEdits[version.id] ?? existingVersionEditFrom(version);
           const sizeGuide = buildSizeGuide(
             guideSizesForExisting(version, deletedSizeIds, newExistingSizes[version.id] ?? []),
             edit.guide
           );
-          if (
-            existingVersionEditChanged(version, edit) ||
-            !sameSizeGuide(sizeGuide, version.sizeGuide)
-          ) {
-            await updateProductVersion(
-              version.id,
-              existingVersionEditToInput(version, edit, sizeGuide)
-            );
-          }
-        }
-      }
-
-      // Persist SKU/price edits made to existing sizes (edit mode only).
-      // Stock is intentionally excluded — it was already handled above via
-      // adjustStock(), and updateProductVersionSize()'s input type omits
-      // stock entirely so it can't be touched from this call.
-      for (const s of changedExistingSizes) {
-        await updateProductVersionSize(s.id, { size: s.size, sku: s.sku, price: s.price });
-      }
-
-      // Create new sizes added to an existing version this session. These
-      // are brand-new rows (never seen by the database before), so they
-      // always go through createProductVersionSize(), never an update.
-      for (const s of newExistingSizesFlat) {
-        await createProductVersionSize(s.versionId, {
-          size: s.size,
-          sku: s.sku,
-          price: s.price,
-          stock: s.stock,
+          return {
+            id: version.id,
+            ...existingVersionEditToInput(version, edit, sizeGuide),
+          };
         });
-      }
+      const existingSizes = (product?.versions ?? []).flatMap((version) =>
+        deletedVersionIds.has(version.id)
+          ? []
+          : version.sizes
+              .filter((size) => !deletedSizeIds.has(size.id))
+              .map((size) => {
+                const edit = sizeEdits[size.id] ?? existingSizeEditFrom(size);
+                const requestedStock = stockEdits[size.id] == null ? size.stock : Number(stockEdits[size.id]);
+                return {
+                  id: size.id,
+                  sku: edit.sku.trim(),
+                  price: Number(edit.price),
+                  stock: Number.isFinite(requestedStock) ? Math.max(0, requestedStock) : size.stock,
+                };
+              })
+      );
+      const newVersions = versionsToCreate.map((version) => ({
+        versionName: version.versionName.trim(),
+        productType: version.productType,
+        material: version.material.trim() || null,
+        fit: version.fit.trim() || null,
+        color: version.color.trim() || null,
+        careInstructions: version.careInstructions
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean),
+        isPreorder: version.isPreorder,
+        preorderDays: version.isPreorder ? Number(version.preorderDays) : null,
+        isActive: version.isActive,
+        sortOrder: (product?.versions.length ?? 0) + draftVersions.indexOf(version),
+        sizeGuide: buildSizeGuide(guideSizesForDraft(version.sizes), version.guide),
+        sizes: version.sizes
+          .filter((size) => size.size.trim())
+          .map((size) => {
+            const label = size.size.trim().toUpperCase();
+            return {
+              size: label,
+              sku: generateSku(skuProductId, version.versionName.trim(), label),
+              price: Number(size.price),
+              stock: Number(size.stock) || 0,
+            };
+          }),
+      }));
 
-      // Create any new versions (and their sizes) added during this session.
-      for (const v of versionsToCreate) {
-        const preorderDaysValue = Number(v.preorderDays);
-        const versionInput: ProductVersionInput = {
-          versionName: v.versionName.trim(),
-          productType: v.productType,
-          material: v.material.trim() || undefined,
-          fit: v.fit.trim() || undefined,
-          color: v.color.trim() || undefined,
-          careInstructions: v.careInstructions
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean),
-          isPreorder: v.isPreorder,
-          preorderDays: v.isPreorder ? preorderDaysValue : null,
-          isActive: v.isActive,
-          sortOrder: (product?.versions.length ?? 0) + draftVersions.indexOf(v),
-          sizeGuide: buildSizeGuide(guideSizesForDraft(v.sizes), v.guide),
-        };
-        const newVersion = await createProductVersion(savedProduct.id, versionInput);
+      await saveAdminProduct({
+        isCreate: mode === 'create',
+        product: productInput,
+        existingVersions,
+        existingSizes,
+        newExistingSizes: newExistingSizesFlat,
+        newVersions,
+      });
 
-        for (const s of v.sizes.filter((size) => size.size.trim())) {
-          const size = s.size.trim().toUpperCase();
-          await createProductVersionSize(newVersion.id, {
-            size,
-            sku: generateSku(slug.trim(), v.versionName.trim(), size),
-            price: Number(s.price),
-            stock: Number(s.stock) || 0,
-          });
-        }
-      }
-
-      const finalProduct = (await fetchProductBySlug(savedProduct.slug)) ?? savedProduct;
+      const finalProduct = (await fetchProductBySlug(productInput.slug)) ?? {
+        id: skuProductId,
+        image: images[0] ?? '',
+        ...productInput,
+        collection: collections.find((collection) => collection.id === collectionId)?.name ?? '',
+        collectionId,
+        createdAt: new Date().toISOString(),
+        versions: [],
+      };
       onSaved(finalProduct);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save product');
@@ -1652,7 +1574,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
                 key={v.id}
                 version={v}
                 edit={versionEdits[v.id]}
-                productSlug={slug.trim()}
+                productId={skuProductId}
                 onEditChange={(patch) =>
                   setVersionEdits((prev) => ({
                     ...prev,
@@ -1720,7 +1642,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
               key={v.localId}
               version={v}
               index={i}
-              productSlug={slug.trim()}
+              productId={skuProductId}
               onChange={(patch) => updateDraftVersion(v.localId, patch)}
               onRemove={() => removeDraftVersion(v.localId)}
               onAddSize={() => addDraftSize(v.localId)}

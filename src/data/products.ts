@@ -349,34 +349,19 @@ export type ProductSort = 'recommended' | 'newest' | 'price-ascending' | 'price-
 /** Sizes visitors can currently select across active versions. */
 function getProductSizes(product: Pick<Product, 'versions'>): string[] {
   const seen = new Set<string>();
-  const activeVersions = product.versions.filter((version) => version.isActive);
-  const versions = activeVersions.length ? activeVersions : product.versions;
-  versions.forEach((version) => version.sizes.forEach((size) => {
+  product.versions.filter((version) => version.isActive).forEach((version) => version.sizes.forEach((size) => {
     if (version.isPreorder || size.stock > 0) seen.add(size.size);
   }));
   return Array.from(seen);
 }
 
 export function isProductAvailable(product: Pick<Product, 'versions'>): boolean {
-  const activeVersions = product.versions.filter((version) => version.isActive);
-  const versions = activeVersions.length ? activeVersions : product.versions;
-  return versions.some((version) => version.isPreorder || version.sizes.some((size) => size.stock > 0));
+  return product.versions.some((version) => version.isActive && (version.isPreorder || version.sizes.some((size) => size.stock > 0)));
 }
 
-/**
- * Cheapest price across all of a product's version-sizes (0 only if it
- * genuinely has none). The single shared "starting from" price helper —
- * used here for filterProducts()/getPriceBounds() below, and by
- * ProductCard for the collection-grid price. Deliberately does NOT filter
- * to `isActive` versions: doing so can leave a product with zero prices to
- * pick from (e.g. every version currently marked inactive) and fall back
- * to a hardcoded 0, which is exactly the "Rs. 0" card bug this avoids. The
- * product detail page (src/pages/Product.tsx) has the same never-show-
- * nothing philosophy — it falls back to all versions when none are active
- * — so this keeps the collection card's price consistent with that.
- */
+/** Cheapest price across active product versions (0 when none are active). */
 export function getProductMinPrice(product: Pick<Product, 'versions'>): number {
-  const prices = product.versions.flatMap((v) => v.sizes.map((s) => s.price));
+  const prices = product.versions.filter((v) => v.isActive).flatMap((v) => v.sizes.map((s) => s.price));
   return prices.length > 0 ? Math.min(...prices) : 0;
 }
 
@@ -429,9 +414,11 @@ export function getUniqueSizes(products: Product[]): string[] {
   return Array.from(seen);
 }
 
-/** Min/max price across every version-size of a product list. Returns { min: 0, max: 0 } if none exist. */
+/** Min/max price across active version-sizes in a product list. */
 export function getPriceBounds(products: Product[]): { min: number; max: number } {
-  const prices = products.flatMap((p) => p.versions.flatMap((v) => v.sizes.map((s) => s.price)));
+  const prices = products.flatMap((p) =>
+    p.versions.filter((version) => version.isActive).flatMap((version) => version.sizes.map((size) => size.price))
+  );
   if (prices.length === 0) return { min: 0, max: 0 };
   return { min: Math.min(...prices), max: Math.max(...prices) };
 }
@@ -447,6 +434,7 @@ export function getPriceBounds(products: Product[]): { min: number; max: number 
  * and mirrored into the `image` column for storefront compatibility.
  */
 export interface ProductInput {
+  id?: string;
   name: string;
   slug: string;
   /**
@@ -464,6 +452,30 @@ export interface ProductInput {
   featured?: boolean;
 }
 
+export interface AdminProductSaveInput {
+  isCreate: boolean;
+  product: ProductInput;
+  existingVersions: unknown[];
+  existingSizes: unknown[];
+  newExistingSizes: unknown[];
+  newVersions: unknown[];
+}
+
+/** Persists the catalog editor's product, versions, sizes, and stock atomically. */
+export async function saveAdminProduct(input: AdminProductSaveInput): Promise<string> {
+  const { data, error } = await supabaseAdmin.rpc('save_admin_product', {
+    p_is_create: input.isCreate,
+    p_product: input.product,
+    p_existing_versions: input.existingVersions,
+    p_existing_sizes: input.existingSizes,
+    p_new_existing_sizes: input.newExistingSizes,
+    p_new_versions: input.newVersions,
+  });
+  if (error) throw new Error(`Failed to save product: ${error.message}`);
+  if (typeof data !== 'string' || !data) throw new Error('Product save returned no product ID.');
+  return data;
+}
+
 /**
  * Resolves the write-side row shape from admin input. Async because the
  * legacy `products.collection` text column (still NOT NULL in the DB) is
@@ -479,6 +491,7 @@ async function mapProductInputToRow(input: ProductInput) {
   }
 
   return {
+    ...(input.id ? { id: input.id } : {}),
     name: input.name,
     slug: input.slug,
     collection_id: input.collectionId,
@@ -511,8 +524,8 @@ function skuSegment(text: string, fallback: string): string {
 /**
  * Deterministically generates a readable SKU for a new product-version-size
  * row, replacing manual SKU entry in the admin form. Format:
- *   CC-{PRODUCT_SLUG}-{VERSION_NAME}-{SIZE}
- * e.g. slug "classic-red" + version "Jersey" + size "M" -> "CC-CLASSIC-RED-JERSEY-M".
+ *   CC-{PRODUCT_ID_PREFIX}-{VERSION_NAME}-{SIZE}
+ * e.g. product ID "8a31..." + version "Jersey" + size "M" -> "CC-8A31...-JERSEY-M".
  *
  * This extends the pre-existing "CC-{id}" (single-version era) / then
  * "CC-{id}-{size}" (Phase 2 backfill, see the introduce_product_versions_
@@ -523,11 +536,13 @@ function skuSegment(text: string, fallback: string): string {
  * to also run isSkuTaken() (and the DB's `product_version_sizes.sku` unique
  * constraint remains the final backstop) before/at insert, exactly as
  * before for manually-typed SKUs. In practice a collision is very unlikely
- * since product slugs are globally unique and version names are unique
- * per product, but this keeps the safety net rather than assuming it away.
+ * A short immutable product ID prefix keeps generated SKUs stable if the
+ * public slug changes. The database unique constraint remains the final check.
  */
-export function generateSku(productSlug: string, versionName: string, size: string): string {
-  const productPart = skuSegment(productSlug, 'PRODUCT');
+export function generateSku(productId: string, versionName: string, size: string): string {
+  // Use the immutable product identity so future SKUs don't change when an
+  // admin edits the public slug. Keep the suffix human-readable for picking.
+  const productPart = productId.replace(/-/g, '').slice(0, 12).toUpperCase();
   const versionPart = skuSegment(versionName, 'VERSION');
   const sizePart = skuSegment(size, 'SIZE');
   return `CC-${productPart}-${versionPart}-${sizePart}`;
@@ -550,7 +565,7 @@ export async function isSkuTaken(sku: string, excludeSizeId?: string): Promise<b
 }
 
 export async function createProduct(input: ProductInput): Promise<Product> {
-  const row = await mapProductInputToRow(input);
+  const row = { ...(await mapProductInputToRow(input)), id: input.id ?? crypto.randomUUID() };
   const { data, error } = await supabaseAdmin.from('products').insert(row).select().single();
 
   if (error) {
@@ -580,22 +595,18 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
 }
 
 /**
- * Deletes a product row, then best-effort cleans up its images from Storage.
+ * Deletes a product row without deleting its images from Storage. Product
+ * copies and collection covers may share image URLs, so object deletion must
+ * be handled by a reference-aware cleanup process.
  * Uses delete + select so the deleted row's id comes back — with RLS
  * enabled, a missing/misconfigured DELETE policy causes Postgres to match
  * zero rows rather than raise an error, which would otherwise look
- * identical to a successful delete. Image cleanup only runs once we've
- * confirmed a row was actually deleted.
- * Image cleanup failures are swallowed (via allSettled) since the product
- * row is already gone by that point — an orphaned file is a minor issue,
- * a stuck delete flow is worse.
+ * identical to a successful delete.
  * NOTE: this does not explicitly delete the product's `product_versions` /
  * `product_version_sizes` rows — whether they're removed depends on the FK
  * behavior configured in the DB (see report).
  */
-export async function deleteProduct(
-  product: Pick<Product, 'id' | 'image' | 'images'>
-): Promise<void> {
+export async function deleteProduct(product: Pick<Product, 'id'>): Promise<void> {
   const { data, error } = await supabaseAdmin
     .from('products')
     .delete()
@@ -609,15 +620,6 @@ export async function deleteProduct(
       'Product could not be deleted. Check permissions or verify that the product still exists.'
     );
   }
-
-  const urls =
-    product.images && product.images.length > 0
-      ? product.images
-      : product.image
-        ? [product.image]
-        : [];
-
-  await Promise.allSettled(urls.map((url) => deleteProductImage(url)));
 }
 
 // --- Admin: product version & version-size management ---
@@ -855,10 +857,8 @@ export async function hasOrderHistory(versionSizeId: string): Promise<boolean> {
  * their sizes — with new slugs/SKUs and a "(Copy)" name suffix. Reuses
  * existing image URLs (no re-upload). Stock on every duplicated size starts
  * at 0, matching the previous single-table behavior.
- * This now requires several sequential inserts (one product, then one per
- * version, then one per size) since the data is spread across three
- * tables; there's no multi-table transaction here, so a failure partway
- * through can leave a partially-duplicated product behind (see report).
+ * The copy is written through save_admin_product in one transaction, so a
+ * failed version or size insert cannot leave a partial duplicate.
  */
 export async function duplicateProduct(product: Product): Promise<Product> {
   if (!product.collectionId) {
@@ -867,7 +867,8 @@ export async function duplicateProduct(product: Product): Promise<Product> {
     );
   }
   const suffix = Date.now().toString(36);
-  const newProduct = await createProduct({
+  const copyInput: ProductInput = {
+    id: crypto.randomUUID(),
     name: `${product.name} (Copy)`,
     slug: `${product.slug}-copy-${suffix}`,
     collectionId: product.collectionId,
@@ -876,10 +877,14 @@ export async function duplicateProduct(product: Product): Promise<Product> {
     lore: product.lore,
     images: product.images && product.images.length > 0 ? product.images : [product.image],
     featured: false,
-  });
-
-  for (const version of product.versions) {
-    const newVersion = await createProductVersion(newProduct.id, {
+  };
+  await saveAdminProduct({
+    isCreate: true,
+    product: copyInput,
+    existingVersions: [],
+    existingSizes: [],
+    newExistingSizes: [],
+    newVersions: product.versions.map((version) => ({
       versionName: version.versionName,
       productType: version.productType,
       material: version.material,
@@ -892,19 +897,16 @@ export async function duplicateProduct(product: Product): Promise<Product> {
       isActive: version.isActive,
       sortOrder: version.sortOrder,
       sizeGuide: version.sizeGuide,
-    });
-
-    for (const size of version.sizes) {
-      await createProductVersionSize(newVersion.id, {
+      sizes: version.sizes.map((size) => ({
         size: size.size,
         sku: `${size.sku}-COPY-${suffix.toUpperCase()}`,
         price: size.price,
         stock: 0,
-      });
-    }
-  }
+      })),
+    })),
+  });
 
-  const duplicated = await fetchProductBySlug(newProduct.slug);
+  const duplicated = await fetchProductBySlug(copyInput.slug);
   if (!duplicated) {
     throw new Error('Product was duplicated but could not be reloaded.');
   }
@@ -916,7 +918,7 @@ export async function duplicateProduct(product: Product): Promise<Product> {
 /** Uploads a product image to Supabase Storage and returns its public URL. */
 export async function uploadProductImage(slug: string, file: File): Promise<string> {
   const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-  const path = `${slug}/${Date.now()}-${safeName}`;
+  const path = `${slug}/${crypto.randomUUID()}-${safeName}`;
   const { publicUrl } = await uploadFile(PRODUCT_IMAGES_BUCKET, path, file, 'public', supabaseAdmin);
   return publicUrl;
 }

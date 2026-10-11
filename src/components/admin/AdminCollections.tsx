@@ -220,7 +220,9 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
     if (!name.trim()) return setError('Name is required.');
     if (!slug.trim()) return setError('Slug is required.');
     const sortOrderValue = Number(sortOrder);
-    if (Number.isNaN(sortOrderValue)) return setError('Enter a valid sort order.');
+    if (!Number.isSafeInteger(sortOrderValue) || sortOrderValue < 0) {
+      return setError('Sort order must be a whole number greater than or equal to 0.');
+    }
 
     setSubmitting(true);
     try {
@@ -306,6 +308,8 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
           <span className={fieldLabelClass()}>Sort Order</span>
           <input
             type="number"
+            min="0"
+            step="1"
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
             className={inputClass()}

@@ -91,11 +91,6 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     p_receipt_url: input.receiptPath ?? null,
     p_items: input.items.map((item) => ({
       version_size_id: item.versionSizeId,
-      product_id: item.productId,
-      slug: item.slug,
-      name: item.name,
-      image: item.image,
-      size: item.size,
       quantity: item.quantity,
     })),
     p_promo_code: input.promoCode?.trim() || null,

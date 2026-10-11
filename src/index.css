@@ -410,6 +410,99 @@ textarea:focus {
   }
 }
 
+.checkout-customer-info {
+  position: relative;
+  border: 2px solid var(--color-foreground);
+  background-color: var(--color-surface);
+  background-image: radial-gradient(circle, rgba(21, 21, 21, 0.045) 0.8px, transparent 1px);
+  background-size: 9px 9px;
+  padding: 1rem;
+  box-shadow: 4px 4px 0 var(--color-foreground);
+}
+
+.checkout-customer-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: -1rem -1rem 1.25rem;
+  border-bottom: 2px solid var(--color-foreground);
+  background-color: var(--color-warning);
+  background-image: radial-gradient(circle, rgba(21, 21, 21, 0.085) 0.8px, transparent 1px);
+  background-size: 8px 8px;
+  padding: 1rem;
+}
+
+.checkout-customer-number {
+  display: grid;
+  width: 2.8rem;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid var(--color-foreground);
+  background: var(--color-primary);
+  color: white;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  line-height: 1;
+  transform: rotate(-5deg);
+  box-shadow: 3px 3px 0 var(--color-foreground);
+}
+
+.checkout-customer-kicker {
+  margin-bottom: 0.15rem;
+  color: var(--color-primary);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.checkout-field-label {
+  color: var(--color-foreground) !important;
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.checkout-customer-info input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+.checkout-customer-info select {
+  min-height: 2.9rem;
+  border: 2px solid var(--color-foreground);
+  border-radius: 3px;
+  background-color: var(--color-surface);
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.16);
+}
+
+.checkout-customer-info input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+.checkout-customer-info select:focus {
+  border-color: var(--color-secondary);
+  outline: 3px solid rgba(var(--color-secondary-rgb), 0.2);
+  outline-offset: 1px;
+}
+
+.checkout-customer-info :is(input, select)[aria-invalid='true'] {
+  border-color: var(--color-primary);
+  box-shadow: 2px 2px 0 var(--color-primary);
+}
+
+@media (min-width: 640px) {
+  .checkout-customer-info {
+    padding: 1.25rem;
+  }
+
+  .checkout-customer-heading {
+    margin: -1.25rem -1.25rem 1.25rem;
+    padding: 1.1rem 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout-customer-number {
+    transform: none;
+  }
+}
+
 /* The back office gets its own inked, print-inspired treatment while sharing
    the storefront palette and leaving the customer UI untouched. */
 .admin-comic {

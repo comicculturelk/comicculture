@@ -63,6 +63,7 @@ interface OrderItemRow {
   size: string;
   quantity: number;
   price: number;
+  sku: string | null;
   is_preorder: boolean;
   preorder_days: number | null;
 }
@@ -384,6 +385,7 @@ export default function AdminOrders() {
                             </span>
                             <span className="text-muted">Rs. {item.price}</span>
                           </div>
+                          {item.sku && <span className="text-xs text-muted">SKU: {item.sku}</span>}
                           {item.is_preorder && (
                             <span className="inline-flex w-fit items-center gap-1 rounded-full border border-primary/40 bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                               Pre-Order{preorderMessage(item) ? ` — ${preorderMessage(item)}` : ''}

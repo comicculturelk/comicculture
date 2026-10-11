@@ -68,7 +68,9 @@ export default function ProductCard({ product, index }: ProductCardProps) {
 
           <div className="mt-5 flex items-center justify-between">
             <span className="font-display text-lg text-foreground">
-              {formatPrice(getProductMinPrice(product))}
+              {getProductMinPrice(product) > 0
+                ? formatPrice(getProductMinPrice(product))
+                : 'Unavailable'}
             </span>
             <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary transition-transform duration-300 group-hover:translate-x-1">
               View Product
