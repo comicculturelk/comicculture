@@ -825,6 +825,52 @@ body {
   background-image: none;
 }
 
+.product-detail-card {
+  align-items: start;
+  border-radius: 16px !important;
+}
+
+.product-gallery-frame {
+  background: #f1f2f4;
+}
+
+.product-collection-link {
+  display: inline-flex;
+  min-height: 1.9rem;
+  align-items: center;
+  border-radius: 999px;
+  background: #f1f2f4;
+  padding: 0.35rem 0.75rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+a.product-collection-link:hover {
+  background: #e9ebef;
+  color: var(--color-foreground);
+}
+
+.product-info-column .comic-accordion {
+  border-radius: 12px !important;
+}
+
+.product-info-column .comic-accordion > div > button {
+  min-height: 3.25rem;
+  padding-inline: 1rem;
+}
+
+.product-info-column .comic-accordion > div > div > div {
+  padding-inline: 1rem;
+}
+
+.product-detail-page :is(button, a):focus-visible {
+  outline: 3px solid rgba(var(--color-primary-rgb), 0.32);
+  outline-offset: 2px;
+}
+
 .comic-product-inner > div.h-1.border-y-2 {
   height: 1px;
   border: 0;

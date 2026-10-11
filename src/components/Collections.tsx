@@ -57,7 +57,7 @@ export default function Collections({ collections, loading, error }: Collections
 
               const cardContent = (
                 <>
-                  <div className="absolute inset-0 bg-[#242424]">
+                  <div className="absolute inset-0 bg-surface">
                     {collection.coverImage ? (
                       <motion.img
                         src={collection.coverImage}
@@ -71,32 +71,31 @@ export default function Collections({ collections, loading, error }: Collections
                     ) : (
                       <div className="halftone-overlay h-full w-full opacity-30" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/70 via-50% to-black/20" />
                   </div>
 
-                  <div aria-hidden="true" className="pointer-events-none absolute inset-2 border border-white/40" />
+                  <div aria-hidden="true" className="pointer-events-none absolute inset-2 border border-foreground/10" />
 
                   <span className="absolute left-5 top-5 z-10 rounded-full border border-border bg-white/95 px-3 py-1 font-sans text-xs font-semibold text-foreground shadow-sm">
                     {String(index + 1).padStart(2, '0')}
                   </span>
 
-                  <span className={`absolute right-5 top-5 z-10 inline-flex max-w-[55%] items-center gap-1.5 border border-white/50 bg-black/80 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-sm ${!isLive ? 'text-white/90' : ''}`}>
-                    {!isLive && <Lock aria-hidden="true" className="h-3 w-3 shrink-0" />}
+                  <span className="absolute right-5 top-5 z-10 inline-flex max-w-[55%] items-center gap-1.5 rounded-full border border-border bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-foreground shadow-sm">
+                    {!isLive && <Lock aria-hidden="true" className="h-3 w-3 shrink-0 text-muted-foreground" />}
                     <span className="truncate">{badgeText}</span>
                   </span>
 
-                  <div className="absolute inset-x-0 bottom-0 z-10 p-6 text-white sm:p-7">
-                    <p className="mb-2 text-xs font-medium text-white/75">
+                  <div className="absolute inset-x-0 bottom-0 z-10 border-t border-border bg-white/95 p-5 text-foreground sm:p-6">
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">
                       {isLive ? 'Explore collection' : 'Coming soon'}
                     </p>
-                    <h3 className="line-clamp-2 font-display text-3xl leading-tight tracking-tight drop-shadow sm:text-4xl">
+                    <h3 className="line-clamp-2 font-display text-3xl leading-tight tracking-tight sm:text-4xl">
                       {collection.name}
                     </h3>
-                    <div className="mt-4 flex items-center justify-between border-t border-white/35 pt-3.5">
-                      <span className="font-sans text-sm font-medium text-white/90">
+                    <div className="mt-4 flex items-center justify-between border-t border-border pt-3.5">
+                      <span className="font-sans text-sm font-medium text-foreground">
                         {isLive ? 'Shop collection' : 'Coming soon'}
                       </span>
-                      <span className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/60 transition-all duration-200 ${isLive ? 'group-hover:border-white group-hover:bg-white/15' : 'opacity-70'}`}>
+                      <span className={`flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground transition-all duration-200 ${isLive ? 'group-hover:border-primary group-hover:bg-primary/5 group-hover:text-primary' : 'opacity-70'}`}>
                         {isLive ? <ArrowUpRight aria-hidden="true" className="h-5 w-5" /> : <Lock aria-hidden="true" className="h-4 w-4" />}
                       </span>
                     </div>
