@@ -167,6 +167,118 @@
     clip-path: polygon(50% 0%, 57% 12%, 69% 3%, 72% 17%, 87% 13%, 85% 29%, 100% 35%, 89% 47%, 100% 59%, 84% 65%, 91% 80%, 75% 79%, 70% 96%, 57% 87%, 48% 100%, 40% 86%, 27% 97%, 25% 81%, 9% 83%, 15% 67%, 0% 59%, 12% 48%, 1% 36%, 17% 29%, 12% 14%, 29% 18%, 34% 2%, 45% 13%);
   }
 
+  .comic-product-copy {
+    background-color: var(--color-surface);
+    background-image: radial-gradient(circle at 1px 1px, rgba(21, 21, 21, 0.06) 1px, transparent 1.2px);
+    background-size: 12px 12px;
+  }
+
+  .comic-quote {
+    border: 2px solid var(--color-foreground);
+    border-left-width: 7px;
+    background: #fff2b5;
+    padding: 0.75rem 1rem;
+    box-shadow: 4px 4px 0 rgba(var(--color-foreground-rgb), 0.13);
+  }
+
+  .comic-priceplate {
+    border: 2px solid var(--color-foreground);
+    background: var(--color-foreground);
+    box-shadow: 4px 4px 0 var(--color-primary);
+  }
+
+  .comic-section-kicker {
+    color: var(--color-foreground);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.11em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .comic-option-button,
+  .comic-size-choice {
+    border: 2px solid var(--color-foreground);
+    background: var(--color-surface);
+    color: var(--color-foreground);
+    box-shadow: 3px 3px 0 rgba(var(--color-foreground-rgb), 0.85);
+  }
+
+  .comic-option-button:hover:not(:disabled),
+  .comic-size-choice:hover:not(:disabled) {
+    transform: translate(-1px, -1px);
+    background: rgba(250, 204, 21, 0.36);
+    box-shadow: 4px 4px 0 var(--color-secondary);
+  }
+
+  .comic-option-button.is-selected,
+  .comic-size-choice.is-selected {
+    border-color: var(--color-foreground);
+    background: var(--color-primary);
+    color: white;
+    box-shadow: 4px 4px 0 var(--color-foreground);
+  }
+
+  .comic-size-choice:disabled {
+    border-style: dashed;
+    background: rgba(21, 21, 21, 0.04);
+    color: rgba(21, 21, 21, 0.42);
+    box-shadow: none;
+    text-decoration: line-through;
+  }
+
+  .comic-size-guide {
+    border: 2px solid var(--color-foreground);
+    background: #fff2b5;
+    color: var(--color-foreground);
+    box-shadow: 3px 3px 0 var(--color-secondary);
+  }
+
+  .comic-size-guide:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--color-secondary);
+  }
+
+  .comic-stepper {
+    overflow: hidden;
+    border: 2px solid var(--color-foreground);
+    background: var(--color-surface);
+    box-shadow: 3px 3px 0 rgba(var(--color-foreground-rgb), 0.85);
+  }
+
+  .comic-low-stock {
+    border: 2px solid var(--color-foreground);
+    background: var(--color-warning);
+    color: var(--color-foreground);
+    box-shadow: 2px 2px 0 var(--color-primary);
+  }
+
+  .comic-trust-card {
+    border: 1px dashed rgba(var(--color-foreground-rgb), 0.35);
+    background: rgba(255, 253, 247, 0.78);
+  }
+
+  .comic-accordion {
+    border-top: 2px solid var(--color-foreground);
+    border-bottom: 2px solid var(--color-foreground);
+    background: rgba(255, 253, 247, 0.7);
+  }
+
+  .comic-accordion > div + div {
+    border-top: 1px dashed var(--color-border);
+  }
+
+  .comic-accordion > div > button {
+    padding: 1rem 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .comic-accordion > div > button:hover {
+    background: rgba(250, 204, 21, 0.22);
+  }
+
   .comic-field {
     border: 2px solid var(--color-foreground) !important;
     border-radius: 4px !important;

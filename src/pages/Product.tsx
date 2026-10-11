@@ -395,7 +395,7 @@ export default function Product() {
                     type="button"
                     onClick={handlePrevImage}
                     aria-label="Previous image"
-                    className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-foreground backdrop-blur-sm transition-colors hover:border-foreground active:scale-95"
+                    className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center border-2 border-foreground bg-background/95 text-foreground shadow-[3px_3px_0_#151515] backdrop-blur-sm transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none active:scale-95"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
@@ -403,7 +403,7 @@ export default function Product() {
                     type="button"
                     onClick={handleNextImage}
                     aria-label="Next image"
-                    className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-foreground backdrop-blur-sm transition-colors hover:border-foreground active:scale-95"
+                    className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center border-2 border-foreground bg-background/95 text-foreground shadow-[3px_3px_0_#151515] backdrop-blur-sm transition-all hover:-translate-y-1/2 hover:translate-x-0.5 hover:shadow-none active:scale-95"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -421,10 +421,10 @@ export default function Product() {
                     onClick={() => setActiveImage(img)}
                     aria-label={`View image ${index + 1} of ${galleryImages.length}`}
                     aria-current={displayedImage === img}
-                    className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-background transition-all ${
+                    className={`h-16 w-16 flex-shrink-0 overflow-hidden border-2 bg-background transition-all ${
                       displayedImage === img
-                        ? 'border-primary'
-                        : 'border-border hover:border-foreground'
+                        ? 'border-primary shadow-[3px_3px_0_#151515]'
+                        : 'border-foreground/40 hover:border-foreground'
                     }`}
                   >
                     <img src={img} alt="" className="h-full w-full object-contain" />
@@ -435,34 +435,39 @@ export default function Product() {
           </div>
 
           {/* Product info */}
-          <div className="relative flex flex-1 flex-col p-6 lg:p-10">
+          <div className="comic-product-copy relative flex flex-1 flex-col p-6 lg:p-10">
             {/* Collection label */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               {collectionSlug ? (
                 <Link
                   to={`/collections/${collectionSlug}`}
-                  className="text-xs font-semibold uppercase tracking-[0.2em] text-primary hover:underline"
+                  className="comic-caption -rotate-1 hover:bg-warning"
                 >
                   {product.collection}
                 </Link>
               ) : (
-                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                <span className="comic-caption -rotate-1">
                   {product.collection}
                 </span>
               )}
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-secondary">ComicCulture · Collector file</span>
             </div>
 
             {/* Title */}
-            <h1 className="mt-4 font-display text-3xl text-foreground tracking-wide lg:text-4xl">
+            <h1 className="mt-5 max-w-2xl font-display text-4xl leading-[0.92] tracking-wide text-foreground sm:text-5xl lg:text-6xl">
               {product.name}
             </h1>
 
             {/* Lore */}
-            <p className="mt-2 text-lg text-muted-foreground italic">"{product.lore}"</p>
+            <div className="comic-quote mt-5 max-w-xl -rotate-[0.5deg]">
+              <span className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-primary">The origin line</span>
+              <p className="mt-1 text-base font-semibold italic text-foreground sm:text-lg">“{product.lore}”</p>
+            </div>
 
             {/* Price */}
-            <div className="mt-4 flex items-baseline gap-3">
-              <p className="font-display text-4xl text-foreground">
+            <div className="comic-priceplate mt-5 inline-flex w-fit max-w-full items-center gap-4 px-4 py-3 sm:px-5">
+              <span className="[writing-mode:vertical-rl] rotate-180 text-[9px] font-extrabold uppercase leading-none tracking-[0.18em] text-warning">Collector price</span>
+              <p className="font-display text-3xl leading-none text-white sm:text-4xl">
                 {formatPrice(selectedVersionSize?.price ?? 0)}
               </p>
             </div>
@@ -474,21 +479,17 @@ export default function Product() {
                 more than one apparel version (e.g. Jersey vs Oversized Cotton) */}
             {activeVersions.length > 1 && (
               <div className="mt-8">
-                <p className="mb-3 text-sm font-medium text-muted">
-                  Select Version
-                  {selectedVersion && (
-                    <span className="text-muted-foreground"> — {selectedVersion.versionName}</span>
-                  )}
-                </p>
+                <p className="comic-section-kicker mb-3">Choose your edition {selectedVersion && <span className="text-primary">· {selectedVersion.versionName}</span>}</p>
                 <div className="flex flex-wrap gap-2">
                   {activeVersions.map((version) => (
                     <motion.button
                       key={version.id}
                       type="button"
-                      className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
+                      aria-pressed={selectedVersion?.id === version.id}
+                      className={`comic-option-button px-4 py-2.5 text-sm font-extrabold uppercase tracking-wide transition-all ${
                         selectedVersion?.id === version.id
-                          ? 'border-primary bg-primary/20 text-primary'
-                          : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                          ? 'is-selected'
+                          : ''
                       }`}
                       onClick={() => handleSelectVersion(version.id)}
                       whileHover={{ scale: 1.05 }}
@@ -504,17 +505,18 @@ export default function Product() {
             {/* Size selector */}
             <div className="mt-8">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-muted">
-                  Select Size <span className="text-muted-foreground">— {selectedSize}</span>
-                </p>
+                <div>
+                  <p className="comic-section-kicker">Pick your size</p>
+                  <p className="mt-1 text-xs text-muted">Selected: <strong className="font-extrabold text-foreground">{selectedSize}</strong> · sizes run out fast</p>
+                </div>
                 {hasSizeGuide && (
                   <button
                     type="button"
                     onClick={() => setShowSizeGuide(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    className="comic-size-guide inline-flex min-h-10 items-center gap-2 px-3 text-xs font-extrabold uppercase tracking-wide transition-all"
                   >
                     <Ruler className="h-3.5 w-3.5" />
-                    Size Guide
+                    Fit guide
                   </button>
                 )}
               </div>
@@ -527,13 +529,11 @@ export default function Product() {
                       <motion.button
                         type="button"
                         disabled={!inStock}
-                        className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
+                        aria-pressed={selectedSize === size}
+                        aria-label={`${size}${inStock ? '' : ' — sold out'}`}
+                        className={`comic-size-choice min-h-12 min-w-14 px-4 py-2 font-display text-lg transition-all ${
                           selectedSize === size
-                            ? 'border-primary bg-primary/20 text-primary'
-                            : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
-                        } ${
-                          !inStock
-                            ? 'cursor-not-allowed opacity-40 hover:border-border hover:text-muted-foreground'
+                            ? 'is-selected'
                             : ''
                         }`}
                         onClick={() => {
@@ -547,8 +547,8 @@ export default function Product() {
                         {size}
                       </motion.button>
                       {!inStock && (
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Sold out
+                        <span className="text-[9px] font-extrabold uppercase tracking-wide text-primary">
+                          Out
                         </span>
                       )}
                     </div>
@@ -559,42 +559,41 @@ export default function Product() {
 
             {/* Quantity selector */}
             <div className="mt-6">
-              <p className="mb-3 text-sm font-medium text-muted">Quantity</p>
-              <div className="inline-flex items-center rounded-lg border border-border">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <p className="comic-section-kicker">Quantity</p>
+                {availableStock > 0 && <p className="text-xs font-bold uppercase tracking-wide text-secondary">{availableStock} left in this size</p>}
+              </div>
+              <div className="comic-stepper inline-flex items-center">
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   disabled={quantity <= 1}
-                  className="flex h-10 w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                  className="flex h-11 w-11 items-center justify-center text-foreground transition-colors hover:bg-warning disabled:cursor-not-allowed disabled:opacity-35"
                   aria-label="Decrease quantity"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="w-10 text-center text-sm font-medium text-foreground">
+                <span className="min-w-12 text-center font-display text-xl tabular-nums text-foreground">
                   {quantity}
                 </span>
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
                   disabled={quantity >= maxQuantity}
-                  className="flex h-10 w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                  className="flex h-11 w-11 items-center justify-center text-foreground transition-colors hover:bg-warning disabled:cursor-not-allowed disabled:opacity-35"
                   aria-label="Increase quantity"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
-              {quantity >= maxQuantity && availableStock > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Only {availableStock} left in size {selectedSize}
-                </p>
-              )}
+              {quantity >= maxQuantity && availableStock > 0 && <p role="status" className="comic-low-stock mt-2 inline-flex px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide">Last {availableStock} in size {selectedSize}</p>}
             </div>
 
             {/* Pre-order notice */}
             {preorderMessage && (
-              <div className="mt-6 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-medium text-primary">
+              <div className="comic-panel mt-6 flex items-start gap-3 border-primary bg-primary/5 px-4 py-3 text-sm font-semibold text-foreground">
                 <Truck className="h-4 w-4 flex-shrink-0" />
-                Pre-Order — {preorderMessage}
+                <span><span className="font-extrabold uppercase tracking-wide text-primary">Pre-order dispatch</span><br />{preorderMessage}</span>
               </div>
             )}
 
@@ -604,11 +603,11 @@ export default function Product() {
                 type="button"
                 onClick={handleAddToCart}
                 disabled={availableStock === 0 || !selectedVersionSize}
-                className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
+                className="btn-primary relative w-full disabled:cursor-not-allowed disabled:opacity-40"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <ShoppingBag className="h-5 w-5" />
+                <ShoppingBag aria-hidden="true" className="h-5 w-5" />
                 {availableStock === 0
                   ? 'Sold Out'
                   : selectedVersion?.isPreorder
@@ -621,23 +620,23 @@ export default function Product() {
             </div>
 
             {/* Trust badges */}
-            <div className="mt-8 grid grid-cols-1 gap-3 border-t border-border pt-6 sm:grid-cols-3">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="mt-8 grid grid-cols-1 gap-2 border-y-2 border-foreground py-4 sm:grid-cols-3">
+              <div className="comic-trust-card flex items-center gap-2 px-2 py-2 text-[11px] font-bold leading-tight text-foreground">
                 <Truck className="h-4 w-4 flex-shrink-0 text-primary" />
                 Island-wide delivery
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="comic-trust-card flex items-center gap-2 px-2 py-2 text-[11px] font-bold leading-tight text-foreground">
                 <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
                 COD or bank transfer
               </div>
-              <Link to="/return-policy" className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-primary">
+              <Link to="/return-policy" className="comic-trust-card flex items-center gap-2 px-2 py-2 text-[11px] font-bold leading-tight text-foreground transition-colors hover:text-primary">
                 <RefreshCw className="h-4 w-4 flex-shrink-0 text-primary" />
                 Read exchange policy
               </Link>
             </div>
 
             {/* Accordion: details, materials, care, shipping */}
-            <div className="mt-8 divide-y divide-border border-t border-border">
+            <div className="comic-accordion mt-8">
               <AccordionItem
                 title="Details & Materials"
                 isOpen={openSection === 'details'}
@@ -725,35 +724,38 @@ export default function Product() {
             onClick={() => setShowSizeGuide(false)}
           >
             <motion.div
-              className="w-full max-w-md rounded-2xl border border-border bg-background p-6"
+              className="comic-panel w-full max-w-md overflow-hidden p-0"
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="font-display text-xl text-foreground tracking-wide">Size Guide</h3>
+              <div className="mb-4 flex items-center justify-between border-b-4 border-foreground bg-warning px-5 py-4">
+                <div>
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-primary">Know your fit</p>
+                  <h3 className="font-display text-2xl text-foreground tracking-wide">SIZE GUIDE</h3>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowSizeGuide(false)}
-                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  className="flex h-9 w-9 items-center justify-center border-2 border-foreground bg-surface text-foreground shadow-[2px_2px_0_#151515] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none"
                   aria-label="Close size guide"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <table className="w-full text-left text-sm">
+              <table className="mx-5 w-[calc(100%-2.5rem)] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="py-2 font-medium">Size</th>
-                    <th className="py-2 font-medium">Chest</th>
-                    <th className="py-2 font-medium">Length</th>
-                    <th className="py-2 font-medium">Sleeve</th>
+                  <tr className="border-b-2 border-foreground bg-surface text-foreground">
+                    <th className="py-2 font-extrabold uppercase tracking-wide">Size</th>
+                    <th className="py-2 font-extrabold uppercase tracking-wide">Chest</th>
+                    <th className="py-2 font-extrabold uppercase tracking-wide">Length</th>
+                    <th className="py-2 font-extrabold uppercase tracking-wide">Sleeve</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sizeGuide.map((row) => (
-                    <tr key={row.size} className="border-b border-border text-muted-foreground">
+                    <tr key={row.size} className="border-b border-border text-muted-foreground odd:bg-warning/20">
                       <td className="py-2 font-medium text-foreground">{row.size}</td>
                       <td className="py-2">{row.chest}</td>
                       <td className="py-2">{row.length}</td>
@@ -762,7 +764,7 @@ export default function Product() {
                   ))}
                 </tbody>
               </table>
-              <p className="mt-4 text-xs text-muted-foreground">
+              <p className="px-5 pb-5 pt-4 text-xs leading-relaxed text-muted-foreground">
                 Measurements are approximate. Between sizes? Message us on WhatsApp and we'll
                 help you pick the right fit.
               </p>
@@ -793,7 +795,7 @@ function AccordionItem({
         onClick={onToggle}
         className="flex w-full items-center justify-between py-4 text-left"
       >
-        <span className="text-sm font-medium text-foreground">{title}</span>
+        <span className="text-sm font-extrabold uppercase tracking-wide text-foreground">{title}</span>
         <ChevronDown
           className={`h-4 w-4 text-muted-foreground transition-transform ${
             isOpen ? 'rotate-180' : ''
@@ -821,7 +823,7 @@ function RelatedProductCard({ product }: { product: ProductType }) {
   return (
     <Link
       to={`/product/${product.slug}`}
-      className="group overflow-hidden border border-border bg-surface transition-colors hover:border-foreground/40"
+      className="comic-panel group overflow-hidden transition-all hover:-translate-y-1 hover:shadow-[7px_7px_0_#d21f38]"
     >
       <div className="aspect-square overflow-hidden bg-background">
         <img
