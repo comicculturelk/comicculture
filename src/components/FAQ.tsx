@@ -86,7 +86,7 @@ export default function FAQ() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            GOT <span className="text-gradient-red">QUESTIONS</span>
+            Frequently asked <span className="text-gradient-red">questions</span>
           </h2>
         </motion.div>
 

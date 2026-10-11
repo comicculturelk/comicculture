@@ -32,7 +32,7 @@ export default function Gallery() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            FOLLOW THE <span className="text-gradient-red">VERSE</span>
+            Follow us on <span className="text-gradient-red">Instagram</span>
           </h2>
           <p className="mt-4 text-lg text-muted">
             @ComicCulture.lk on Instagram

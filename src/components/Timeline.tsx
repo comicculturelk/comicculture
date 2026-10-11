@@ -28,7 +28,7 @@ export default function Timeline() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            BEHIND THE <span className="text-gradient-blue">DESIGN</span>
+            How we <span className="text-gradient-blue">make it</span>
           </h2>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
             Every piece goes through our meticulous 6-step process before reaching you.

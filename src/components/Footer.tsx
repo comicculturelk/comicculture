@@ -36,8 +36,8 @@ export default function Footer() {
               />
             </div>
             <div className="flex flex-col">
-              <span className="font-display text-base leading-none text-foreground">COMIC</span>
-              <span className="font-display text-base leading-none text-primary">CULTURE</span>
+              <span className="font-display text-base leading-none text-foreground">Comic</span>
+              <span className="font-display text-base leading-none text-primary">Culture</span>
             </div>
           </motion.div>
 

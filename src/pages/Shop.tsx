@@ -97,7 +97,7 @@ export default function Shop() {
             transition={{ duration: 0.6 }}
           >
             <span className="inline-block rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-              {isNewest ? 'JUST DROPPED' : 'FULL CATALOG'}
+              {isNewest ? 'Just dropped' : 'Full catalog'}
             </span>
             <h1 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide uppercase">
               {pageTitle}

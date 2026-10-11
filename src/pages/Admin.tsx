@@ -72,7 +72,7 @@ export default function Admin() {
       <section className="admin-comic comic-page flex min-h-screen items-center justify-center bg-background px-6">
         <div className="glass w-full max-w-lg space-y-4 rounded-2xl p-8">
           <p className="admin-eyebrow">ComicCulture • Back office</p>
-          <h1 className="font-display text-3xl text-foreground tracking-wide">ACCESS REQUIRED</h1>
+          <h1 className="font-display text-3xl text-foreground tracking-wide">Admin access required</h1>
           <p role={accessError ? 'alert' : 'status'} className="text-sm text-muted-foreground">
             {accessError ?? 'This account is not on the ComicCulture admin team.'}
           </p>
@@ -109,8 +109,8 @@ function AdminLogin() {
     <section className="admin-comic comic-page flex min-h-screen items-center justify-center bg-background px-6">
       <form onSubmit={handleSubmit} className="glass admin-login-card w-full max-w-sm space-y-4 rounded-2xl p-8">
         <p className="admin-eyebrow">ComicCulture • Back office</p>
-        <h1 className="font-display text-3xl text-foreground tracking-wide">ADMIN LOGIN</h1>
-        <p className="text-sm text-muted-foreground">Sign in to manage the shop universe.</p>
+        <h1 className="font-display text-3xl text-foreground tracking-wide">Admin sign in</h1>
+        <p className="text-sm text-muted-foreground">Sign in to manage your store.</p>
         <input
           type="email"
           required
@@ -166,8 +166,8 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <div>
-              <p className="admin-eyebrow">ComicCulture • Back office</p>
-              <h1 className="break-words font-display text-2xl text-foreground tracking-wide sm:text-4xl">THE CONTROL ROOM</h1>
+              <p className="admin-eyebrow">ComicCulture · Store admin</p>
+              <h1 className="break-words font-display text-2xl text-foreground tracking-wide sm:text-4xl">Store dashboard</h1>
             </div>
             <nav className="admin-nav flex flex-wrap gap-2" aria-label="Admin sections">
               {visibleViews.map((v) => (

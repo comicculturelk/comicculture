@@ -1,7 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import CornerFrame from './CornerFrame';
 
 export default function FinalCTA() {
   const reduceMotion = useReducedMotion();
@@ -20,8 +19,6 @@ export default function FinalCTA() {
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      <CornerFrame className="hidden sm:block" />
-
       <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">
         <motion.span
           className="inline-block text-xs font-semibold uppercase tracking-[0.3em] text-muted"
@@ -30,7 +27,7 @@ export default function FinalCTA() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          To Be Continued...
+          Find your next favorite
         </motion.span>
 
         <motion.h2
@@ -40,7 +37,7 @@ export default function FinalCTA() {
           viewport={{ once: true }}
           transition={{ delay: 0.1, duration: 0.6 }}
         >
-          YOUR STORY <span className="text-gradient-red">STARTS HERE</span>
+          Your style <span className="text-gradient-red">starts here</span>
         </motion.h2>
 
         <motion.p

@@ -41,7 +41,7 @@ export default function WhySection() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            FAN CULTURE. <span className="text-gradient-red">EVERYDAY WEAR.</span>
+            Fan culture, <span className="text-gradient-red">made for every day.</span>
           </h2>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
             Based in Colombo, Sri Lanka, ComicCulture makes apparel inspired by the comics and pop culture fans love.

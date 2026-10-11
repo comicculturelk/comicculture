@@ -40,7 +40,7 @@ export default function OrderSuccess() {
         </motion.div>
 
         <h1 className="mt-6 font-display text-3xl text-foreground tracking-wide md:text-4xl">
-          ORDER <span className="text-gradient-red">RECEIVED</span>
+          Order <span className="text-gradient-red">received</span>
         </h1>
 
         {hasOrderDetails ? (

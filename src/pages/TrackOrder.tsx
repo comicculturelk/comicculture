@@ -99,7 +99,7 @@ export default function TrackOrder() {
       <div className="relative z-10 mx-auto max-w-2xl">
         <div className="text-center">
           <h1 className="font-display text-3xl text-foreground tracking-wide md:text-4xl">
-            TRACK YOUR <span className="text-gradient-red">ORDER</span>
+            Track your <span className="text-gradient-red">order</span>
           </h1>
           <p className="mt-3 text-muted">
             Enter your order reference and the email or phone number used at checkout.

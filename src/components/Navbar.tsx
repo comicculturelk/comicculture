@@ -45,7 +45,7 @@ export default function Navbar() {
     <>
       <motion.header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled ? 'glass py-3' : 'border-b-2 border-foreground bg-background/95 py-4 shadow-[0_3px_0_rgba(21,21,21,0.12)] backdrop-blur-xl'
+          scrolled ? 'glass py-3' : 'border-b border-border bg-background/95 py-4 shadow-sm backdrop-blur-xl'
         }`}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
@@ -73,8 +73,8 @@ export default function Navbar() {
                 />
               </div>
               <div className="hidden sm:flex flex-col">
-                <span className="font-display text-base text-foreground leading-none">COMIC</span>
-                <span className="font-display text-base text-primary leading-none">CULTURE</span>
+                <span className="font-display text-base text-foreground leading-none">Comic</span>
+                <span className="font-display text-base text-primary leading-none">Culture</span>
               </div>
             </MotionLink>
           </div>
@@ -85,10 +85,10 @@ export default function Navbar() {
               <li key={link.to}>
                 <Link
                   to={link.to}
-                  className="group relative py-2 text-sm font-extrabold uppercase tracking-wide text-foreground transition-colors hover:text-primary"
+                  className="group relative py-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
                 >
                   {link.label}
-                  <span className="absolute -bottom-0.5 left-0 h-1 w-0 bg-warning transition-all group-hover:w-full" />
+                  <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-primary transition-all group-hover:w-full" />
                 </Link>
               </li>
             ))}
@@ -179,7 +179,7 @@ export default function Navbar() {
 
             {/* Menu Content */}
             <motion.nav
-              className="absolute top-20 left-0 right-0 max-h-[calc(100vh-5rem)] overflow-y-auto border-y-2 border-foreground bg-background px-6 py-8 shadow-[0_6px_0_rgba(21,21,21,0.18)]"
+              className="absolute top-20 left-0 right-0 max-h-[calc(100vh-5rem)] overflow-y-auto border-y border-border bg-background px-6 py-8 shadow-lg"
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}

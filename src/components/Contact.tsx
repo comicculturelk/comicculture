@@ -45,7 +45,7 @@ export default function Contact() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            GET IN <span className="text-gradient-red">TOUCH</span>
+            Get in <span className="text-gradient-red">touch</span>
           </h2>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
             Questions about our products? Want to collaborate? Reach out and let's talk.

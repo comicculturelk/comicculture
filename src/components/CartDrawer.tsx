@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { X, Minus, Plus, Trash2, Info, ShoppingBag, ArrowRight, Sparkles } from 'lucide-react';
+import { X, Minus, Plus, Trash2, Info, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import { formatPrice, getPreorderMessage } from '../data/products';
@@ -86,9 +86,9 @@ export default function CartDrawer() {
             {/* Header */}
             <div className="relative flex items-center justify-between border-b-4 border-foreground bg-white px-5 py-4 sm:px-6">
               <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-primary">ComicCulture · collector edition</p>
-                <h2 id="cart-title" className="mt-0.5 font-display text-2xl tracking-wide text-foreground sm:text-3xl">THE PULL LIST</h2>
-                <p className="text-xs font-semibold uppercase tracking-widest text-foreground/70">{String(totalItems).padStart(2, '0')} {totalItems === 1 ? 'item' : 'items'} in your bag</p>
+                <p className="text-xs font-medium text-muted-foreground">ComicCulture</p>
+                <h2 id="cart-title" className="mt-0.5 font-display text-2xl text-foreground sm:text-3xl">Your cart</h2>
+                <p className="text-sm text-muted-foreground">{totalItems} {totalItems === 1 ? 'item' : 'items'}</p>
               </div>
               <motion.button
                 onClick={closeCart}
@@ -106,19 +106,16 @@ export default function CartDrawer() {
             <div className="flex-1 overflow-y-auto p-6">
               {items.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-                  <div className="comic-burst mb-7 flex h-36 w-36 -rotate-6 flex-col items-center justify-center border-2 border-foreground text-foreground shadow-[5px_5px_0_#d21f38]">
+                  <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-surface-hover text-muted">
                     <ShoppingBag className="h-8 w-8" aria-hidden="true" />
-                    <span className="mt-1 font-display text-xl leading-none">PLOT TWIST!</span>
                   </div>
-                  <span className="comic-caption -rotate-2">No issues in the bag</span>
-                  <h3 className="mt-5 max-w-xs font-display text-3xl leading-tight text-foreground">YOUR NEXT FAVORITE IS OUT THERE.</h3>
-                  <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">Explore the latest drops and add a little universe to your everyday.</p>
+                  <h3 className="max-w-xs font-display text-2xl leading-tight text-foreground">Your cart is empty</h3>
+                  <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">Browse the collection and find something you love.</p>
                   <Link to="/shop" onClick={closeCart} className="btn-primary mt-7">
                     <ShoppingBag className="h-4 w-4" aria-hidden="true" />
                     Browse the collection
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
-                  <p className="mt-5 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted"><Sparkles className="h-3.5 w-3.5 text-secondary" /> New chapters added often</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -132,13 +129,12 @@ export default function CartDrawer() {
                   {stockMessage && (
                     <p role="status" className="comic-caption max-w-full !whitespace-normal bg-warning/80 text-left !tracking-normal">{stockMessage}</p>
                   )}
-                  {items.map((item, index) => {
+                  {items.map((item) => {
                     const product = products.find((p) => p.id === item.productId);
                     const version = findVersionForVersionSizeId(product, item.versionSizeId);
                     const preorderMessage = version ? getPreorderMessage(version) : null;
                     return (
                     <article key={item.versionSizeId} className="comic-panel relative flex gap-3 p-3 sm:gap-4 sm:p-4">
-                      <span className="absolute -right-1.5 -top-2 z-10 border-2 border-foreground bg-warning px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-foreground shadow-[2px_2px_0_#d21f38]">Issue {String(index + 1).padStart(2, '0')}</span>
                       <Link
                         to={`/product/${item.slug}`}
                         onClick={closeCart}
@@ -210,8 +206,8 @@ export default function CartDrawer() {
             {items.length > 0 && (
               <div className="border-t-4 border-foreground bg-surface/95 p-5 sm:p-6">
                 <div className="mb-4 flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-widest text-muted">
-                    Panel total · {totalItems} {totalItems === 1 ? 'item' : 'items'}
+                  <span className="text-sm text-muted-foreground">
+                    Subtotal · {totalItems} {totalItems === 1 ? 'item' : 'items'}
                   </span>
                   <span className="border-2 border-foreground bg-warning px-3 py-1 font-display text-2xl text-foreground shadow-[3px_3px_0_#d21f38]">{formatPrice(totalPrice)}</span>
                 </div>

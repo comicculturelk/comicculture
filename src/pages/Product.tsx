@@ -370,8 +370,6 @@ export default function Product() {
               />
 
               {/* Editorial corner accents */}
-              <span className="pointer-events-none absolute top-4 right-4 h-6 w-6 border-t border-r border-foreground/20" />
-              <span className="pointer-events-none absolute bottom-4 left-4 h-6 w-6 border-b border-l border-foreground/20" />
 
               {product.featured && (
                 <span className="absolute left-4 top-4 border border-border bg-background/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary backdrop-blur-sm">
@@ -447,7 +445,7 @@ export default function Product() {
                   {product.collection}
                 </span>
               )}
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-secondary">ComicCulture · Collector file</span>
+              <span className="text-sm font-medium text-muted-foreground">ComicCulture · Fan-inspired apparel</span>
             </div>
 
             {/* Title */}
@@ -457,14 +455,14 @@ export default function Product() {
 
             {/* Lore */}
             <div className="comic-quote mt-5 max-w-xl -rotate-[0.5deg]">
-              <span className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-primary">The origin line</span>
+                  <span className="text-xs font-medium text-muted-foreground">Design story</span>
               <p className="mt-1 text-base font-semibold italic text-foreground sm:text-lg">“{product.lore}”</p>
             </div>
 
             {/* Price */}
             <div className="comic-priceplate mt-5 inline-flex w-fit max-w-full items-center gap-4 px-4 py-3 sm:px-5">
-              <span className="[writing-mode:vertical-rl] rotate-180 text-[9px] font-extrabold uppercase leading-none tracking-[0.18em] text-warning">Collector price</span>
-              <p className="font-display text-3xl leading-none text-white sm:text-4xl">
+              <span className="text-sm font-medium text-muted-foreground">Price</span>
+              <p className="font-display text-3xl leading-none text-foreground sm:text-4xl">
                 {formatPrice(selectedVersionSize?.price ?? 0)}
               </p>
             </div>
@@ -737,7 +735,7 @@ export default function Product() {
               <div className="mb-4 flex items-center justify-between border-b-4 border-foreground bg-white px-5 py-4">
                 <div>
                   <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-primary">Know your fit</p>
-                  <h3 className="font-display text-2xl text-foreground tracking-wide">SIZE GUIDE</h3>
+                  <h3 className="font-display text-2xl text-foreground tracking-wide">Size guide</h3>
                 </div>
                 <button
                   type="button"

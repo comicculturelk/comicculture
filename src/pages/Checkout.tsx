@@ -292,7 +292,7 @@ export default function Checkout() {
         </Link>
 
         <h1 className="mb-8 font-display text-3xl text-foreground tracking-wide md:text-4xl">
-          CHECKOUT
+          Checkout
         </h1>
 
         <form
@@ -342,11 +342,11 @@ export default function Checkout() {
               <div className="checkout-customer-heading">
                 <span className="checkout-customer-number" aria-hidden="true">01</span>
                 <div>
-                  <p className="checkout-customer-kicker">Your origin story</p>
+                  <p className="checkout-customer-kicker">Contact details</p>
                   <h2 id="checkout-customer-heading" className="font-display text-2xl text-foreground tracking-wide">
-                    CUSTOMER INFORMATION
+                    Customer information
                   </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Where should we send your haul?</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Where should we send your order?</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
@@ -466,7 +466,7 @@ export default function Checkout() {
 
             {/* Delivery */}
             <div>
-              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">DELIVERY</h2>
+              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">Delivery</h2>
               <div className="flex items-center justify-between rounded-lg border border-primary bg-primary/20 px-4 py-3">
                 <div className="flex items-center gap-3">
                   <Truck className="h-5 w-5 flex-shrink-0 text-primary" />
@@ -488,7 +488,7 @@ export default function Checkout() {
             {hasPreorderItems && (
               <div>
                 <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">
-                  PRE-ORDER NOTICE
+                  Pre-order notice
                 </h2>
                 <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-4">
                   <div className="flex items-start gap-3">
@@ -527,7 +527,7 @@ export default function Checkout() {
             {/* Payment method */}
             <div>
               <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">
-                PAYMENT METHOD
+                Payment method
               </h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
@@ -632,7 +632,7 @@ export default function Checkout() {
 
             {/* Promo code */}
             <div>
-              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">PROMO CODE</h2>
+              <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">Promo code</h2>
               <div className="flex gap-3">
                 <div className="relative flex-1">
                   <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted/30" />
@@ -672,7 +672,7 @@ export default function Checkout() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <h2 className="font-display text-xl text-foreground tracking-wide">ORDER SUMMARY</h2>
+            <h2 className="font-display text-xl text-foreground tracking-wide">Order summary</h2>
 
             <div className="space-y-4">
               {items.map((item) => {

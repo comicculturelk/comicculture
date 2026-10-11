@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowDown, ArrowLeft, ArrowRight, ShoppingBag } from 'lucide-react';
-import CornerFrame from './CornerFrame';
 import type { Collection } from '../data/collections';
 
 interface HeroProps {
@@ -26,7 +25,7 @@ const DEFAULT_HERO_FOCUS = '50% center';
 const FALLBACK_SLIDE: Slide = {
   key: 'fallback',
   label: 'ComicCulture',
-  headline: 'WEAR YOUR UNIVERSE',
+  headline: 'Wear your universe',
   subline: 'Wearable art for fans, in limited runs.',
   image: null,
   focusDesktop: DEFAULT_HERO_FOCUS,
@@ -48,7 +47,7 @@ export default function Hero({ collections }: HeroProps) {
     return live.map((collection) => ({
       key: collection.id,
       label: collection.tagline || 'Now Live',
-      headline: collection.name.toUpperCase(),
+      headline: collection.name,
       subline: collection.description ? truncate(collection.description, 90) : 'Shop the latest drop.',
       image: collection.coverImage,
       focusDesktop: collection.heroFocusDesktop || DEFAULT_HERO_FOCUS,
@@ -68,7 +67,6 @@ export default function Hero({ collections }: HeroProps) {
 
   return (
     <section id="home" className="comic-page relative min-h-[min(760px,100svh)] overflow-hidden border-b-4 border-foreground bg-background pt-24 lg:min-h-[min(820px,100svh)] lg:pt-20">
-      <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
       <div className="absolute inset-0 lg:left-[40%]">
         <AnimatePresence mode="wait">
@@ -93,8 +91,6 @@ export default function Hero({ collections }: HeroProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/75 to-background/5 lg:bg-gradient-to-r lg:from-background lg:via-background/95 lg:via-35% lg:to-background/0" />
       </div>
 
-      <CornerFrame className="hidden sm:block" />
-
       <div className="relative z-10 mx-auto flex min-h-[min(660px,calc(100svh-6rem))] max-w-7xl flex-col justify-end px-6 pb-16 pt-28 sm:justify-center sm:pb-20 lg:min-h-[min(740px,calc(100svh-5rem))] lg:px-10">
         <AnimatePresence mode="wait">
           <motion.div
@@ -105,11 +101,11 @@ export default function Hero({ collections }: HeroProps) {
             exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
             transition={{ duration: reduceMotion ? 0 : 0.35 }}
           >
-            <p className="comic-caption mb-2 -rotate-2">
+            <p className="comic-caption mb-2">
               <span className="h-px w-7 bg-primary" />
               {current.label}
             </p>
-            <h1 className="mt-5 max-w-xl font-display text-5xl leading-[0.92] tracking-wide text-foreground sm:text-6xl md:text-7xl lg:text-8xl">
+            <h1 className="mt-5 max-w-xl font-display text-5xl leading-tight tracking-tight text-foreground sm:text-6xl md:text-7xl lg:text-7xl">
               {current.headline}
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-muted sm:text-lg">

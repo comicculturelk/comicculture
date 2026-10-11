@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BadgeCheck, Instagram } from 'lucide-react';
+import { Instagram, Star } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface CustomerReview {
@@ -44,13 +44,13 @@ export default function Reviews() {
           transition={{ duration: 0.6 }}
         >
           <span className="inline-block border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-            COLLECTOR NOTES
+            CUSTOMER FEEDBACK
           </span>
           <h2 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
-            THE READER <span className="text-gradient-red">ARCHIVE</span>
+            Customer <span className="text-gradient-red">reviews</span>
           </h2>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-            Letters, notes, and sightings from collectors currently living in the universe.
+            What customers say about their ComicCulture orders.
           </p>
         </motion.div>
 
@@ -66,29 +66,29 @@ export default function Reviews() {
                 transition={{ delay: index * 0.1, duration: 0.5 }}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-display text-xs tracking-[0.25em] text-muted uppercase">
-                    Letter №{String(index + 1).padStart(3, '0')}
+                  <span className="text-xs font-medium text-muted">
+                    Customer review
                   </span>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                    <BadgeCheck aria-hidden="true" className="h-3.5 w-3.5" />
-                    {review.rating}/5 Collector Rating
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground" aria-label={`${review.rating} out of 5 stars`}>
+                    <Star aria-hidden="true" className="h-4 w-4 fill-current text-amber-500" />
+                    {review.rating}/5
                   </span>
                 </div>
-                <p className="mt-5 text-lg text-foreground/80 leading-relaxed italic">“{review.review_text}”</p>
-                <div className="mt-6 border-t border-dashed border-border pt-5">
+                <p className="mt-5 text-base leading-relaxed text-foreground/80">“{review.review_text}”</p>
+                <div className="mt-6 border-t border-border pt-5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div aria-hidden="true" className="flex h-10 w-10 flex-shrink-0 items-center justify-center border border-primary/30 bg-primary/5 font-display text-lg text-primary">
+                      <div aria-hidden="true" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
                         {review.customer_name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-display text-base tracking-wide text-foreground">{review.customer_name}</p>
+                        <p className="text-sm font-semibold text-foreground">{review.customer_name}</p>
                         {review.location && <p className="text-xs text-muted">{review.location}</p>}
                       </div>
                     </div>
                     {review.product_name && (
                       <span className="text-right text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Wearing<br /><span className="text-primary">{review.product_name}</span>
+                        Product<br /><span className="text-primary">{review.product_name}</span>
                       </span>
                     )}
                   </div>

@@ -8,13 +8,13 @@ export default function BrandStory() {
 
       <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">
         <motion.h2
-          className="font-display text-4xl leading-tight tracking-wide text-foreground md:text-5xl lg:text-6xl"
+          className="font-display text-4xl leading-tight tracking-tight text-foreground md:text-5xl lg:text-6xl"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          WEAR YOUR <span className="text-gradient-red">UNIVERSE</span>
+          Wear your <span className="text-gradient-red">universe</span>
         </motion.h2>
 
         <motion.p

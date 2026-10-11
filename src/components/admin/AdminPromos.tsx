@@ -129,7 +129,7 @@ export default function AdminPromos() {
   return (
     <section className="space-y-8">
       <div>
-        <h2 className="font-display text-xl tracking-wide text-foreground">PROMO CODES</h2>
+        <h2 className="font-display text-xl tracking-wide text-foreground">Promo codes</h2>
         <p className="mt-1 text-sm text-muted-foreground">Discounts are recalculated and redeemed atomically when the order is placed.</p>
       </div>
 

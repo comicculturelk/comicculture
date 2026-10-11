@@ -21,12 +21,9 @@ export default function ProductCard({ product, index }: ProductCardProps) {
       viewport={{ once: true, margin: '-50px' }}
       transition={{ delay: reduceMotion ? 0 : index * 0.08, duration: reduceMotion ? 0 : 0.5 }}
     >
-      <div className="comic-product-inner transition-transform duration-300 group-hover:-translate-y-1">
+      <div className="comic-product-inner">
         {/* Catalog label row */}
-        <div className="flex items-center justify-between px-5 pt-5">
-          <span className="font-display text-xs tracking-[0.25em] text-muted uppercase">
-            Issue №{String(index + 1).padStart(3, '0')}
-          </span>
+        <div className="flex items-center justify-end px-5 pt-5">
           <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
             {product.collection}
           </span>
@@ -72,8 +69,8 @@ export default function ProductCard({ product, index }: ProductCardProps) {
                 ? formatPrice(getProductMinPrice(product))
                 : 'Unavailable'}
             </span>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary transition-transform duration-300 group-hover:translate-x-1">
-              View Product
+            <span className="inline-flex items-center gap-1 text-sm font-medium text-primary transition-transform duration-200 group-hover:translate-x-0.5">
+              View details
               <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>

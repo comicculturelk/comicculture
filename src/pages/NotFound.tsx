@@ -10,10 +10,10 @@ export default function NotFound() {
       <div className="comic-panel relative z-10 max-w-2xl p-8 sm:p-12">
         <p className="font-display text-8xl text-primary md:text-9xl">404</p>
         <h1 className="mt-4 font-display text-3xl text-foreground tracking-wide md:text-4xl">
-          LOST IN THE <span className="text-gradient-red">MULTIVERSE</span>
+          Page not <span className="text-gradient-red">found</span>
         </h1>
         <p className="mt-4 text-muted">
-          This page doesn't exist in this universe. Let's get you back home.
+          This page doesn’t exist. Let’s get you back to the shop.
         </p>
         <Link to="/" className="btn-primary mt-8 inline-flex">
           Back to Home

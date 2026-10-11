@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
-import LoadingScreen from './components/LoadingScreen';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
@@ -28,7 +27,6 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <CartProvider>
         <ScrollToTop />
-        <LoadingScreen />
         <Navbar />
         <main>
           <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Loading page…</div>}>

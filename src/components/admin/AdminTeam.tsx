@@ -57,7 +57,7 @@ export default function AdminTeam() {
   return (
     <section className="space-y-6">
       <header>
-        <h2 className="font-display text-xl tracking-wide text-foreground">ADMIN TEAM</h2>
+        <h2 className="font-display text-xl tracking-wide text-foreground">Admin team</h2>
         <p className="mt-1 text-sm text-muted-foreground">Add an existing Supabase Auth user as an owner or administrator. Owners can manage team access.</p>
       </header>
 

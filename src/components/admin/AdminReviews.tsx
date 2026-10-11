@@ -94,7 +94,7 @@ export default function AdminReviews() {
   return (
     <section className="space-y-8">
       <div>
-        <h2 className="font-display text-xl tracking-wide text-foreground">CUSTOMER REVIEWS</h2>
+        <h2 className="font-display text-xl tracking-wide text-foreground">Customer reviews</h2>
         <p className="mt-1 text-sm text-muted-foreground">New reviews stay private drafts until you publish them. Share customer feedback only with their permission.</p>
       </div>
 
