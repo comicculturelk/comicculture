@@ -306,27 +306,31 @@ export default function Checkout() {
               lg up, where the sticky summary column already does this. */}
           <motion.section
             aria-label="Order overview"
-            className="glass flex items-center gap-4 rounded-2xl p-4 lg:hidden"
+            className="glass rounded-2xl p-4 lg:hidden"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="flex flex-shrink-0 -space-x-2">
-              {items.slice(0, 3).map((item) => (
-                <div
-                  key={`${item.productId}-${item.size}`}
-                  className="h-11 w-11 overflow-hidden rounded-lg border border-border bg-background"
-                >
-                  <img src={item.image} alt="" className="h-full w-full object-cover" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex flex-shrink-0 -space-x-2">
+                  {items.slice(0, 3).map((item) => (
+                    <div key={`${item.productId}-${item.size}`} className="h-11 w-11 overflow-hidden rounded-lg border border-border bg-background">
+                      <img src={item.image} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  ))}
                 </div>
-              ))}
+                <p className="truncate text-sm font-medium text-foreground">
+                  {totalItems} {totalItems === 1 ? 'item' : 'items'}{items.length > 3 && ` · +${items.length - 3} more`}
+                </p>
+              </div>
+              <p className="shrink-0 font-display text-lg font-semibold text-foreground">{formatPrice(total)}</p>
             </div>
-            <div className="flex flex-1 items-center justify-between gap-2">
-              <p className="text-xs uppercase tracking-wide text-muted">
-                {totalItems} {totalItems === 1 ? 'item' : 'items'}
-                {items.length > 3 && ` · +${items.length - 3} more`}
-              </p>
-              <p className="font-display text-lg text-primary">{formatPrice(total)}</p>
+            <div className="mt-3 space-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+              <div className="flex justify-between"><span>Subtotal</span><span>{formatPrice(totalPrice)}</span></div>
+              <div className="flex justify-between"><span>Delivery</span><span>{formatPrice(deliveryFee)}</span></div>
+              {currentPromo && <div className="flex justify-between text-green-700"><span>Promo</span><span>−{formatPrice(currentPromo.discountAmount)}</span></div>}
+              <div className="flex justify-between font-semibold text-foreground"><span>Total</span><span>{formatPrice(total)}</span></div>
             </div>
           </motion.section>
 

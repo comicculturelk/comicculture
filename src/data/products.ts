@@ -583,7 +583,9 @@ export async function createProduct(input: ProductInput): Promise<Product> {
 }
 
 export async function updateProduct(id: string, input: ProductInput): Promise<Product> {
-  const { product_code: _immutableProductCode, ...row } = await mapProductInputToRow(input);
+  const row = await mapProductInputToRow(input);
+  // Product codes are assigned on create and remain immutable afterward.
+  delete (row as { product_code?: string }).product_code;
   const { data, error } = await supabaseAdmin
     .from('products')
     .update(row)

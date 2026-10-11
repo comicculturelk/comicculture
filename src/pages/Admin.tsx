@@ -161,15 +161,21 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
   const visibleViews = role === 'owner' ? ADMIN_VIEWS : ADMIN_VIEWS.filter((item) => item !== 'team');
 
   return (
-    <section className="admin-comic comic-page min-h-screen bg-background px-4 py-24 sm:px-6 lg:py-32">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+    <section className="admin-comic min-h-screen bg-background px-4 py-6 sm:px-6 lg:py-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <div>
-              <p className="admin-eyebrow">ComicCulture · Store admin</p>
-              <h1 className="break-words font-display text-2xl text-foreground tracking-wide sm:text-4xl">Store dashboard</h1>
+            <p className="admin-eyebrow">ComicCulture · Store admin</p>
+              <h1 className="break-words font-display text-2xl text-foreground tracking-tight sm:text-3xl">Store dashboard</h1>
             </div>
-            <nav className="admin-nav flex flex-wrap gap-2" aria-label="Admin sections">
+            <label className="block md:hidden">
+              <span className="sr-only">Admin section</span>
+              <select value={view} onChange={(event) => setView(event.target.value as AdminView)} className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm">
+                {visibleViews.map((section) => <option key={section} value={section}>{section.charAt(0).toUpperCase() + section.slice(1)}</option>)}
+              </select>
+            </label>
+            <nav className="admin-nav hidden flex-wrap gap-2 md:flex" aria-label="Admin sections">
               {visibleViews.map((v) => (
                 <button
                   key={v}

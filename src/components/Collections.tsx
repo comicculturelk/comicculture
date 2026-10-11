@@ -36,7 +36,13 @@ export default function Collections({ collections, loading, error }: Collections
           </p>
         </motion.div>
 
-        {loading && <p role="status" className="text-muted">Loading collections...</p>}
+        {loading && (
+          <div role="status" aria-label="Loading collections" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="aspect-[4/5] animate-pulse rounded-2xl border border-border bg-slate-100" />
+            ))}
+          </div>
+        )}
 
         {error && !loading && (
           <p role="alert" className="border-l-2 border-primary pl-4 text-primary">

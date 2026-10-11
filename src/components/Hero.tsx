@@ -6,6 +6,8 @@ import type { Collection } from '../data/collections';
 
 interface HeroProps {
   collections: Collection[];
+  loading?: boolean;
+  fallbackImage?: string | null;
 }
 
 interface Slide {
@@ -39,7 +41,7 @@ function truncate(text: string, max: number): string {
   return `${text.slice(0, max).trimEnd()}…`;
 }
 
-export default function Hero({ collections }: HeroProps) {
+export default function Hero({ collections, loading = false, fallbackImage = null }: HeroProps) {
   const reduceMotion = useReducedMotion();
   const slides: Slide[] = useMemo(() => {
     const live = collections.filter((collection) => collection.status === 'live' && collection.coverImage);
@@ -68,7 +70,16 @@ export default function Hero({ collections }: HeroProps) {
   return (
     <section id="home" className="comic-page relative min-h-[min(760px,100svh)] overflow-hidden border-b-4 border-foreground bg-background pt-24 lg:min-h-[min(820px,100svh)] lg:pt-20">
 
-      <div className="absolute inset-0 lg:left-[40%]">
+      <div className="absolute inset-0 bg-gradient-to-br from-surface via-background to-[#f0f2f5] lg:left-[40%]" aria-hidden="true">
+        {loading && !current.image && !fallbackImage && (
+          <div className="absolute inset-y-12 right-6 hidden w-[58%] overflow-hidden rounded-3xl bg-gradient-to-br from-slate-100 via-white to-slate-200 motion-safe:animate-pulse lg:block">
+            <div className="absolute bottom-8 right-8 h-2/3 w-1/3 rounded-t-full bg-slate-200/70" />
+            <div className="absolute bottom-0 left-8 h-1/2 w-1/3 rounded-t-full bg-slate-100" />
+          </div>
+        )}
+        {fallbackImage && !current.image && (
+          <img src={fallbackImage} alt="" className="h-full w-full object-cover opacity-25" />
+        )}
         <AnimatePresence mode="wait">
           {current.image && (
             <motion.img
@@ -91,7 +102,7 @@ export default function Hero({ collections }: HeroProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/75 to-background/5 lg:bg-gradient-to-r lg:from-background lg:via-background/95 lg:via-35% lg:to-background/0" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[min(660px,calc(100svh-6rem))] max-w-7xl flex-col justify-end px-6 pb-16 pt-28 sm:justify-center sm:pb-20 lg:min-h-[min(740px,calc(100svh-5rem))] lg:px-10">
+      <div className="relative z-10 mx-auto flex min-h-[min(660px,calc(100svh-6rem))] max-w-7xl flex-col justify-end px-6 pb-16 pt-28 sm:justify-center sm:pb-20 lg:min-h-[min(740px,calc(100svh-5rem))] lg:px-10" aria-busy={loading}>
         <AnimatePresence mode="wait">
           <motion.div
             key={current.key}
@@ -103,28 +114,28 @@ export default function Hero({ collections }: HeroProps) {
           >
             <p className="comic-caption mb-2">
               <span className="h-px w-7 bg-primary" />
-              {current.label}
+              {loading ? 'ComicCulture' : current.label}
             </p>
             <h1 className="mt-5 max-w-xl font-display text-5xl leading-tight tracking-tight text-foreground sm:text-6xl md:text-7xl lg:text-7xl">
-              {current.headline}
+              {loading ? 'Wear your universe' : current.headline}
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-muted sm:text-lg">
-              {current.subline}
+              {loading ? 'Discover thoughtfully made apparel for fans.' : current.subline}
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link to={current.ctaHref} className="btn-primary min-h-12">
                 <ShoppingBag aria-hidden="true" className="h-4 w-4" />
-                {current.ctaLabel}
+                {loading ? 'Shop All' : current.ctaLabel}
               </Link>
-              <Link to="/shop" className="inline-flex min-h-12 items-center gap-2 px-2 text-sm font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-primary">
+              {current.ctaHref !== '/shop' && <Link to="/shop" className="inline-flex min-h-12 items-center gap-2 px-2 text-sm font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-primary">
                 Explore all designs
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
-              </Link>
+              </Link>}
             </div>
           </motion.div>
         </AnimatePresence>
 
-        <div className="mt-12 flex items-center justify-between gap-4 sm:max-w-2xl">
+        {!loading && <div className="mt-12 flex items-center justify-between gap-4 sm:max-w-2xl">
           <div className="flex items-center gap-3" aria-label={multiSlide ? `Campaign ${index + 1} of ${slides.length}` : undefined}>
             {multiSlide ? slides.map((slide, slideIndex) => (
               <button
@@ -150,7 +161,7 @@ export default function Hero({ collections }: HeroProps) {
               </button>
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
       <a href="#collections" className="absolute bottom-5 right-6 z-10 hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted transition-colors hover:text-primary sm:inline-flex">

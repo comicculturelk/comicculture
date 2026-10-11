@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ShoppingBag, ShoppingCart, Search } from 'lucide-react';
+import { Menu, X, ShoppingBag, ShoppingCart, Search, PackageSearch } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import SearchOverlay from './SearchOverlay';
 
 const MotionLink = motion.create(Link);
 
-// Primary nav is deliberately e-commerce-oriented. The logo covers "Home",
-// and informational pages live in secondaryLinks (mobile drawer) + Footer
-// instead of competing for primary nav space.
+// Keep the main nav focused on shopping and expose order support as a utility action.
 const navLinks = [
   { label: 'Shop', to: '/shop' },
   { label: 'Collections', to: '/#collections' },
@@ -117,15 +115,10 @@ export default function Navbar() {
                   </span>
                 )}
               </button>
-              <MotionLink
-                to="/shop"
-                className="btn-primary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <ShoppingBag className="h-4 w-4" />
-                Shop Now
-              </MotionLink>
+              <Link to="/track-order" className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <PackageSearch className="h-4 w-4" />
+                Track order
+              </Link>
             </div>
 
             {/* Mobile: Search + Cart + Menu Toggle */}

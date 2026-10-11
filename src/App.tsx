@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -23,11 +23,13 @@ const Admin = lazy(() => import('./pages/Admin'));
 const CartDrawer = lazy(() => import('./components/CartDrawer'));
 
 export default function App() {
+  const isAdminRoute = useLocation().pathname.startsWith('/admin');
+
   return (
     <MotionConfig reducedMotion="user">
       <CartProvider>
         <ScrollToTop />
-        <Navbar />
+        {!isAdminRoute && <Navbar />}
         <main>
           <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Loading page…</div>}>
             <Routes>
@@ -48,10 +50,12 @@ export default function App() {
             </Routes>
           </Suspense>
         </main>
-        <Footer />
-        <Suspense fallback={null}>
-          <CartDrawer />
-        </Suspense>
+        {!isAdminRoute && <Footer />}
+        {!isAdminRoute && (
+          <Suspense fallback={null}>
+            <CartDrawer />
+          </Suspense>
+        )}
       </CartProvider>
     </MotionConfig>
   );

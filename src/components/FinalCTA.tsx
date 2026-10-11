@@ -1,63 +1,46 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
 export default function FinalCTA() {
-  const reduceMotion = useReducedMotion();
   return (
-    <section className="comic-page relative overflow-hidden border-y-2 border-foreground py-28 lg:py-36">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-surface to-background">
-        <div className="absolute inset-0 halftone-overlay opacity-30" />
-        <div className="absolute inset-0 bg-web-pattern opacity-20" />
-      </div>
-
-      {/* Glow */}
-      <motion.div
-        className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
-        animate={reduceMotion ? undefined : { scale: [1, 1.15, 1], opacity: [0.4, 0.6, 0.4] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">
+    <section className="relative border-t border-border bg-background py-16 lg:py-20">
+      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-6 sm:flex-row sm:items-center">
         <motion.span
-          className="inline-block text-xs font-semibold uppercase tracking-[0.3em] text-muted"
+          className="text-xs font-semibold uppercase tracking-wide text-muted"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          Find your next favorite
+          Keep exploring
         </motion.span>
 
+        <div className="max-w-xl">
         <motion.h2
-          className="mt-6 font-display text-5xl leading-none tracking-wide text-foreground sm:text-6xl lg:text-7xl"
+          className="mt-2 font-display text-3xl leading-tight tracking-tight text-foreground sm:text-4xl"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1, duration: 0.6 }}
         >
-          Your style <span className="text-gradient-red">starts here</span>
+          Find a design that feels like you
         </motion.h2>
 
         <motion.p
-          className="mx-auto mt-6 max-w-lg text-lg text-muted"
+          className="mt-3 max-w-lg text-base text-muted"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          Find the design that speaks to your fandom, then make it part of your everyday rotation.
+          Browse every collection, compare sizes, and choose the piece you want to wear.
         </motion.p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
-          <Link to="/shop" className="btn-primary mt-10 inline-flex">
-            Shop The Collection
+        </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.3 }}>
+          <Link to="/shop" className="btn-primary inline-flex">
+            Browse all designs
             <ArrowRight className="h-5 w-5" />
           </Link>
         </motion.div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, PackageSearch, CheckCircle2, Package, Truck, Home as HomeIcon, XCircle } from 'lucide-react';
@@ -51,7 +52,9 @@ function preorderSummary(items: TrackedOrderItem[]): string {
 }
 
 export default function TrackOrder() {
-  const [orderReference, setOrderReference] = useState('');
+  const location = useLocation();
+  const routeState = (location.state ?? {}) as { orderReference?: string };
+  const [orderReference, setOrderReference] = useState(routeState.orderReference ?? '');
   const [contactMethod, setContactMethod] = useState<ContactMethod>('email');
   const [contactValue, setContactValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -110,8 +113,9 @@ export default function TrackOrder() {
           onSubmit={handleSubmit}
           className="comic-panel mt-10 p-6 md:p-8"
         >
-          <label className="block text-xs uppercase tracking-wide text-muted">Order Reference</label>
+          <label htmlFor="order-reference" className="block text-sm font-medium text-foreground">Order reference</label>
           <input
+            id="order-reference"
             type="text"
             value={orderReference}
             onChange={(e) => setOrderReference(e.target.value)}
@@ -145,10 +149,11 @@ export default function TrackOrder() {
             </button>
           </div>
 
-          <label className="mt-4 block text-xs uppercase tracking-wide text-muted">
+          <label htmlFor="order-contact" className="mt-4 block text-sm font-medium text-foreground">
             {contactMethod === 'email' ? 'Email Address' : 'Phone Number'}
           </label>
           <input
+            id="order-contact"
             type={contactMethod === 'email' ? 'email' : 'tel'}
             value={contactValue}
             onChange={(e) => setContactValue(e.target.value)}

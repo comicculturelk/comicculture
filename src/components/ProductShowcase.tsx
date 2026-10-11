@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import ProductCard from './ProductCard';
+import ProductGridSkeleton from './ProductGridSkeleton';
 import type { Product } from '../data/products';
 
 interface ProductShowcaseProps {
@@ -40,7 +41,7 @@ export default function ProductShowcase({
           </Link>
         </div>
 
-        {loading && <p className="text-muted">Loading products...</p>}
+        {loading && <ProductGridSkeleton count={4} />}
 
         {error && !loading && (
           <p className="text-primary">Couldn't load products right now. Please refresh the page.</p>

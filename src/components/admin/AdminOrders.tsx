@@ -410,8 +410,8 @@ export default function AdminOrders() {
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-4 text-sm">
                 <div>
-                  <p className="font-medium text-foreground">{order.full_name}</p>
-                  <p className="text-muted">{order.phone}</p>
+                  <p className="text-muted-foreground">Customer details</p>
+                  <p className="text-xs text-muted">Open order details to view contact information</p>
                 </div>
                 <div className="text-right">
                   {order.discount_amount > 0 && (

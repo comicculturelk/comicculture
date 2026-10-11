@@ -74,7 +74,7 @@ export default function OrderSuccess() {
         )}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Link to="/track-order" className="btn-primary">
+          <Link to="/track-order" state={{ orderReference: state.orderReference }} className="btn-primary">
             Track Your Order
           </Link>
           <Link to="/shop" className="btn-outline">

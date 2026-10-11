@@ -6,6 +6,7 @@ import ProductFilters from '../components/ProductFilters';
 import { useProducts } from '../hooks/useProducts';
 import { filterProducts, getUniqueSizes, getPriceBounds, sortProducts, type ProductSort } from '../data/products';
 import SEO from '../components/SEO';
+import ProductGridSkeleton from '../components/ProductGridSkeleton';
 
 const SITE_URL = 'https://comicculture.lk';
 
@@ -105,7 +106,7 @@ export default function Shop() {
           </motion.div>
 
           {/* Loading state */}
-          {loading && <p className="text-center text-muted">Loading products...</p>}
+          {loading && <ProductGridSkeleton count={8} />}
 
           {/* Error state */}
           {error && !loading && (

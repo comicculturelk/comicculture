@@ -8,9 +8,10 @@ import FinalCTA from '../components/FinalCTA';
 import SEO from '../components/SEO';
 import { useProducts } from '../hooks/useProducts';
 import { fetchCollections, type Collection } from '../data/collections';
+import { isProductAvailable } from '../data/products';
 
 const SITE_URL = 'https://comicculture.lk';
-const NEW_ARRIVALS_COUNT = 8;
+const NEW_ARRIVALS_COUNT = 4;
 
 export default function Home() {
   const { products, loading: productsLoading, error: productsError } = useProducts();
@@ -47,15 +48,11 @@ export default function Home() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  // "New Arrivals" is the first slice of the newest-first product feed.
-  // "More To Explore" uses whatever is left over so we never show the same
-  // products twice; if there isn't enough inventory for a second distinct
-  // set, we fall back to items already flagged `featured` in the data, and
-  // if even that yields nothing, the section is hidden rather than faking
-  // a second row of the same products.
-  const newArrivals = newestFirstProducts.slice(0, NEW_ARRIVALS_COUNT);
-  const remaining = newestFirstProducts.slice(NEW_ARRIVALS_COUNT);
-  const moreToExplore = remaining.length > 0 ? remaining : newestFirstProducts.filter((p) => p.featured);
+  // Keep the new-arrivals section small and purchasable; put every other
+  // active catalog item in the separate discovery section without duplicates.
+  const newArrivals = newestFirstProducts.filter(isProductAvailable).slice(0, NEW_ARRIVALS_COUNT);
+  const arrivalIds = new Set(newArrivals.map((product) => product.id));
+  const moreToExplore = newestFirstProducts.filter((product) => !arrivalIds.has(product.id));
   const showMoreToExplore = !productsLoading && !productsError && moreToExplore.length > 0;
 
   return (
@@ -67,7 +64,7 @@ export default function Home() {
         ogType="website"
         image={`${SITE_URL}/images/logo/comicculture-logo.png`}
       />
-      <Hero collections={collections} />
+      <Hero collections={collections} loading={collectionsLoading} fallbackImage={newestFirstProducts[0]?.image ?? null} />
       <Collections
         collections={collections}
         loading={collectionsLoading}
@@ -76,7 +73,7 @@ export default function Home() {
       <ProductShowcase
         sectionId="new-arrivals"
         title="New Arrivals"
-        viewAllHref="/shop"
+        viewAllHref="/shop?sort=newest"
         products={newArrivals}
         loading={productsLoading}
         error={productsError}

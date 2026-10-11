@@ -9,6 +9,7 @@ import { useProducts } from '../hooks/useProducts';
 import { filterProducts, getUniqueSizes, getPriceBounds, sortProducts, type ProductSort } from '../data/products';
 import { fetchCollectionBySlug, type Collection } from '../data/collections';
 import SEO, { type JsonLdBlock } from '../components/SEO';
+import ProductGridSkeleton from '../components/ProductGridSkeleton';
 
 const SITE_URL = 'https://comicculture.lk';
 
@@ -261,7 +262,12 @@ export default function CollectionPage() {
         )}
 
         {/* Loading state */}
-        {loading && <p className="text-center text-muted">Loading collection...</p>}
+        {loading && (
+          <div aria-busy="true" aria-label="Loading collection">
+            <div className="mx-auto mb-8 h-24 max-w-3xl animate-pulse rounded-xl bg-slate-100" />
+            <ProductGridSkeleton count={4} />
+          </div>
+        )}
 
         {/* Error state */}
         {error && !loading && (

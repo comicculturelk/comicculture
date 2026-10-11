@@ -136,6 +136,8 @@ export default function Product() {
   const [collectionSlug, setCollectionSlug] = useState<string | null>(null);
   const sizeGuideTriggerRef = useRef<HTMLButtonElement>(null);
   const sizeGuideCloseRef = useRef<HTMLButtonElement>(null);
+  const purchaseCtaRef = useRef<HTMLButtonElement>(null);
+  const [showStickyBuy, setShowStickyBuy] = useState(false);
 
   // Reset per-product UI state whenever the loaded product changes: land on
   // the default version, its default size, and its own image (falling back
@@ -173,6 +175,7 @@ export default function Product() {
 
   useEffect(() => {
     if (!showSizeGuide) return;
+    const trigger = sizeGuideTriggerRef.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     sizeGuideCloseRef.current?.focus();
@@ -187,14 +190,30 @@ export default function Product() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      sizeGuideTriggerRef.current?.focus();
+      trigger?.focus();
     };
   }, [showSizeGuide]);
 
+  useEffect(() => {
+    const target = purchaseCtaRef.current;
+    if (!target || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setShowStickyBuy(!entry.isIntersecting), { threshold: 0.15 });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [product?.id]);
+
   if (loading) {
     return (
-      <section className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading product...</p>
+      <section className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 gap-8 px-6 pb-16 pt-28 lg:grid-cols-2" aria-label="Loading product" aria-busy="true">
+        <div className="aspect-[4/5] animate-pulse rounded-2xl bg-slate-100" />
+        <div className="space-y-5 py-8">
+          <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
+          <div className="h-10 w-3/4 animate-pulse rounded bg-slate-100" />
+          <div className="h-7 w-36 animate-pulse rounded bg-slate-100" />
+          <div className="h-20 w-full animate-pulse rounded bg-slate-100" />
+          <div className="h-12 w-full animate-pulse rounded bg-slate-100" />
+          <div className="h-12 w-full animate-pulse rounded bg-slate-100" />
+        </div>
       </section>
     );
   }
@@ -342,7 +361,7 @@ export default function Product() {
         image={product.image}
         jsonLd={[productJsonLd, breadcrumbJsonLd]}
       />
-      <section className="comic-page product-detail-page relative min-h-screen bg-background pb-16 pt-24 sm:pb-20 lg:pt-28">
+      <section className="comic-page product-detail-page relative min-h-screen bg-background pb-28 pt-24 sm:pb-20 lg:pt-28">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -619,6 +638,7 @@ export default function Product() {
             {/* CTA buttons */}
             <div className="mt-6">
               <motion.button
+                ref={purchaseCtaRef}
                 type="button"
                 onClick={handleAddToCart}
                 disabled={availableStock === 0 || !selectedVersionSize}
@@ -740,6 +760,20 @@ export default function Product() {
           </div>
         )}
       </div>
+
+      {showStickyBuy && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgba(23,25,29,0.08)] backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs text-muted-foreground">{selectedSize ? `Size ${selectedSize}` : 'Choose a size'}</p>
+              <p className="font-semibold text-foreground">{selectedVersionSize ? formatPrice(selectedVersionSize.price) : 'Unavailable'}</p>
+            </div>
+            <button type="button" onClick={handleAddToCart} disabled={availableStock === 0 || !selectedVersionSize} className="btn-primary min-h-11 shrink-0 disabled:cursor-not-allowed disabled:opacity-50">
+              {availableStock === 0 ? 'Sold out' : selectedVersion?.isPreorder ? 'Pre-order' : 'Add to cart'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Size guide modal */}
       <AnimatePresence>
