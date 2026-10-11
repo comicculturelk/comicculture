@@ -7,6 +7,7 @@ import {
   isSlugTaken,
   isSkuTaken,
   generateSku,
+  reserveProductCode,
   saveAdminProduct,
   PRODUCT_TYPES,
   PRODUCT_TYPE_LABELS,
@@ -313,14 +314,14 @@ function existingVersionEditToInput(
  */
 function SizeDraftRow({
   draft,
-  productId,
+  productCode,
   versionName,
   onChange,
   onRemove,
 }: {
   draft: DraftSize;
-  /** Current product slug — part of the auto-generated SKU. */
-  productId: string;
+  /** Immutable product code — part of the auto-generated SKU. */
+  productCode: string;
   /** Current version name (live-edited value, not necessarily saved yet) — part of the auto-generated SKU. */
   versionName: string;
   onChange: (patch: Partial<DraftSize>) => void;
@@ -329,9 +330,9 @@ function SizeDraftRow({
   // Always derived, never typed — recomputes live as size/version/slug
   // change, so it can never go stale. The same generateSku() call is made
   // again at submit time in handleSubmit, using whatever was last shown here.
-  const sku = generateSku(productId, versionName, draft.size);
+  const sku = generateSku(productCode, versionName, draft.size);
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:items-end">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-5 sm:items-end">
       <label className="flex flex-col gap-1">
         <span className="text-[10px] uppercase tracking-wide text-muted">Size</span>
         <input
@@ -443,7 +444,7 @@ function SizeGuideEditor({
 function ExistingVersionCard({
   version,
   edit,
-  productId,
+  productCode,
   onEditChange,
   stockEdits,
   onStockChange,
@@ -461,8 +462,8 @@ function ExistingVersionCard({
 }: {
   version: ProductVersion;
   edit: ExistingVersionEdit;
-  /** Current product slug — threaded down to new-size rows for the auto-generated SKU preview. */
-  productId: string;
+  /** Immutable product code used in new-size SKU previews. */
+  productCode: string;
   onEditChange: (patch: Partial<ExistingVersionEdit>) => void;
   stockEdits: Record<string, string>;
   onStockChange: (sizeId: string, value: string) => void;
@@ -605,7 +606,7 @@ function ExistingVersionCard({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {version.sizes
           .filter((size) => !deletedSizeIds.has(size.id))
           .map((size) => {
@@ -677,7 +678,7 @@ function ExistingVersionCard({
             <SizeDraftRow
               key={s.localId}
               draft={s}
-              productId={productId}
+              productCode={productCode}
               versionName={edit.versionName}
               onChange={(patch) => onNewSizeChange(s.localId, patch)}
               onRemove={() => onRemoveNewSize(s.localId)}
@@ -701,7 +702,7 @@ function ExistingVersionCard({
 function DraftVersionCard({
   version,
   index,
-  productId,
+  productCode,
   onChange,
   onRemove,
   onAddSize,
@@ -711,8 +712,8 @@ function DraftVersionCard({
 }: {
   version: DraftVersion;
   index: number;
-  /** Stable product ID — threaded down to size rows for SKU preview. */
-  productId: string;
+  /** Stable product code — threaded down to size rows for SKU preview. */
+  productCode: string;
   onChange: (patch: Partial<DraftVersion>) => void;
   onRemove: () => void;
   onAddSize: () => void;
@@ -866,7 +867,7 @@ function DraftVersionCard({
             <SizeDraftRow
               key={s.localId}
               draft={s}
-              productId={productId}
+              productCode={productCode}
               versionName={version.versionName}
               onChange={(patch) => onSizeChange(s.localId, patch)}
               onRemove={() => onRemoveSize(s.localId)}
@@ -889,6 +890,8 @@ function DraftVersionCard({
 export default function ProductForm({ mode, product, onSaved, onCancel }: ProductFormProps) {
   const [draftProductId] = useState(() => crypto.randomUUID());
   const skuProductId = product?.id ?? draftProductId;
+  const [skuProductCode, setSkuProductCode] = useState(product?.productCode ?? '');
+  const [productCodeError, setProductCodeError] = useState<string | null>(null);
   // --- Product (design/story) fields ---
   const [name, setName] = useState(product?.name ?? '');
   const [slug, setSlug] = useState(product?.slug ?? '');
@@ -977,6 +980,17 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'create') return;
+    let cancelled = false;
+    reserveProductCode().then((code) => {
+      if (!cancelled) { setSkuProductCode(code); setProductCodeError(null); }
+    }).catch((e) => {
+      if (!cancelled) setProductCodeError(e instanceof Error ? e.message : 'Could not reserve a product code.');
+    });
+    return () => { cancelled = true; };
+  }, [mode]);
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -1146,6 +1160,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!skuProductCode) return setError(productCodeError ?? 'Wait for the product code to finish generating, then try again.');
     setError(null);
 
     if (!name.trim()) return setError('Name is required.');
@@ -1315,7 +1330,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
             versionId: v.id,
             versionName: v.versionName,
             size,
-            sku: generateSku(skuProductId, effectiveVersionName, size),
+            sku: generateSku(skuProductCode, effectiveVersionName, size),
             price: priceValue,
             stock: stockValue,
           });
@@ -1326,7 +1341,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     const newSkus = versionsToCreate.flatMap((v) =>
       v.sizes
         .filter((s) => s.size.trim())
-        .map((s) => generateSku(skuProductId, v.versionName.trim(), s.size.trim().toUpperCase()))
+        .map((s) => generateSku(skuProductCode, v.versionName.trim(), s.size.trim().toUpperCase()))
     );
     const allNewSkus = [...newSkus, ...newExistingSizesFlat.map((s) => s.sku)];
     const allSubmittedSkus = [...allNewSkus, ...changedExistingSizes.map((s) => s.sku)];
@@ -1359,6 +1374,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
 
       const productInput: ProductInput = {
         id: skuProductId,
+        productCode: skuProductCode,
         name: name.trim(),
         slug: slug.trim(),
         collectionId,
@@ -1419,7 +1435,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
             const label = size.size.trim().toUpperCase();
             return {
               size: label,
-              sku: generateSku(skuProductId, version.versionName.trim(), label),
+              sku: generateSku(skuProductCode, version.versionName.trim(), label),
               price: Number(size.price),
               stock: Number(size.stock) || 0,
             };
@@ -1455,7 +1471,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   const visibleVersions = product?.versions.filter((v) => !deletedVersionIds.has(v.id)) ?? [];
 
   return (
-    <form onSubmit={handleSubmit} className="glass space-y-6 rounded-2xl p-6">
+    <form onSubmit={handleSubmit} className="glass space-y-6 rounded-2xl p-4 sm:p-6">
       <h2 className="font-display text-xl tracking-wide text-foreground">
         {mode === 'create' ? 'New Product' : 'Edit Product'}
       </h2>
@@ -1463,7 +1479,13 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       {error && <p className="text-sm text-primary">{error}</p>}
 
       {/* Core product (design/story) details */}
+      {productCodeError && mode === 'create' && <p role="alert" className="text-sm text-primary">{productCodeError}</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1.5">
+          <span className={fieldLabelClass()}>Permanent Product Code</span>
+          <input value={skuProductCode || 'Generating…'} readOnly className={inputClass()} aria-label="Permanent product code" />
+          <span className="text-[11px] text-muted">Fixed for this product; SKU suffix identifies version and size.</span>
+        </label>
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Name</span>
           <input
@@ -1574,7 +1596,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
                 key={v.id}
                 version={v}
                 edit={versionEdits[v.id]}
-                productId={skuProductId}
+                productCode={skuProductCode}
                 onEditChange={(patch) =>
                   setVersionEdits((prev) => ({
                     ...prev,
@@ -1642,7 +1664,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
               key={v.localId}
               version={v}
               index={i}
-              productId={skuProductId}
+              productCode={skuProductCode}
               onChange={(patch) => updateDraftVersion(v.localId, patch)}
               onRemove={() => removeDraftVersion(v.localId)}
               onAddSize={() => addDraftSize(v.localId)}
@@ -1656,7 +1678,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
 
       {/* Actions */}
       <div className="flex items-center gap-3 border-t border-border pt-6">
-        <button type="submit" disabled={submitting} className="btn-primary px-6 py-2.5 text-sm">
+        <button type="submit" disabled={submitting || (mode === 'create' && !skuProductCode)} className="btn-primary px-6 py-2.5 text-sm disabled:opacity-50">
           {submitting ? 'Saving...' : mode === 'create' ? 'Create Product' : 'Save Changes'}
         </button>
         <button

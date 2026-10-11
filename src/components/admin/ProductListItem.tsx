@@ -38,14 +38,14 @@ export default function ProductListItem({
     .reduce((sum, v) => sum + v.sizes.length, 0);
 
   return (
-    <div className="glass flex flex-wrap items-center gap-4 rounded-2xl p-4">
-      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-background">
+    <div className="glass grid grid-cols-[3.5rem_minmax(0,1fr)] items-start gap-3 rounded-2xl p-3 sm:flex sm:flex-wrap sm:items-center sm:gap-4 sm:p-4">
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-background sm:h-16 sm:w-16">
         {product.image && (
           <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
         )}
       </div>
 
-      <div className="min-w-[160px] flex-1">
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-display text-base text-foreground tracking-wide">{product.name}</p>
           {product.featured && (
@@ -55,13 +55,14 @@ export default function ProductListItem({
           )}
         </div>
         <p className="text-xs uppercase tracking-wide text-muted">{product.collection}</p>
+        <p className="mt-1 break-all font-mono text-[11px] font-semibold text-foreground">{product.productCode}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           {activeVersionCount} version{activeVersionCount === 1 ? '' : 's'} · {activeSkuCount} SKU
           {activeSkuCount === 1 ? '' : 's'}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="col-span-2 flex flex-wrap gap-1.5 sm:col-auto">
         {getActiveSizes(product).map((size) => (
           <span
             key={size}
@@ -72,13 +73,13 @@ export default function ProductListItem({
         ))}
       </div>
 
-      <p className="font-display text-lg text-foreground">Rs. {getProductMinPrice(product)}</p>
+      <p className="col-span-2 font-display text-lg text-foreground sm:col-auto">Rs. {getProductMinPrice(product)}</p>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="col-span-2 flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
         <button
           type="button"
           onClick={onEdit}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+          className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground sm:flex-none"
         >
           <Pencil className="h-3.5 w-3.5" />
           Edit
@@ -87,7 +88,7 @@ export default function ProductListItem({
           type="button"
           onClick={onDuplicate}
           disabled={duplicating}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-50"
+          className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-50 sm:flex-none"
         >
           <Copy className="h-3.5 w-3.5" />
           {duplicating ? 'Duplicating...' : 'Duplicate'}

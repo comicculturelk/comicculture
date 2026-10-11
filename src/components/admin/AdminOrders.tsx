@@ -359,7 +359,7 @@ export default function AdminOrders() {
         {orders.map((order) => {
           const isExpanded = expandedIds.has(order.id);
           return (
-            <div key={order.id} className="glass rounded-2xl p-6">
+            <div key={order.id} className="glass rounded-2xl p-4 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -606,7 +606,7 @@ export default function AdminOrders() {
       </div>
       {cancellingOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="presentation">
-          <section role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" className="glass w-full max-w-lg space-y-4 rounded-2xl p-6">
+          <section role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" className="glass max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl p-4 sm:p-6">
             <h2 id="cancel-order-title" className="font-display text-xl text-foreground">Cancel {cancellingOrder.order_reference}?</h2>
             <p className="text-sm text-muted-foreground">This restores the reserved inventory. Record the reason for the audit history.</p>
             <label className="block text-xs text-muted-foreground">Cancellation reason<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} required minLength={3} rows={3} className="mt-1 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground" /></label>

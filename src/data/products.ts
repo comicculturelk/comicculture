@@ -85,6 +85,7 @@ export interface ProductVersion {
 /** The design/story-level entity — a comic character/theme, independent of any particular garment. */
 export interface Product {
   id: string;
+  productCode: string;
   name: string;
   slug: string;
   collection: string;
@@ -133,6 +134,7 @@ interface ProductVersionRow {
 
 interface ProductRow {
   id: string;
+  product_code: string;
   name: string;
   slug: string;
   collection: string;
@@ -214,6 +216,7 @@ function mapRowToVersion(row: ProductVersionRow): ProductVersion {
 function mapRowToProduct(row: ProductRow): Product {
   return {
     id: row.id,
+    productCode: row.product_code,
     name: row.name,
     slug: row.slug,
     collection: row.collection,
@@ -435,6 +438,8 @@ export function getPriceBounds(products: Product[]): { min: number; max: number 
  */
 export interface ProductInput {
   id?: string;
+  /** Reserved once at product creation and kept unchanged on edits. */
+  productCode: string;
   name: string;
   slug: string;
   /**
@@ -476,6 +481,14 @@ export async function saveAdminProduct(input: AdminProductSaveInput): Promise<st
   return data;
 }
 
+/** Reserves a permanent, sequential product code; unused codes may leave harmless gaps. */
+export async function reserveProductCode(): Promise<string> {
+  const { data, error } = await supabaseAdmin.rpc('reserve_product_code');
+  if (error) throw new Error(`Could not reserve product code: ${error.message}`);
+  if (typeof data !== 'string' || !/^CC-P\d{6,}$/.test(data)) throw new Error('Product code reservation returned an invalid code.');
+  return data;
+}
+
 /**
  * Resolves the write-side row shape from admin input. Async because the
  * legacy `products.collection` text column (still NOT NULL in the DB) is
@@ -492,6 +505,7 @@ async function mapProductInputToRow(input: ProductInput) {
 
   return {
     ...(input.id ? { id: input.id } : {}),
+    product_code: input.productCode,
     name: input.name,
     slug: input.slug,
     collection_id: input.collectionId,
@@ -524,28 +538,20 @@ function skuSegment(text: string, fallback: string): string {
 /**
  * Deterministically generates a readable SKU for a new product-version-size
  * row, replacing manual SKU entry in the admin form. Format:
- *   CC-{PRODUCT_ID_PREFIX}-{VERSION_NAME}-{SIZE}
- * e.g. product ID "8a31..." + version "Jersey" + size "M" -> "CC-8A31...-JERSEY-M".
- *
- * This extends the pre-existing "CC-{id}" (single-version era) / then
- * "CC-{id}-{size}" (Phase 2 backfill, see the introduce_product_versions_
- * and_sizes migration) SKU convention with a version segment, since a
- * product can now have several versions each needing distinct SKUs per size.
+ *   {PRODUCT_CODE}-{VERSION_NAME}-{SIZE}
+ * e.g. product code "CC-P000123" + version "Jersey" + size "M"
+ * becomes "CC-P000123-JERSEY-M".
  *
  * Uniqueness is not enforced by this function alone — callers are expected
  * to also run isSkuTaken() (and the DB's `product_version_sizes.sku` unique
- * constraint remains the final backstop) before/at insert, exactly as
- * before for manually-typed SKUs. In practice a collision is very unlikely
- * A short immutable product ID prefix keeps generated SKUs stable if the
- * public slug changes. The database unique constraint remains the final check.
+ * constraint remains the final backstop) before insert. Product codes never
+ * change when a name, slug, or version label changes.
  */
-export function generateSku(productId: string, versionName: string, size: string): string {
-  // Use the immutable product identity so future SKUs don't change when an
-  // admin edits the public slug. Keep the suffix human-readable for picking.
-  const productPart = productId.replace(/-/g, '').slice(0, 12).toUpperCase();
+export function generateSku(productCode: string, versionName: string, size: string): string {
+  // Product code is immutable. Version and size remain readable pick attributes.
   const versionPart = skuSegment(versionName, 'VERSION');
   const sizePart = skuSegment(size, 'SIZE');
-  return `CC-${productPart}-${versionPart}-${sizePart}`;
+  return `${productCode.toUpperCase()}-${versionPart}-${sizePart}`;
 }
 
 /**
@@ -565,7 +571,7 @@ export async function isSkuTaken(sku: string, excludeSizeId?: string): Promise<b
 }
 
 export async function createProduct(input: ProductInput): Promise<Product> {
-  const row = { ...(await mapProductInputToRow(input)), id: input.id ?? crypto.randomUUID() };
+  const row = { ...(await mapProductInputToRow(input)), id: input.id ?? crypto.randomUUID(), product_code: input.productCode };
   const { data, error } = await supabaseAdmin.from('products').insert(row).select().single();
 
   if (error) {
@@ -577,7 +583,7 @@ export async function createProduct(input: ProductInput): Promise<Product> {
 }
 
 export async function updateProduct(id: string, input: ProductInput): Promise<Product> {
-  const row = await mapProductInputToRow(input);
+  const { product_code: _immutableProductCode, ...row } = await mapProductInputToRow(input);
   const { data, error } = await supabaseAdmin
     .from('products')
     .update(row)
@@ -867,8 +873,10 @@ export async function duplicateProduct(product: Product): Promise<Product> {
     );
   }
   const suffix = Date.now().toString(36);
+  const productCode = await reserveProductCode();
   const copyInput: ProductInput = {
     id: crypto.randomUUID(),
+    productCode,
     name: `${product.name} (Copy)`,
     slug: `${product.slug}-copy-${suffix}`,
     collectionId: product.collectionId,
@@ -899,7 +907,7 @@ export async function duplicateProduct(product: Product): Promise<Product> {
       sizeGuide: version.sizeGuide,
       sizes: version.sizes.map((size) => ({
         size: size.size,
-        sku: `${size.sku}-COPY-${suffix.toUpperCase()}`,
+        sku: generateSku(productCode, version.versionName, size.size),
         price: size.price,
         stock: 0,
       })),

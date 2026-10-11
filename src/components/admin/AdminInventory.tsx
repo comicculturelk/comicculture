@@ -181,8 +181,9 @@ export default function AdminInventory() {
                         className="border-b border-border pb-3 last:border-0 last:pb-0"
                       >
                         <div className="flex flex-wrap items-center gap-4">
-                          <span className="w-10 text-xs font-medium uppercase tracking-wide text-muted">
-                            {sizeRow.size}
+                          <span className="flex min-w-[7rem] flex-col text-xs font-medium uppercase tracking-wide text-muted">
+                            <span>{sizeRow.size}</span>
+                            <span className="mt-0.5 break-all font-mono text-[9px] normal-case text-muted-foreground">{sizeRow.sku}</span>
                           </span>
                           <span
                             className={`font-display text-lg tracking-wide ${

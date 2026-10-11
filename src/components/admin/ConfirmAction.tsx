@@ -34,14 +34,14 @@ export default function ConfirmAction({
             onConfirm();
           }}
           disabled={disabled}
-          className="rounded-full border border-red-500/40 bg-red-500/20 px-2.5 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/30"
+          className="min-h-10 rounded-full border border-red-500/40 bg-red-500/20 px-3 py-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/30"
         >
           Yes
         </button>
         <button
           type="button"
           onClick={() => setConfirming(false)}
-          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="min-h-10 px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           Cancel
         </button>
@@ -56,7 +56,7 @@ export default function ConfirmAction({
       disabled={disabled}
       className={
         className ??
-        'inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-red-500/40 hover:text-red-400'
+        'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-red-500/40 hover:text-red-400'
       }
     >
       {label}

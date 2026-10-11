@@ -164,10 +164,10 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
     <section className="admin-comic comic-page min-h-screen bg-background px-4 py-24 sm:px-6 lg:py-32">
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
             <div>
               <p className="admin-eyebrow">ComicCulture • Back office</p>
-              <h1 className="font-display text-4xl text-foreground tracking-wide">THE CONTROL ROOM</h1>
+              <h1 className="break-words font-display text-2xl text-foreground tracking-wide sm:text-4xl">THE CONTROL ROOM</h1>
             </div>
             <nav className="admin-nav flex flex-wrap gap-2" aria-label="Admin sections">
               {visibleViews.map((v) => (

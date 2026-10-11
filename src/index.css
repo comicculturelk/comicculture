@@ -541,6 +541,24 @@ textarea:focus {
   box-shadow: 4px 4px 0 var(--admin-ink);
 }
 
+@media (max-width: 640px) {
+  .admin-comic .admin-nav {
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .admin-comic .admin-tab {
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+    padding-inline: 0.8rem;
+  }
+}
+
 .admin-comic .admin-collection-group {
   overflow: hidden;
   border: 2px solid var(--admin-ink);
