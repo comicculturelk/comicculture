@@ -146,6 +146,41 @@
     box-shadow: 5px 5px 0 rgba(var(--color-foreground-rgb), 0.17);
   }
 
+  .comic-product-shape {
+    --comic-cut: polygon(0 0, 94% 0, 100% 6%, 100% 100%, 6% 100%, 0 94%);
+    position: relative;
+    background: var(--color-foreground);
+    clip-path: var(--comic-cut);
+    filter: drop-shadow(5px 5px 0 rgba(var(--color-foreground-rgb), 0.48));
+    transition: filter 240ms ease;
+  }
+
+  .comic-product-shape--1 {
+    --comic-cut: polygon(0 0, 100% 0, 100% 93%, 93% 100%, 0 100%, 0 8%, 7% 0);
+  }
+
+  .comic-product-shape--2 {
+    --comic-cut: polygon(7% 0, 100% 0, 100% 100%, 0 100%, 0 7%);
+  }
+
+  .comic-product-shape:hover {
+    filter: drop-shadow(7px 7px 0 var(--color-primary));
+  }
+
+  .comic-product-shape:focus-visible {
+    outline: none;
+    filter: drop-shadow(0 0 3px var(--color-secondary)) drop-shadow(5px 5px 0 var(--color-foreground));
+  }
+
+  .comic-product-inner {
+    position: relative;
+    height: calc(100% - 4px);
+    margin: 2px;
+    overflow: hidden;
+    background: var(--color-surface);
+    clip-path: var(--comic-cut);
+  }
+
   .comic-caption {
     display: inline-flex;
     align-items: center;
@@ -372,5 +407,169 @@ textarea:focus {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* The back office gets its own inked, print-inspired treatment while sharing
+   the storefront palette and leaving the customer UI untouched. */
+.admin-comic {
+  --admin-ink: #151515;
+  --admin-paper: #fffdf7;
+}
+
+.admin-comic .glass {
+  position: relative;
+  border: 2px solid var(--admin-ink);
+  border-radius: 5px !important;
+  background-color: var(--admin-paper);
+  background-image: radial-gradient(circle, rgba(21, 21, 21, 0.045) 0.8px, transparent 1px);
+  background-size: 9px 9px;
+  box-shadow: 5px 5px 0 var(--admin-ink);
+}
+
+.admin-comic .admin-login-card {
+  padding: clamp(1.5rem, 5vw, 2.25rem);
+  box-shadow: 8px 8px 0 var(--admin-ink), 12px 12px 0 var(--color-primary);
+}
+
+.admin-comic .admin-eyebrow {
+  margin-bottom: 0.35rem;
+  color: var(--color-primary);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.admin-comic .admin-nav {
+  padding: 0.65rem;
+  border: 2px solid var(--admin-ink);
+  background: var(--admin-paper);
+  box-shadow: 4px 4px 0 var(--admin-ink);
+}
+
+.admin-comic .admin-collection-group {
+  overflow: hidden;
+  border: 2px solid var(--admin-ink);
+  background: var(--admin-paper);
+  box-shadow: 4px 4px 0 var(--admin-ink);
+}
+
+.admin-comic .admin-collection-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 4.5rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  background-color: #fff0a8;
+  background-image: radial-gradient(circle, rgba(21, 21, 21, 0.09) 0.8px, transparent 1px);
+  background-size: 8px 8px;
+  color: var(--admin-ink);
+  text-align: left;
+  transition: background-color 150ms ease;
+}
+
+.admin-comic .admin-collection-toggle:hover {
+  background-color: #ffe56b;
+}
+
+.admin-comic .admin-collection-toggle:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-comic .admin-collection-content {
+  border-top: 2px dashed rgba(21, 21, 21, 0.4);
+  padding: 1rem;
+}
+
+.admin-comic .admin-tab {
+  min-height: 2.4rem;
+  border: 2px solid var(--admin-ink);
+  border-radius: 3px;
+  background: var(--admin-paper);
+  padding: 0.45rem 0.75rem;
+  color: var(--admin-ink);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  box-shadow: 2px 2px 0 var(--admin-ink);
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.admin-comic .admin-tab:hover {
+  transform: translate(-1px, -1px) rotate(-1deg);
+  background: #fff0a8;
+  box-shadow: 3px 3px 0 var(--admin-ink);
+}
+
+.admin-comic .admin-tab.is-active {
+  transform: translate(-1px, -1px);
+  background: var(--color-warning);
+  color: var(--admin-ink);
+  box-shadow: 3px 3px 0 var(--color-primary);
+}
+
+.admin-comic .admin-filter-row button {
+  min-height: 2.35rem;
+  border: 2px solid var(--admin-ink);
+  border-radius: 3px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  box-shadow: 2px 2px 0 var(--admin-ink);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.admin-comic .admin-filter-row button:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--admin-ink);
+}
+
+.admin-comic input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+.admin-comic select,
+.admin-comic textarea {
+  border: 2px solid var(--admin-ink);
+  border-radius: 3px;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.14);
+}
+
+.admin-comic input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+.admin-comic select:focus,
+.admin-comic textarea:focus {
+  border-color: var(--color-secondary);
+  outline: 3px solid rgba(var(--color-secondary-rgb), 0.2);
+  outline-offset: 1px;
+}
+
+.admin-comic .glass :is(.border-border, [class*='border-border']) {
+  border-color: rgba(21, 21, 21, 0.32);
+}
+
+.admin-comic .glass :is(button:not(.btn-primary):not(.btn-outline)):hover:not(:disabled) {
+  border-color: var(--admin-ink);
+}
+
+.admin-comic .glass button[class*='border']:not(.btn-primary):not(.btn-outline) {
+  border-width: 2px;
+  border-radius: 3px;
+}
+
+.admin-comic :is(.btn-primary, .btn-outline) {
+  border-radius: 3px;
+}
+
+.admin-comic :is(h2, h3) {
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-comic .admin-tab {
+    transition: none;
   }
 }

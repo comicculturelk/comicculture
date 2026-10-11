@@ -39,7 +39,7 @@ export default function AdminHistory() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="admin-filter-row mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter inventory history by movement type">
         {(['all', 'sale', 'restock', 'adjustment', 'cancellation'] as const).map((t) => (
           <button
             key={t}

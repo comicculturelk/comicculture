@@ -52,9 +52,11 @@ function AdminLogin() {
   };
 
   return (
-    <section className="comic-page flex min-h-screen items-center justify-center bg-background px-6">
-      <form onSubmit={handleSubmit} className="glass w-full max-w-sm space-y-4 rounded-2xl p-8">
-        <h1 className="font-display text-2xl text-foreground tracking-wide">ADMIN LOGIN</h1>
+    <section className="admin-comic comic-page flex min-h-screen items-center justify-center bg-background px-6">
+      <form onSubmit={handleSubmit} className="glass admin-login-card w-full max-w-sm space-y-4 rounded-2xl p-8">
+        <p className="admin-eyebrow">ComicCulture • Back office</p>
+        <h1 className="font-display text-3xl text-foreground tracking-wide">ADMIN LOGIN</h1>
+        <p className="text-sm text-muted-foreground">Sign in to manage the shop universe.</p>
         <input
           type="email"
           required
@@ -88,12 +90,15 @@ function AdminPanel() {
   const handleSignOut = () => supabaseAdmin.auth.signOut();
 
   return (
-    <section className="comic-page min-h-screen bg-background px-6 py-24 lg:py-32">
+    <section className="admin-comic comic-page min-h-screen bg-background px-4 py-24 sm:px-6 lg:py-32">
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <h1 className="font-display text-3xl text-foreground tracking-wide">ADMIN</h1>
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="admin-eyebrow">ComicCulture • Back office</p>
+              <h1 className="font-display text-4xl text-foreground tracking-wide">THE CONTROL ROOM</h1>
+            </div>
+            <nav className="admin-nav flex flex-wrap gap-2" aria-label="Admin sections">
               {(
                 ['dashboard', 'orders', 'products', 'collections', 'inventory', 'promos', 'reviews', 'history'] as const
               ).map((v) => (
@@ -101,16 +106,17 @@ function AdminPanel() {
                   key={v}
                   type="button"
                   onClick={() => setView(v)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                  aria-current={view === v ? 'page' : undefined}
+                  className={`admin-tab ${
                     view === v
-                      ? 'border-primary bg-primary/20 text-primary'
-                      : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                      ? 'is-active'
+                      : ''
                   }`}
                 >
                   {v}
                 </button>
               ))}
-            </div>
+            </nav>
           </div>
           <button type="button" onClick={handleSignOut} className="btn-outline text-sm">
             Sign Out

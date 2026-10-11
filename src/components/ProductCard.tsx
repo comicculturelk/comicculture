@@ -15,13 +15,13 @@ export default function ProductCard({ product, index }: ProductCardProps) {
   return (
     <MotionLink
       to={`/product/${product.slug}`}
-      className="group block"
+      className={`comic-product-shape comic-product-shape--${index % 3} group block`}
       initial={reduceMotion ? false : { opacity: 0, y: 24 }}
       whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ delay: reduceMotion ? 0 : index * 0.08, duration: reduceMotion ? 0 : 0.5 }}
     >
-      <div className="comic-panel overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[7px_7px_0_#d21f38]">
+      <div className="comic-product-inner transition-transform duration-300 group-hover:-translate-y-1">
         {/* Catalog label row */}
         <div className="flex items-center justify-between px-5 pt-5">
           <span className="font-display text-xs tracking-[0.25em] text-muted uppercase">

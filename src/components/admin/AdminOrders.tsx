@@ -234,7 +234,7 @@ export default function AdminOrders() {
       {loading && <p className="text-muted-foreground">Loading orders...</p>}
       {error && <p className="text-primary">{error}</p>}
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="admin-filter-row mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter orders by status">
         {(['all', ...STATUSES] as const).map((s) => (
           <button
             key={s}
