@@ -7,7 +7,6 @@ import type { Collection } from '../data/collections';
 interface HeroProps {
   collections: Collection[];
   loading?: boolean;
-  fallbackImage?: string | null;
 }
 
 interface Slide {
@@ -41,7 +40,7 @@ function truncate(text: string, max: number): string {
   return `${text.slice(0, max).trimEnd()}…`;
 }
 
-export default function Hero({ collections, loading = false, fallbackImage = null }: HeroProps) {
+export default function Hero({ collections, loading = false }: HeroProps) {
   const reduceMotion = useReducedMotion();
   const slides: Slide[] = useMemo(() => {
     const live = collections.filter((collection) => collection.status === 'live' && collection.coverImage);
@@ -71,14 +70,11 @@ export default function Hero({ collections, loading = false, fallbackImage = nul
     <section id="home" className="comic-page relative min-h-[min(760px,100svh)] overflow-hidden border-b-4 border-foreground bg-background pt-24 lg:min-h-[min(820px,100svh)] lg:pt-20">
 
       <div className="absolute inset-0 bg-gradient-to-br from-surface via-background to-[#f0f2f5] lg:left-[40%]" aria-hidden="true">
-        {loading && !current.image && !fallbackImage && (
+        {loading && !current.image && (
           <div className="absolute inset-y-12 right-6 hidden w-[58%] overflow-hidden rounded-3xl bg-gradient-to-br from-slate-100 via-white to-slate-200 motion-safe:animate-pulse lg:block">
             <div className="absolute bottom-8 right-8 h-2/3 w-1/3 rounded-t-full bg-slate-200/70" />
             <div className="absolute bottom-0 left-8 h-1/2 w-1/3 rounded-t-full bg-slate-100" />
           </div>
-        )}
-        {fallbackImage && !current.image && (
-          <img src={fallbackImage} alt="" className="h-full w-full object-cover opacity-25" />
         )}
         <AnimatePresence mode="wait">
           {current.image && (

@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
+import { optimizeImageForStorage } from '../lib/optimizeImage';
 import { fetchCollectionById } from './collections';
 import { slugify } from '../lib/slug';
 
@@ -927,9 +928,10 @@ export async function duplicateProduct(product: Product): Promise<Product> {
 
 /** Uploads a product image to Supabase Storage and returns its public URL. */
 export async function uploadProductImage(slug: string, file: File): Promise<string> {
-  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const optimizedFile = await optimizeImageForStorage(file);
+  const safeName = optimizedFile.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
   const path = `${slug}/${crypto.randomUUID()}-${safeName}`;
-  const { publicUrl } = await uploadFile(PRODUCT_IMAGES_BUCKET, path, file, 'public', supabaseAdmin);
+  const { publicUrl } = await uploadFile(PRODUCT_IMAGES_BUCKET, path, optimizedFile, 'public', supabaseAdmin);
   return publicUrl;
 }
 

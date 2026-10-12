@@ -64,7 +64,7 @@ export default function Home() {
         ogType="website"
         image={`${SITE_URL}/images/logo/comicculture-logo.png`}
       />
-      <Hero collections={collections} loading={collectionsLoading} fallbackImage={newestFirstProducts[0]?.image ?? null} />
+      <Hero collections={collections} loading={collectionsLoading} />
       <Collections
         collections={collections}
         loading={collectionsLoading}

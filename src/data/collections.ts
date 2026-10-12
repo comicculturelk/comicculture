@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
+import { optimizeImageForStorage } from '../lib/optimizeImage';
 
 export type CollectionStatus = 'live' | 'soon';
 
@@ -222,12 +223,13 @@ function uniqueSuffix(): string {
  * hint, so it's safe even when the collection doesn't have a slug yet.
  */
 export async function uploadCollectionCoverImage(slugHint: string, file: File): Promise<string> {
-  const extMatch = file.name.match(/\.([a-zA-Z0-9]+)$/);
+  const optimizedFile = await optimizeImageForStorage(file);
+  const extMatch = optimizedFile.name.match(/\.([a-zA-Z0-9]+)$/);
   const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
   const base = safePathSegment(slugHint) || 'collection';
   const path = `${COLLECTION_IMAGES_FOLDER}/${base}-${uniqueSuffix()}.${ext}`;
 
-  const { publicUrl } = await uploadFile(COLLECTION_IMAGES_BUCKET, path, file, 'public', supabaseAdmin);
+  const { publicUrl } = await uploadFile(COLLECTION_IMAGES_BUCKET, path, optimizedFile, 'public', supabaseAdmin);
   return publicUrl;
 }
 

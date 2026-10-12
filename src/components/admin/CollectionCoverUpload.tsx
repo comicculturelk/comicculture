@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { uploadCollectionCoverImage } from '../../data/collections';
+import { formatImageBytes, optimizeExistingImage } from '../../lib/optimizeImage';
 
 interface CollectionCoverUploadProps {
   /** Used to build a readable storage path (typically the collection's slug). */
@@ -23,12 +24,15 @@ export default function CollectionCoverUpload({
 }: CollectionCoverUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [optimizing, setOptimizing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File | undefined | null) => {
     if (!file) return;
     setError(null);
+    setNotice(null);
     setUploading(true);
 
     try {
@@ -44,6 +48,28 @@ export default function CollectionCoverUpload({
     }
   };
 
+  const handleOptimizeExisting = async () => {
+    if (!value) return;
+    setOptimizing(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await optimizeExistingImage(value);
+      if (!result) {
+        setNotice('This cover is already optimized or uses a format we keep unchanged.');
+        return;
+      }
+
+      const optimizedUrl = await uploadCollectionCoverImage(slugHint, result.file);
+      onChange(optimizedUrl);
+      setNotice(`Cover is ${formatImageBytes(result.savedBytes)} smaller. Save the collection to apply it.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not optimize this cover');
+    } finally {
+      setOptimizing(false);
+    }
+  };
+
   const handleRemove = async () => {
     if (!value) return;
     setError(null);
@@ -55,16 +81,27 @@ export default function CollectionCoverUpload({
   return (
     <div className="space-y-3">
       <label className="text-xs uppercase tracking-wide text-muted">Cover Image</label>
+      <p className="-mt-2 text-xs text-muted-foreground">
+        JPEG and PNG covers are resized to 1600px and compressed to WebP before upload.
+      </p>
 
       {value ? (
         <div className="group relative w-full max-w-xs overflow-hidden rounded-xl border border-border bg-background">
           <img src={value} alt="Collection cover" className="aspect-[3/4] w-full object-cover" />
 
-          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-background/80 p-2 opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">
+          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-background/90 p-2 backdrop-blur-sm opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+            <button
+              type="button"
+              onClick={() => void handleOptimizeExisting()}
+              disabled={disabled || uploading || optimizing}
+              className="rounded px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+            >
+              {optimizing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Optimize'}
+            </button>
             <button
               type="button"
               onClick={() => !disabled && !uploading && inputRef.current?.click()}
-              disabled={disabled || uploading}
+              disabled={disabled || uploading || optimizing}
               className="rounded px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
             >
               Replace
@@ -72,7 +109,7 @@ export default function CollectionCoverUpload({
             <button
               type="button"
               onClick={handleRemove}
-              disabled={disabled || uploading}
+              disabled={disabled || uploading || optimizing}
               className="rounded p-1 text-muted-foreground transition-colors hover:text-red-400 disabled:opacity-50"
               aria-label="Remove cover image"
             >
@@ -125,6 +162,7 @@ export default function CollectionCoverUpload({
       />
 
       {error && <p className="text-xs text-primary">{error}</p>}
+      {notice && <p role="status" className="text-xs text-muted-foreground">{notice}</p>}
     </div>
   );
 }

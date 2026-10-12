@@ -57,7 +57,9 @@ export async function uploadFile(
   client: SupabaseClient = supabase
 ): Promise<UploadResult> {
   const { error } = await client.storage.from(bucket).upload(path, file, {
-    cacheControl: '3600',
+    // Public catalog files use unique paths, so a long browser TTL is safe.
+    // Keep private receipts on the shorter default cache window.
+    cacheControl: visibility === 'public' ? '31536000' : '3600',
     upsert: false,
   });
 

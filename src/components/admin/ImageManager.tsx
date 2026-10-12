@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Upload, X, Star, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { uploadProductImage, deleteProductImage } from '../../data/products';
+import { formatImageBytes, optimizeExistingImage } from '../../lib/optimizeImage';
 
 interface ImageManagerProps {
   /** Used as the Storage folder key for uploads. */
@@ -18,6 +19,8 @@ interface ImageManagerProps {
 export default function ImageManager({ slug, images, onChange, disabled }: ImageManagerProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [optimizingIndex, setOptimizingIndex] = useState<number | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -29,6 +32,7 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
     }
     setUploading(true);
     setError(null);
+    setNotice(null);
     try {
       const uploaded: string[] = [];
       try {
@@ -48,6 +52,29 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const handleOptimizeExisting = async (index: number, url: string) => {
+    setOptimizingIndex(index);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await optimizeExistingImage(url);
+      if (!result) {
+        setNotice(`Image ${index + 1} is already optimized or uses a format we keep unchanged.`);
+        return;
+      }
+
+      const optimizedUrl = await uploadProductImage(slug, result.file);
+      const nextImages = [...images];
+      nextImages[index] = optimizedUrl;
+      onChange(nextImages);
+      setNotice(`Image ${index + 1} is ${formatImageBytes(result.savedBytes)} smaller. Save the product to apply it.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not optimize this image');
+    } finally {
+      setOptimizingIndex(null);
     }
   };
 
@@ -77,6 +104,12 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
   return (
     <div className="space-y-4">
       <label className="text-xs uppercase tracking-wide text-muted">Product Images</label>
+      <p className="-mt-2 text-xs text-muted-foreground">
+        JPEG and PNG photos are resized to 1600px and compressed to WebP before upload. GIF and SVG files stay unchanged.
+      </p>
+      <p className="-mt-3 text-xs text-muted-foreground">
+        For an existing image, use Optimize on only the large files. It downloads that image once; save the product to switch to the optimized copy. The original file is kept.
+      </p>
 
       {/* Drop zone */}
       <div
@@ -116,6 +149,7 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
       </div>
 
       {error && <p className="text-xs text-primary">{error}</p>}
+      {notice && <p role="status" className="text-xs text-muted-foreground">{notice}</p>}
 
       {/* Previews */}
       {images.length > 0 && (
@@ -138,7 +172,16 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
                 </span>
               )}
 
-              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-background/80 p-1 opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-background/90 p-1 backdrop-blur-sm opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+                <button
+                  type="button"
+                  onClick={() => void handleOptimizeExisting(index, url)}
+                  disabled={disabled || uploading || optimizingIndex !== null}
+                  className="rounded px-1.5 py-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                  aria-label={`Optimize image ${index + 1}`}
+                >
+                  {optimizingIndex === index ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Optimize'}
+                </button>
                 <button
                   type="button"
                   onClick={() => handleMove(index, -1)}

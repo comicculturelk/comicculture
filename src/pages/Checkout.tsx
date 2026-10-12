@@ -316,7 +316,7 @@ export default function Checkout() {
                 <div className="flex flex-shrink-0 -space-x-2">
                   {items.slice(0, 3).map((item) => (
                     <div key={`${item.productId}-${item.size}`} className="h-11 w-11 overflow-hidden rounded-lg border border-border bg-background">
-                      <img src={item.image} alt="" className="h-full w-full object-cover" />
+                      <img src={item.image} alt="" loading="lazy" className="h-full w-full object-cover" />
                     </div>
                   ))}
                 </div>
@@ -688,7 +688,7 @@ export default function Checkout() {
                 return (
                 <div key={`${item.productId}-${item.size}`} className="flex gap-3">
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-background">
-                    <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                    <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
                   </div>
                   <div className="flex flex-1 flex-col justify-center">
                     <p className="text-sm font-medium text-foreground">{item.name}</p>

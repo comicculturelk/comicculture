@@ -140,7 +140,7 @@ export default function CartDrawer() {
                         onClick={closeCart}
                         className="h-20 w-20 flex-shrink-0 overflow-hidden border-2 border-foreground bg-background shadow-[2px_2px_0_#2563eb]"
                       >
-                        <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                        <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
                       </Link>
 
                       <div className="flex flex-1 flex-col">
