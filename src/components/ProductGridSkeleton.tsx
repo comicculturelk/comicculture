@@ -4,7 +4,7 @@ interface ProductGridSkeletonProps {
 
 export default function ProductGridSkeleton({ count = 4 }: ProductGridSkeletonProps) {
   return (
-    <div role="status" aria-label="Loading products" aria-busy="true" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6">
+    <div role="status" aria-label="Loading products" aria-busy="true" className="product-grid grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: count }, (_, index) => (
         <div key={index} className="overflow-hidden rounded-xl border border-border bg-surface p-3 sm:p-4">
           <div className="aspect-[4/5] animate-pulse rounded-lg bg-slate-100" />

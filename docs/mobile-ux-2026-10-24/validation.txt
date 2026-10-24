@@ -1,0 +1,64 @@
+$ npm run typecheck
+Exit: 0
+
+> comicculture@0.0.0 typecheck
+> tsc --noEmit -p tsconfig.app.json
+
+
+$ npm run lint
+Exit: 0
+
+> comicculture@0.0.0 lint
+> eslint .
+
+
+$ npm run build
+Exit: 0
+
+> comicculture@0.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 2021 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                               2.17 kB │ gzip:   0.72 kB
+dist/assets/index-D7ZK5mqe.css               84.21 kB │ gzip:  15.89 kB
+dist/assets/store-zYuuKRzQ.js                 0.06 kB │ gzip:   0.08 kB
+dist/assets/minus-7FjrQPX0.js                 0.29 kB │ gzip:   0.24 kB
+dist/assets/useMediaQuery-6KJHPZOb.js         0.30 kB │ gzip:   0.22 kB
+dist/assets/plus-D03Qwme5.js                  0.32 kB │ gzip:   0.25 kB
+dist/assets/check-circle-2-CugLSm17.js        0.34 kB │ gzip:   0.27 kB
+dist/assets/info-Du4fCSW-.js                  0.37 kB │ gzip:   0.28 kB
+dist/assets/x-circle-CWoVut2q.js              0.37 kB │ gzip:   0.28 kB
+dist/assets/star-CGLIXi_T.js                  0.38 kB │ gzip:   0.29 kB
+dist/assets/mail-BeXIxP5I.js                  0.38 kB │ gzip:   0.30 kB
+dist/assets/wallet-DzFA8WNt.js                0.42 kB │ gzip:   0.30 kB
+dist/assets/shield-alert-CDzh7dyP.js          0.52 kB │ gzip:   0.36 kB
+dist/assets/package-BscvBej9.js               0.53 kB │ gzip:   0.35 kB
+dist/assets/chevron-left-yj0ewX7q.js          0.55 kB │ gzip:   0.28 kB
+dist/assets/ruler-mLDkVWjR.js                 0.57 kB │ gzip:   0.35 kB
+dist/assets/truck-qOCraTP7.js                 0.57 kB │ gzip:   0.37 kB
+dist/assets/landmark-CH9uyDTC.js              0.58 kB │ gzip:   0.34 kB
+dist/assets/sparkles-Cg8zECSo.js              0.59 kB │ gzip:   0.35 kB
+dist/assets/pencil-BjCDbdos.js                0.66 kB │ gzip:   0.35 kB
+dist/assets/upload-B_J6e1KV.js                0.68 kB │ gzip:   0.37 kB
+dist/assets/OrderSuccess-DqkBqFz1.js          2.69 kB │ gzip:   1.18 kB
+dist/assets/Shop-BDDtUEkQ.js                  3.32 kB │ gzip:   1.60 kB
+dist/assets/Contact-mcqWagQC.js               5.70 kB │ gzip:   1.95 kB
+dist/assets/FAQ-DpIgUjHB.js                   6.74 kB │ gzip:   2.71 kB
+dist/assets/CartDrawer-CzYMdvBW.js            7.35 kB │ gzip:   2.58 kB
+dist/assets/About-CXAzaSlv.js                 7.72 kB │ gzip:   2.62 kB
+dist/assets/TrackOrder-BFcl2nxY.js            9.05 kB │ gzip:   3.04 kB
+dist/assets/TermsAndConditions-CDyzIR2s.js    9.31 kB │ gzip:   3.65 kB
+dist/assets/ReturnPolicy-BiOdu3ml.js         11.28 kB │ gzip:   3.90 kB
+dist/assets/Home-0hy_3SXm.js                 21.00 kB │ gzip:   6.33 kB
+dist/assets/Product-BpxArVKF.js              23.32 kB │ gzip:   7.04 kB
+dist/assets/Checkout-CME7mudJ.js             23.79 kB │ gzip:   6.91 kB
+dist/assets/Admin-CXQa9FXP.js               122.97 kB │ gzip:  29.44 kB
+dist/assets/index-adxvZMJ-.js               492.65 kB │ gzip: 151.92 kB
+✓ built in 4.34s
+
+$ git diff --check
+Exit: 0

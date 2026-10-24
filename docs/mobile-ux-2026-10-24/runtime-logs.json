@@ -1,0 +1,14 @@
+[
+  {
+    "level": "warn",
+    "message": "Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.",
+    "timestamp": "2026-10-24T04:30:57.469Z",
+    "url": "http://127.0.0.1:5174/node_modules/.vite/deps/@supabase_supabase-js.js?v=893c5782"
+  },
+  {
+    "level": "warn",
+    "message": "Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.",
+    "timestamp": "2026-10-24T04:30:57.677Z",
+    "url": "http://127.0.0.1:5174/node_modules/.vite/deps/@supabase_supabase-js.js?v=893c5782"
+  }
+]

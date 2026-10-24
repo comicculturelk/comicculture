@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Clock } from 'lucide-react';
 import { formatPrice } from '../data/products';
 
 interface OrderSuccessState {
@@ -8,6 +8,7 @@ interface OrderSuccessState {
   customerName?: string;
   totalItems?: number;
   total?: number;
+  requiresPaymentVerification?: boolean;
 }
 
 export default function OrderSuccess() {
@@ -18,9 +19,11 @@ export default function OrderSuccess() {
   // doesn't claim to know details we no longer have, instead of silently
   // showing a half-empty page.
   const hasOrderDetails = Boolean(state.orderReference);
+  const requiresPaymentVerification = hasOrderDetails && state.requiresPaymentVerification === true;
+  const StatusIcon = requiresPaymentVerification ? Clock : CheckCircle2;
 
   return (
-    <section className="comic-page relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
+    <section className="comic-page relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 pb-16 pt-28 text-center sm:px-6">
       <div className="absolute inset-0 bg-web-pattern opacity-20" />
       <div className="absolute inset-0 halftone-overlay opacity-30" />
 
@@ -36,18 +39,28 @@ export default function OrderSuccess() {
           animate={{ scale: 1 }}
           transition={{ duration: 0.4, delay: 0.15, type: 'spring' }}
         >
-          <CheckCircle2 className="h-8 w-8 text-primary" />
+          <StatusIcon aria-hidden="true" className="h-8 w-8 text-primary" />
         </motion.div>
 
         <h1 className="mt-6 font-display text-3xl text-foreground tracking-wide md:text-4xl">
-          Order <span className="text-gradient-red">received</span>
+          {requiresPaymentVerification ? (
+            <>Payment <span className="text-gradient-red">verification required</span></>
+          ) : (
+            <>Order <span className="text-gradient-red">received</span></>
+          )}
         </h1>
 
         {hasOrderDetails ? (
           <p className="mt-4 text-muted">
             {state.customerName ? `Thanks, ${state.customerName}! ` : 'Thank you! '}
-            Your order has been received. We'll reach out shortly on WhatsApp or phone to confirm
-            delivery details.
+            {requiresPaymentVerification ? (
+              <>Your order and payment receipt have been received. We'll verify your bank transfer
+                before processing your order. Keep your order reference and use Track Your Order
+                below to check for updates.</>
+            ) : (
+              <>Your order has been received. We'll reach out shortly on WhatsApp or phone to confirm
+                delivery details.</>
+            )}
           </p>
         ) : (
           <p className="mt-4 text-muted">
@@ -73,7 +86,7 @@ export default function OrderSuccess() {
           </div>
         )}
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
           <Link to="/track-order" state={{ orderReference: state.orderReference }} className="btn-primary">
             Track Your Order
           </Link>

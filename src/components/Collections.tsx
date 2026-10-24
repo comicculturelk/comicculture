@@ -14,10 +14,10 @@ export default function Collections({ collections, loading, error }: Collections
   const reduceMotion = useReducedMotion();
 
   return (
-    <section id="collections" className="comic-page relative isolate overflow-hidden border-y-2 border-foreground bg-white py-20 lg:py-28">
+    <section id="collections" className="comic-page relative isolate overflow-hidden border-y-2 border-foreground bg-white py-12 sm:py-20 lg:py-28">
       <div className="relative z-10 mx-auto max-w-7xl px-6">
         <motion.div
-          className="mb-10 flex flex-col justify-between gap-6 sm:mb-12 sm:flex-row sm:items-end"
+          className="mb-6 flex flex-col justify-between gap-6 sm:mb-12 sm:flex-row sm:items-end"
           initial={reduceMotion ? false : { opacity: 0, y: 22 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.35 }}

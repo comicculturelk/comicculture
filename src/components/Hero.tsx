@@ -67,7 +67,7 @@ export default function Hero({ collections, loading = false }: HeroProps) {
   };
 
   return (
-    <section id="home" className="comic-page relative min-h-[min(760px,100svh)] overflow-hidden border-b-4 border-foreground bg-background pt-24 lg:min-h-[min(820px,100svh)] lg:pt-20">
+    <section id="home" className="comic-page home-hero relative min-h-[min(760px,100svh)] overflow-hidden border-b-4 border-foreground bg-background pt-24 lg:min-h-[min(820px,100svh)] lg:pt-20">
 
       <div className="absolute inset-0 bg-gradient-to-br from-surface via-background to-[#f0f2f5] lg:left-[40%]" aria-hidden="true">
         {loading && !current.image && (
@@ -82,7 +82,7 @@ export default function Hero({ collections, loading = false }: HeroProps) {
               key={current.key}
               src={current.image}
               alt={`${current.headline} collection campaign`}
-              fetchPriority="high"
+              {...{ fetchpriority: 'high' }}
               className="h-full w-full object-cover object-[var(--hero-focus-mobile)] lg:object-[var(--hero-focus-desktop)]"
               style={{
                 '--hero-focus-mobile': current.focusMobile,
@@ -98,7 +98,7 @@ export default function Hero({ collections, loading = false }: HeroProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/75 to-background/5 lg:bg-gradient-to-r lg:from-background lg:via-background/95 lg:via-35% lg:to-background/0" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[min(660px,calc(100svh-6rem))] max-w-7xl flex-col justify-end px-6 pb-16 pt-28 sm:justify-center sm:pb-20 lg:min-h-[min(740px,calc(100svh-5rem))] lg:px-10" aria-busy={loading}>
+      <div className="hero-content relative z-10 mx-auto flex min-h-[min(660px,calc(100svh-6rem))] max-w-7xl flex-col justify-end px-6 pb-16 pt-28 sm:justify-center sm:pb-20 lg:min-h-[min(740px,calc(100svh-5rem))] lg:px-10" aria-busy={loading}>
         <AnimatePresence mode="wait">
           <motion.div
             key={current.key}
@@ -131,8 +131,8 @@ export default function Hero({ collections, loading = false }: HeroProps) {
           </motion.div>
         </AnimatePresence>
 
-        {!loading && <div className="mt-12 flex items-center justify-between gap-4 sm:max-w-2xl">
-          <div className="flex items-center gap-3" aria-label={multiSlide ? `Campaign ${index + 1} of ${slides.length}` : undefined}>
+        {!loading && <div className="mt-12 flex items-center justify-between gap-2 sm:gap-4 sm:max-w-2xl">
+          <div className="flex items-center gap-1 sm:gap-3" aria-label={multiSlide ? `Campaign ${index + 1} of ${slides.length}` : undefined}>
             {multiSlide ? slides.map((slide, slideIndex) => (
               <button
                 key={slide.key}
@@ -140,8 +140,10 @@ export default function Hero({ collections, loading = false }: HeroProps) {
                 onClick={() => setIndex(slideIndex)}
                 aria-label={`Show ${slide.headline} campaign`}
                 aria-pressed={index === slideIndex}
-                className={`h-1.5 rounded-full transition-all ${index === slideIndex ? 'w-10 bg-primary' : 'w-5 bg-foreground/20 hover:bg-foreground/40'}`}
-              />
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
+              >
+                <span aria-hidden="true" className={`h-1.5 rounded-full transition-all ${index === slideIndex ? 'w-10 bg-primary' : 'w-5 bg-foreground/20'}`} />
+              </button>
             )) : <span className="h-px w-10 bg-primary" />}
             <span className="ml-2 text-xs font-semibold tabular-nums tracking-[0.18em] text-muted">
               {String(index + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
@@ -149,10 +151,10 @@ export default function Hero({ collections, loading = false }: HeroProps) {
           </div>
           {multiSlide && (
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => moveSlide(-1)} aria-label="Previous campaign" className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 text-foreground transition-colors hover:border-primary hover:text-primary">
+              <button type="button" onClick={() => moveSlide(-1)} aria-label="Previous campaign" className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/80 text-foreground transition-colors hover:border-primary hover:text-primary">
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />
               </button>
-              <button type="button" onClick={() => moveSlide(1)} aria-label="Next campaign" className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 text-foreground transition-colors hover:border-primary hover:text-primary">
+              <button type="button" onClick={() => moveSlide(1)} aria-label="Next campaign" className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/80 text-foreground transition-colors hover:border-primary hover:text-primary">
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </button>
             </div>

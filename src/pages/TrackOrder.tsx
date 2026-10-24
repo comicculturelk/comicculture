@@ -95,7 +95,7 @@ export default function TrackOrder() {
   const hasPreorderItem = result ? result.items.some((item) => item.is_preorder) : false;
 
   return (
-    <section className="comic-page relative min-h-screen overflow-hidden bg-background px-6 py-24">
+    <section className="comic-page tracking-page relative min-h-screen overflow-hidden bg-background px-4 py-24 sm:px-6">
       <div className="absolute inset-0 bg-web-pattern opacity-20" />
       <div className="absolute inset-0 halftone-overlay opacity-30" />
 
@@ -128,7 +128,8 @@ export default function TrackOrder() {
             <button
               type="button"
               onClick={() => setContactMethod('email')}
-              className={`rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${
+              aria-pressed={contactMethod === 'email'}
+              className={`min-h-11 rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${
                 contactMethod === 'email'
                   ? 'bg-primary text-primary-foreground'
                   : 'border border-border text-muted-foreground hover:bg-surface-hover'
@@ -139,7 +140,8 @@ export default function TrackOrder() {
             <button
               type="button"
               onClick={() => setContactMethod('phone')}
-              className={`rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${
+              aria-pressed={contactMethod === 'phone'}
+              className={`min-h-11 rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${
                 contactMethod === 'phone'
                   ? 'bg-primary text-primary-foreground'
                   : 'border border-border text-muted-foreground hover:bg-surface-hover'
@@ -172,6 +174,7 @@ export default function TrackOrder() {
           {error && !result && (
             <motion.div
               key="error"
+              role="alert"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -241,7 +244,7 @@ export default function TrackOrder() {
                   This order was cancelled. Contact us on WhatsApp if you have questions.
                 </div>
               ) : (
-                <div className="mt-8 flex items-center">
+                <div className="tracking-steps mt-8 flex items-center">
                   {STEPS.map((step, i) => {
                     const Icon = step.icon;
                     const isComplete = i <= currentStepIndex;

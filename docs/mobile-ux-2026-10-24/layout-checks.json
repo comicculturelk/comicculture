@@ -1,0 +1,482 @@
+[
+  {
+    "client": 310,
+    "path": "/",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/shop",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/shop",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/shop",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/shop",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/shop",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/collections/limited-edition",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/collections/limited-edition",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/collections/limited-edition",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/collections/limited-edition",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/collections/limited-edition",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/collections/web-slinger-saga",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/collections/web-slinger-saga",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/collections/web-slinger-saga",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/collections/web-slinger-saga",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/collections/web-slinger-saga",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/product/iron-man-arc-reactor",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/product/iron-man-arc-reactor",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/product/iron-man-arc-reactor",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/product/iron-man-arc-reactor",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/product/iron-man-arc-reactor",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/product/classic-gwen",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/product/classic-gwen",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/product/classic-gwen",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/product/classic-gwen",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/product/classic-gwen",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/product/noir-spider",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/product/noir-spider",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/product/noir-spider",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/product/noir-spider",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/product/noir-spider",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/checkout",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/checkout",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/checkout",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/checkout",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/checkout",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/faq",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/faq",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/faq",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/faq",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/faq",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/contact",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/contact",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/contact",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/contact",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/contact",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/about",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/about",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/about",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/about",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/about",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/track-order",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/track-order",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/track-order",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/track-order",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/track-order",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/return-policy",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/return-policy",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/return-policy",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/return-policy",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/return-policy",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/terms-and-conditions",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/terms-and-conditions",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/terms-and-conditions",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/terms-and-conditions",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/terms-and-conditions",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/order-success",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/order-success",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/order-success",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/order-success",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/order-success",
+    "scroll": 758,
+    "width": 768
+  },
+  {
+    "client": 310,
+    "path": "/mobile-audit-404",
+    "scroll": 310,
+    "width": 320
+  },
+  {
+    "client": 365,
+    "path": "/mobile-audit-404",
+    "scroll": 365,
+    "width": 375
+  },
+  {
+    "client": 380,
+    "path": "/mobile-audit-404",
+    "scroll": 380,
+    "width": 390
+  },
+  {
+    "client": 420,
+    "path": "/mobile-audit-404",
+    "scroll": 420,
+    "width": 430
+  },
+  {
+    "client": 758,
+    "path": "/mobile-audit-404",
+    "scroll": 758,
+    "width": 768
+  }
+]

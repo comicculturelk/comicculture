@@ -44,16 +44,16 @@ export default function Contact() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
+          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
             Get in <span className="text-gradient-red">touch</span>
-          </h2>
+          </h1>
           <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
             Questions about our products? Want to collaborate? Reach out and let's talk.
           </p>
         </motion.div>
 
         {/* Contact methods */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+        <div className="contact-methods grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-8 md:mb-16">
           {contactMethods.map((method, index) => (
             <motion.a
               key={method.label}
@@ -67,14 +67,14 @@ export default function Contact() {
               transition={{ delay: index * 0.1, duration: 0.5 }}
               whileHover={{ y: -4 }}
             >
-              <div className="glass rounded-2xl p-6 text-center transition-all duration-300 group-hover:border-primary/30">
+              <div className="contact-method-card glass rounded-2xl p-6 text-center transition-all duration-300 group-hover:border-primary/30">
                 <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-xl ${method.gradient}`}>
                   <method.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <p className="mt-4 text-sm text-muted uppercase tracking-wider">
                   {method.label}
                 </p>
-                <p className="mt-2 font-medium text-foreground">
+                <p className="mt-2 break-words font-medium text-foreground">
                   {method.value}
                 </p>
               </div>

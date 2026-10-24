@@ -22,19 +22,19 @@ export default function ProductShowcase({
   sectionId,
 }: ProductShowcaseProps) {
   return (
-    <section id={sectionId} className="relative py-20 lg:py-28">
+    <section id={sectionId} className="home-section relative py-12 sm:py-20 lg:py-28">
       <div className="absolute inset-0 bg-background">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6">
-        <div className="flex items-end justify-between mb-10">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="flex items-center justify-between gap-3 mb-6 sm:mb-10">
           <h2 className="font-display text-3xl md:text-4xl text-foreground tracking-wide">
             {title}
           </h2>
           <Link
             to={viewAllHref}
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary transition-transform hover:translate-x-0.5"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 text-sm font-medium text-primary transition-transform hover:translate-x-0.5"
           >
             View All
             <ArrowRight className="h-4 w-4" />
@@ -52,7 +52,7 @@ export default function ProductShowcase({
         )}
 
         {!loading && !error && products.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <div className="product-grid grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((product, index) => (
               <ProductCard key={product.id} product={product} index={index} />
             ))}

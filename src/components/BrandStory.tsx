@@ -5,7 +5,7 @@ import { PackageCheck, RefreshCw, Wallet } from 'lucide-react';
 export default function BrandStory() {
   return (
     <section className="relative bg-surface py-16 lg:py-20">
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mb-8 max-w-2xl">
           <motion.h2
           className="font-display text-3xl leading-tight tracking-tight text-foreground md:text-4xl"

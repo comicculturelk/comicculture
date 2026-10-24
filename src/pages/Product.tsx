@@ -13,7 +13,7 @@ import {
   X,
   Ruler,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useProduct } from '../hooks/useProduct';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
@@ -29,6 +29,8 @@ import type { Product as ProductType, ProductVersion } from '../data/products';
 import { fetchCollectionById } from '../data/collections';
 import SEO, { type JsonLdBlock } from '../components/SEO';
 import { STORE_CONFIG } from '../config/store';
+import { useDialog } from '../hooks/useDialog';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 const SITE_URL = 'https://comicculture.lk';
 
@@ -123,6 +125,7 @@ function pickDefaultSize(version: ProductVersion | undefined): string {
 type AccordionKey = 'story' | 'details' | 'care' | 'shipping';
 
 export default function Product() {
+  const mobileLayout = useMediaQuery('(max-width: 767px)');
   const { slug } = useParams<{ slug: string }>();
   const { product, loading, error } = useProduct(slug);
   const { products: allProducts } = useProducts();
@@ -134,9 +137,10 @@ export default function Product() {
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [openSection, setOpenSection] = useState<AccordionKey | null>(null);
   const [collectionSlug, setCollectionSlug] = useState<string | null>(null);
-  const sizeGuideTriggerRef = useRef<HTMLButtonElement>(null);
-  const sizeGuideCloseRef = useRef<HTMLButtonElement>(null);
+  const sizeGuidePanelRef = useRef<HTMLDivElement>(null);
+  useDialog(showSizeGuide, sizeGuidePanelRef, () => setShowSizeGuide(false));
   const purchaseCtaRef = useRef<HTMLButtonElement>(null);
+  const sizeOptionsRef = useRef<HTMLDivElement>(null);
   const [showStickyBuy, setShowStickyBuy] = useState(false);
 
   // Reset per-product UI state whenever the loaded product changes: land on
@@ -174,27 +178,6 @@ export default function Product() {
   }, [product?.collectionId]);
 
   useEffect(() => {
-    if (!showSizeGuide) return;
-    const trigger = sizeGuideTriggerRef.current;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    sizeGuideCloseRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowSizeGuide(false);
-      if (event.key === 'Tab') {
-        event.preventDefault();
-        sizeGuideCloseRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      trigger?.focus();
-    };
-  }, [showSizeGuide]);
-
-  useEffect(() => {
     const target = purchaseCtaRef.current;
     if (!target || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(([entry]) => setShowStickyBuy(!entry.isIntersecting), { threshold: 0.15 });
@@ -204,7 +187,7 @@ export default function Product() {
 
   if (loading) {
     return (
-      <section className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 gap-8 px-6 pb-16 pt-28 lg:grid-cols-2" aria-label="Loading product" aria-busy="true">
+      <section className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 gap-8 px-6 pb-16 pt-28 md:grid-cols-2" aria-label="Loading product" aria-busy="true">
         <div className="aspect-[4/5] animate-pulse rounded-2xl bg-slate-100" />
         <div className="space-y-5 py-8">
           <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
@@ -347,6 +330,8 @@ export default function Product() {
     openCart();
   };
 
+  const description = product.description && <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">{product.description}</p>;
+
   const toggleSection = (key: AccordionKey) => {
     setOpenSection((current) => (current === key ? null : key));
   };
@@ -374,7 +359,6 @@ export default function Product() {
           <Link to="/shop" className="transition-colors hover:text-foreground">
             Shop
           </Link>
-          <ChevronRight className="h-3.5 w-3.5" />
           {collectionSlug && (
             <>
               <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
@@ -388,13 +372,13 @@ export default function Product() {
         </nav>
 
         <motion.div
-          className="comic-panel product-detail-card flex flex-col overflow-hidden lg:grid lg:grid-cols-2"
+          className="comic-panel product-detail-card flex flex-col overflow-hidden md:grid md:grid-cols-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
           {/* Product image gallery */}
-          <div className="product-gallery min-w-0 lg:sticky lg:top-24 lg:self-start">
+          <div className="product-gallery w-full min-w-0 lg:sticky lg:top-24 lg:self-start">
             <div className="product-gallery-frame relative aspect-[4/5] overflow-hidden bg-[#f1f2f4]">
               <motion.img
                 key={displayedImage}
@@ -405,6 +389,8 @@ export default function Product() {
                     : product.name
                 }
                 className="h-full w-full object-contain"
+                {...{ fetchpriority: 'high' }}
+                decoding="async"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -431,7 +417,7 @@ export default function Product() {
                     type="button"
                     onClick={handlePrevImage}
                     aria-label="Previous image"
-                    className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-white/95 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                    className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-white/95 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
@@ -439,7 +425,7 @@ export default function Product() {
                     type="button"
                     onClick={handleNextImage}
                     aria-label="Next image"
-                    className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-white/95 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                    className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-white/95 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -503,8 +489,8 @@ export default function Product() {
               {selectedVersion?.isPreorder && <span className="rounded-full bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary">Pre-order</span>}
             </div>
 
-            {/* Description */}
-            {product.description && <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">{product.description}</p>}
+
+            {!mobileLayout && description}
 
             {/* Version selector — only shown when a product actually offers
                 more than one apparel version (e.g. Jersey vs Oversized Cotton) */}
@@ -537,16 +523,15 @@ export default function Product() {
             )}
 
             {/* Size selector */}
-            <div className="mt-7">
+            <div ref={sizeOptionsRef} className="mt-7">
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Size</p>
-                  <p className="mt-1 text-xs text-muted">{selectedSize ? `Selected: ${selectedSize}` : 'Choose a size'}</p>
+                  <p className="mt-1 text-xs text-muted">{!isInStock ? 'No sizes available' : selectedSize ? `Selected: ${selectedSize}` : 'Choose a size'}</p>
                 </div>
                 {hasSizeGuide && (
                   <button
                     type="button"
-                    ref={sizeGuideTriggerRef}
                     onClick={() => setShowSizeGuide(true)}
                     className="comic-size-guide inline-flex min-h-10 items-center gap-2 px-3 text-xs font-medium transition-all"
                   >
@@ -564,10 +549,10 @@ export default function Product() {
                       <motion.button
                         type="button"
                         disabled={!inStock}
-                        aria-pressed={selectedSize === size}
+                        aria-pressed={selectedSize === size && inStock}
                         aria-label={`${size}${inStock ? '' : ' — sold out'}`}
                         className={`comic-size-choice min-h-12 min-w-14 px-4 py-2 text-sm font-semibold transition-all ${
-                          selectedSize === size
+                          selectedSize === size && inStock
                             ? 'is-selected'
                             : ''
                         }`}
@@ -623,7 +608,7 @@ export default function Product() {
 
             {selectedSize && availableStock === 0 && (
               <p role="status" className="mt-3 text-sm font-medium text-muted-foreground">
-                This size is currently sold out. Choose another available size to continue.
+                {isInStock ? 'This size is currently sold out. Choose another available size to continue.' : activeVersions.length > 1 ? 'This style is currently sold out. Try another style or browse the shop.' : 'This design is currently sold out. Browse the shop for available designs.'}
               </p>
             )}
 
@@ -656,10 +641,13 @@ export default function Product() {
               {stockMessage && (
                 <p className="mt-2 text-xs text-primary">{stockMessage}</p>
               )}
+              {!isInStock && <Link to="/shop" className="btn-outline mt-3 w-full">Browse all designs</Link>}
             </div>
 
+            {mobileLayout && description}
+
             {/* Trust badges */}
-            <div className="mt-5 grid grid-cols-1 gap-2 border-y border-border py-4 sm:grid-cols-3">
+            <div className="product-trust mt-5 grid grid-cols-1 gap-2 border-y border-border py-4 sm:grid-cols-3">
               <div className="comic-trust-card flex items-center gap-2 px-2 py-2 text-xs font-medium leading-tight text-muted-foreground">
                 <Truck className="h-4 w-4 flex-shrink-0 text-primary" />
                 Island-wide delivery
@@ -762,12 +750,15 @@ export default function Product() {
       </div>
 
       {showStickyBuy && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgba(23,25,29,0.08)] backdrop-blur lg:hidden">
+        <div className="product-sticky-buy fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgba(23,25,29,0.08)] backdrop-blur lg:hidden">
           <div className="mx-auto flex max-w-xl items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs text-muted-foreground">{selectedSize ? `Size ${selectedSize}` : 'Choose a size'}</p>
-              <p className="font-semibold text-foreground">{selectedVersionSize ? formatPrice(selectedVersionSize.price) : 'Unavailable'}</p>
-            </div>
+            <button type="button" disabled={!isInStock} aria-label={isInStock ? "Change size" : "No sizes available"} onClick={() => {
+              sizeOptionsRef.current?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+              sizeOptionsRef.current?.querySelector<HTMLButtonElement>('.comic-size-choice:not(:disabled)')?.focus({ preventScroll: true });
+            }} className="min-h-11 min-w-0 flex-1 text-left">
+              <span className="block truncate text-xs text-muted-foreground">{!isInStock ? 'No sizes available' : selectedSize ? `Size ${selectedSize} · Change` : 'Choose a size'}</span>
+              <span className="block font-semibold text-foreground">{selectedVersionSize ? formatPrice(selectedVersionSize.price) : 'Unavailable'}</span>
+            </button>
             <button type="button" onClick={handleAddToCart} disabled={availableStock === 0 || !selectedVersionSize} className="btn-primary min-h-11 shrink-0 disabled:cursor-not-allowed disabled:opacity-50">
               {availableStock === 0 ? 'Sold out' : selectedVersion?.isPreorder ? 'Pre-order' : 'Add to cart'}
             </button>
@@ -775,21 +766,25 @@ export default function Product() {
         </div>
       )}
 
+    </section>
+
       {/* Size guide modal */}
       <AnimatePresence>
         {showSizeGuide && hasSizeGuide && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/70 px-4"
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-foreground/70 px-3 py-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowSizeGuide(false)}
           >
             <motion.div
+              ref={sizeGuidePanelRef}
+              tabIndex={-1}
               role="dialog"
               aria-modal="true"
               aria-labelledby="product-size-guide-title"
-              className="comic-panel w-full max-w-md overflow-hidden p-0"
+              className="comic-panel w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain p-0"
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -802,16 +797,15 @@ export default function Product() {
                 </div>
                 <button
                   type="button"
-                  ref={sizeGuideCloseRef}
                   onClick={() => setShowSizeGuide(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                   aria-label="Close size guide"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
               <div className="overflow-x-auto px-5">
-              <table className="w-full min-w-[360px] text-left text-sm">
+              <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface text-foreground">
                     <th scope="col" className="py-2 font-semibold">Size</th>
@@ -840,7 +834,6 @@ export default function Product() {
           </motion.div>
         )}
       </AnimatePresence>
-    </section>
     </>
   );
 }
@@ -856,11 +849,14 @@ function AccordionItem({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
+  const panelId = useId();
   return (
     <div>
       <button
         type="button"
         onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? panelId : undefined}
         className="flex w-full items-center justify-between py-4 text-left"
       >
         <span className="text-sm font-extrabold uppercase tracking-wide text-foreground">{title}</span>
@@ -873,6 +869,7 @@ function AccordionItem({
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
+            id={panelId}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}

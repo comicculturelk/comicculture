@@ -147,7 +147,7 @@ export default function TermsAndConditions() {
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
         <div className="relative z-10 mx-auto max-w-4xl px-6">
-          <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
             <Link to="/" className="transition-colors hover:text-foreground">
               Home
             </Link>
@@ -184,7 +184,7 @@ export default function TermsAndConditions() {
             {SECTIONS.map((section, index) => (
               <motion.div
                 key={section.title}
-                className="glass rounded-2xl p-6 lg:p-8"
+                className="glass rounded-2xl p-4 sm:p-6 lg:p-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.05 * index }}

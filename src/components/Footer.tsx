@@ -13,7 +13,7 @@ const infoLinks = [
 
 export default function Footer() {
   return (
-    <footer className="comic-page relative border-t-4 border-foreground bg-background">
+    <footer className="store-footer comic-page relative border-t-4 border-foreground bg-background">
       {/* Animated top line */}
       <motion.div
         className="absolute top-0 left-0 h-1 bg-warning"
@@ -23,7 +23,7 @@ export default function Footer() {
         transition={{ duration: 1.5, ease: 'easeOut' }}
       />
 
-      <div className="mx-auto max-w-7xl px-6 py-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12">
         <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
           {/* Logo */}
           <motion.div className="flex items-center gap-2" whileHover={{ scale: 1.02 }}>
@@ -47,7 +47,7 @@ export default function Footer() {
               href="https://instagram.com/comicculture.lk"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-muted transition-colors hover:text-foreground"
+              className="flex min-h-11 items-center gap-2 text-muted transition-colors hover:text-foreground"
               whileHover={{ y: -2 }}
             >
               <Instagram className="h-5 w-5" />
@@ -57,7 +57,7 @@ export default function Footer() {
               href="https://wa.me/94787756338"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-muted transition-colors hover:text-foreground"
+              className="flex min-h-11 items-center gap-2 text-muted transition-colors hover:text-foreground"
               whileHover={{ y: -2 }}
             >
               <MessageCircle className="h-5 w-5" />
@@ -67,12 +67,12 @@ export default function Footer() {
         </div>
 
         {/* Informational nav */}
-        <nav className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-border pt-8">
+        <nav aria-label="Customer support" className="mt-8 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-border pt-6 md:mt-10 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-6 md:gap-y-2 md:pt-8">
           {infoLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}
             </Link>

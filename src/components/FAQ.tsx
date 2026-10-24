@@ -85,9 +85,9 @@ export default function FAQ() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
+          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide">
             Frequently asked <span className="text-gradient-red">questions</span>
-          </h2>
+          </h1>
         </motion.div>
 
         {/* FAQ items */}
@@ -120,7 +120,7 @@ export default function FAQ() {
                 aria-controls={`faq-answer-${index}`}
                 className="w-full flex items-center justify-between p-5 text-left"
               >
-                <span className="font-display text-lg text-foreground tracking-wide pr-8">
+                <span className="text-sm font-semibold leading-relaxed text-foreground pr-4">
                   {faq.question}
                 </span>
                 <motion.div
@@ -146,7 +146,7 @@ export default function FAQ() {
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <div className="px-5 pb-5 text-muted-foreground leading-relaxed">
+                    <div className="px-5 pb-5 text-sm text-muted-foreground leading-relaxed">
                       {faq.answer}
                     </div>
                   </motion.div>

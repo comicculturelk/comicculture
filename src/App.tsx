@@ -30,7 +30,8 @@ export default function App() {
       <CartProvider>
         <ScrollToTop />
         {!isAdminRoute && <Navbar />}
-        <main>
+        <a href="#main-content" className="skip-link">Skip to content</a>
+        <main id="main-content" className={isAdminRoute ? undefined : "storefront"} tabIndex={-1}>
           <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Loading page…</div>}>
             <Routes>
               <Route path="/" element={<Home />} />

@@ -1,0 +1,147 @@
+[
+  {
+    "path": "index.html",
+    "status": "modified",
+    "sha256": "62fabadebdb443b89f457c41a850940d36c3a256b5a55fbd4107482b785b6c9e"
+  },
+  {
+    "path": "src/App.tsx",
+    "status": "modified",
+    "sha256": "50ecbca848006a78615c054233dca46860951e247c631feac7514a0e1769ec5e"
+  },
+  {
+    "path": "src/components/BrandStory.tsx",
+    "status": "modified",
+    "sha256": "f7f9cffb40bd91bbc39c04e0233360db63382f50875178afaa9294fbc16ac331"
+  },
+  {
+    "path": "src/components/CartDrawer.tsx",
+    "status": "modified",
+    "sha256": "a00bfc5e93efc5161c00a88f805c8b62cec2392b2933e92d5d855268e9a03dfb"
+  },
+  {
+    "path": "src/components/Collections.tsx",
+    "status": "modified",
+    "sha256": "a65d310d4a3f4ff9cd8feadffcf586bde41f28e54b903c1254a23d10168eaa7a"
+  },
+  {
+    "path": "src/components/Contact.tsx",
+    "status": "modified",
+    "sha256": "f8eb725b916692d8d4c9f094aec996b768afac154006c05da453452cbf78ecce"
+  },
+  {
+    "path": "src/components/FAQ.tsx",
+    "status": "modified",
+    "sha256": "09307893138d1edab5a6ea5c562df5af6db50f81890b507f86de93ac947a1393"
+  },
+  {
+    "path": "src/components/Footer.tsx",
+    "status": "modified",
+    "sha256": "47ceb1faf57bd295f6ec4fc46c518d8f22f0547d18022086dcb4de917f1c57c9"
+  },
+  {
+    "path": "src/components/Hero.tsx",
+    "status": "modified",
+    "sha256": "ef090d88d7111ee033b292319d46f9aa13cb8c2def8373db2900556384272784"
+  },
+  {
+    "path": "src/components/Navbar.tsx",
+    "status": "modified",
+    "sha256": "63205fb8dac3195b2228a8e16b648c657faafd5aaec3c36f1ecd7b68fa1b3a86"
+  },
+  {
+    "path": "src/components/ProductCard.tsx",
+    "status": "modified",
+    "sha256": "fe138a408f94f2e7bb8cd2ab9269ab8b62b1c3443f05ef501171e43660ab23c3"
+  },
+  {
+    "path": "src/components/ProductFilters.tsx",
+    "status": "modified",
+    "sha256": "2d7c59081f8fe5727dbee05ab345efb5429f8ead470ce25cec88ee85e7fb1970"
+  },
+  {
+    "path": "src/components/ProductGridSkeleton.tsx",
+    "status": "modified",
+    "sha256": "3fa9446e1dbf074c59fa8899e04405ae5983d6944aefe41db3a9dc0ecb6d149b"
+  },
+  {
+    "path": "src/components/ProductShowcase.tsx",
+    "status": "modified",
+    "sha256": "6d7ab6feee60540c6f17db54cf3fdf75ee26f7058edd7124e2634ac0b72d9273"
+  },
+  {
+    "path": "src/components/SearchOverlay.tsx",
+    "status": "modified",
+    "sha256": "6631cf5fda0d4b058ffeae2831951d6af2e4b847abb9764512f096be35fc9cc4"
+  },
+  {
+    "path": "src/index.css",
+    "status": "modified",
+    "sha256": "0f6b7c2722ce5d66e081e1ebb8af506b935d9e1908a36d112b726003c4a6b595"
+  },
+  {
+    "path": "src/pages/Checkout.tsx",
+    "status": "modified",
+    "sha256": "0cf4be06e5b31f488575f42d6212b68e2979272020b7ee9db891a7496cd63a25"
+  },
+  {
+    "path": "src/pages/CollectionPage.tsx",
+    "status": "modified",
+    "sha256": "2acafcb2c4043e2dbd5a4498183c352529e63b3497fd587e5791aa2e8207c3a2"
+  },
+  {
+    "path": "src/pages/Home.tsx",
+    "status": "modified",
+    "sha256": "99bd58c2cb677299b30fc662b5293d7cdfed7548e3bfeec1af9aa5481ddaacf7"
+  },
+  {
+    "path": "src/pages/OrderSuccess.tsx",
+    "status": "modified",
+    "sha256": "8eef549bd012d2eea9e475477fb403f11d7b1c7a6c3ffd7e72daed7cbb77bb42"
+  },
+  {
+    "path": "src/pages/Product.tsx",
+    "status": "modified",
+    "sha256": "a0204b03e27245c9e2139af6719eeb0022de5b7785d4eec995b44497d109551e"
+  },
+  {
+    "path": "src/pages/ReturnPolicy.tsx",
+    "status": "modified",
+    "sha256": "45bf4433482b9b5bc37ab8eb6d8906279eeac88d304e2973afe0b637d12b6a4d"
+  },
+  {
+    "path": "src/pages/Shop.tsx",
+    "status": "modified",
+    "sha256": "ce7b9bccae2f956a4bce7c87f008415d388ca4ef618c71375ba13eda45f3d068"
+  },
+  {
+    "path": "src/pages/TermsAndConditions.tsx",
+    "status": "modified",
+    "sha256": "a46284982c1530a4ab334f5ae3d7e0be5c540ffe7826ede03ddaddc484dbdc35"
+  },
+  {
+    "path": "src/pages/TrackOrder.tsx",
+    "status": "modified",
+    "sha256": "3bfd4084caa2024cc72b4be655aa693bdd5364a84757ea38b85662b6f6c7ddef"
+  },
+  {
+    "path": "tailwind.config.js",
+    "status": "modified",
+    "sha256": "eb1164332bb2db09f05c5f06501485a01bc9d70b48bfa9b39089d6fe8888c09c"
+  },
+  {
+    "path": "src/components/CatalogState.tsx",
+    "status": "created",
+    "sha256": "80156833dc1c4345ef254a556e8ac15169325227691cf6b5fecd1134128bb278"
+  },
+  {
+    "path": "src/hooks/useDialog.ts",
+    "status": "created",
+    "sha256": "58ea4514f1d0b3e48ed5e459f5e10653acc4848b32d45c27cc9b93f5640ab88f"
+  },
+  {
+    "path": "src/hooks/useMediaQuery.ts",
+    "status": "created",
+    "sha256": "0bcb2d8335de5e6dc5bddb48e94461c18777df7940cdda64f05e23ed7b550490"
+  }
+]

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
+import CatalogState from '../components/CatalogState';
 import ProductCard from '../components/ProductCard';
 import ProductFilters from '../components/ProductFilters';
 import { useProducts } from '../hooks/useProducts';
@@ -36,7 +37,7 @@ export default function Shop() {
   const sizes = useMemo(() => getUniqueSizes(sortedProducts), [sortedProducts]);
   const priceBounds = useMemo(() => getPriceBounds(sortedProducts), [sortedProducts]);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [priceLimit, setPriceLimit] = useState<number | null>(null);
   const [featuredOnly, setFeaturedOnly] = useState(false);
@@ -82,17 +83,17 @@ export default function Shop() {
         canonical={canonicalUrl}
         ogType="website"
       />
-      <section className="comic-page relative py-32 lg:py-40">
+      <section className="comic-page catalog-page relative pb-16 pt-24 sm:py-32 lg:py-40">
         {/* Background */}
         <div className="absolute inset-0 bg-background">
           <div className="absolute inset-0 bg-web-pattern opacity-20" />
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
         </div>
 
-        <div className="relative z-10 mx-auto max-w-7xl px-6">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6">
           {/* Header */}
           <motion.div
-            className="mb-16 text-center"
+            className="mb-6 text-left sm:mb-16 sm:text-center"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
@@ -100,7 +101,7 @@ export default function Shop() {
             <span className="inline-block rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
               {isNewest ? 'Just dropped' : 'Full catalog'}
             </span>
-            <h1 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide uppercase">
+            <h1 className="mt-3 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide uppercase">
               {pageTitle}
             </h1>
           </motion.div>
@@ -110,9 +111,7 @@ export default function Shop() {
 
           {/* Error state */}
           {error && !loading && (
-            <p className="text-center text-primary">
-              Couldn't load products right now. Please refresh the page.
-            </p>
+            <CatalogState error />
           )}
 
           {/* Search & filters */}
@@ -152,17 +151,17 @@ export default function Shop() {
 
           {/* Empty state — no products in the catalog at all */}
           {!loading && !error && sortedProducts.length === 0 && (
-            <p className="text-center text-muted">No products available yet — check back soon.</p>
+            <CatalogState />
           )}
 
           {/* Empty state — filters/search matched nothing */}
           {!loading && !error && sortedProducts.length > 0 && filteredProducts.length === 0 && (
-            <p className="text-center text-muted">No products match your search or filters.</p>
+            <CatalogState filtered onReset={handleReset} />
           )}
 
           {/* Product grid */}
           {!loading && !error && filteredProducts.length > 0 && (
-            <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <motion.div layout className={`product-grid grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4 ${filteredProducts.length === 1 ? 'single-product-grid' : ''}`}>
               <AnimatePresence mode="popLayout">
                 {filteredProducts.map((product, index) => (
                   <motion.div

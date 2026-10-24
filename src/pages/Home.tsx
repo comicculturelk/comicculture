@@ -9,11 +9,13 @@ import SEO from '../components/SEO';
 import { useProducts } from '../hooks/useProducts';
 import { fetchCollections, type Collection } from '../data/collections';
 import { isProductAvailable } from '../data/products';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 const SITE_URL = 'https://comicculture.lk';
 const NEW_ARRIVALS_COUNT = 4;
 
 export default function Home() {
+  const mobileLayout = useMediaQuery('(max-width: 767px)');
   const { products, loading: productsLoading, error: productsError } = useProducts();
 
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -55,6 +57,24 @@ export default function Home() {
   const moreToExplore = newestFirstProducts.filter((product) => !arrivalIds.has(product.id));
   const showMoreToExplore = !productsLoading && !productsError && moreToExplore.length > 0;
 
+  const collectionsSection = (
+    <Collections key="collections"
+        collections={collections}
+        loading={collectionsLoading}
+        error={collectionsError}
+      />
+  );
+  const arrivalsSection = (
+    <ProductShowcase key="arrivals"
+        sectionId="new-arrivals"
+        title="New Arrivals"
+        viewAllHref="/shop?sort=newest"
+        products={newArrivals}
+        loading={productsLoading}
+        error={productsError}
+      />
+  );
+
   return (
     <>
       <SEO
@@ -65,19 +85,7 @@ export default function Home() {
         image={`${SITE_URL}/images/logo/comicculture-logo.png`}
       />
       <Hero collections={collections} loading={collectionsLoading} />
-      <Collections
-        collections={collections}
-        loading={collectionsLoading}
-        error={collectionsError}
-      />
-      <ProductShowcase
-        sectionId="new-arrivals"
-        title="New Arrivals"
-        viewAllHref="/shop?sort=newest"
-        products={newArrivals}
-        loading={productsLoading}
-        error={productsError}
-      />
+      {mobileLayout ? [arrivalsSection, collectionsSection] : [collectionsSection, arrivalsSection]}
       <BrandStory />
       {showMoreToExplore && (
         <ProductShowcase

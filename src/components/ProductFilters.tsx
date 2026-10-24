@@ -79,7 +79,7 @@ export default function ProductFilters({
               const isActive = selectedSize === size;
               return (
                 <button key={size} type="button" onClick={() => onSizeChange(isActive ? null : size)} aria-pressed={isActive}
-                  className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-xs font-medium transition-colors ${isActive ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground'}`}>
+                  className={`inline-flex min-h-11 items-center rounded-lg border px-3.5 text-xs font-medium transition-colors ${isActive ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground'}`}>
                   {size}
                 </button>
               );
@@ -87,24 +87,24 @@ export default function ProductFilters({
           </div>
         )}
         <button type="button" onClick={() => onFeaturedChange(!featuredOnly)} aria-pressed={featuredOnly}
-          className={`min-h-10 rounded-lg border px-3.5 text-xs font-medium transition-colors ${featuredOnly ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground'}`}>
+          className={`min-h-11 rounded-lg border px-3.5 text-xs font-medium transition-colors ${featuredOnly ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground'}`}>
           Featured
         </button>
         {onAvailableChange && (
           <button type="button" onClick={() => onAvailableChange(!availableOnly)} aria-pressed={availableOnly}
-            className={`min-h-10 rounded-lg border px-3.5 text-xs font-medium transition-colors ${availableOnly ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground'}`}>
+            className={`min-h-11 rounded-lg border px-3.5 text-xs font-medium transition-colors ${availableOnly ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground'}`}>
             In stock / preorder
           </button>
         )}
         {priceBounds.max > priceBounds.min && (
-          <label className="flex min-h-10 flex-1 items-center gap-3 rounded-lg border border-border px-4 sm:max-w-xs">
+          <label className="flex min-h-11 flex-1 items-center gap-3 rounded-lg border border-border px-4 sm:max-w-xs">
             <span className="shrink-0 text-xs font-medium text-muted">Up to {formatPrice(priceLimit)}</span>
             <input aria-label="Maximum price" type="range" min={priceBounds.min} max={priceBounds.max} value={priceLimit}
               onChange={(event) => onPriceLimitChange(Number(event.target.value))} className="h-1 min-w-14 flex-1 cursor-pointer accent-primary" />
           </label>
         )}
         {hasActiveFilters && (
-          <button type="button" onClick={onReset} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/5">
+          <button type="button" onClick={onReset} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/5">
             <X aria-hidden="true" className="h-3.5 w-3.5" /> Clear filters
           </button>
         )}
@@ -113,13 +113,14 @@ export default function ProductFilters({
   );
 
   return (
-    <div className="mb-8 space-y-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
+    <div className="product-filters mb-5 space-y-3 sm:mb-8 sm:space-y-4 rounded-xl border border-border bg-surface p-4 sm:p-5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(220px,1fr)_auto_auto]">
         <label className="relative block">
           <span className="sr-only">Search products</span>
           <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             type="search"
+            enterKeyHint="search"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search designs, collections..."
@@ -129,7 +130,7 @@ export default function ProductFilters({
 
       </div>
 
-      <div className="hidden md:block">{options}</div>
+      <div className="hidden space-y-4 md:block">{options}</div>
       <details className="rounded-lg border border-border md:hidden">
         <summary className="cursor-pointer list-none px-3 py-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between">Filter & sort <span className="text-xs font-normal text-muted-foreground">{hasActiveFilters ? 'Filters applied' : 'Optional'}</span></span>

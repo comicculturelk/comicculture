@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import CatalogState from '../components/CatalogState';
 import ProductCard from '../components/ProductCard';
 import ProductFilters from '../components/ProductFilters';
 import NotFound from './NotFound';
@@ -200,17 +201,17 @@ export default function CollectionPage() {
           jsonLd={[breadcrumbJsonLd, collectionPageJsonLd].filter((b): b is JsonLdBlock => b !== null)}
         />
       )}
-      <section className="comic-page relative py-32 lg:py-40">
+      <section className="comic-page catalog-page relative pb-16 pt-24 sm:py-32 lg:py-40">
       {/* Background */}
       <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-web-pattern opacity-20" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6">
         {/* Breadcrumb */}
         {collection && (
-          <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
             <Link to="/" className="transition-colors hover:text-foreground">
               Home
             </Link>
@@ -229,13 +230,13 @@ export default function CollectionPage() {
           className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Universe
+          Back to shop
         </Link>
 
         {/* Header */}
         {collection && (
           <motion.div
-            className="mt-8 mb-16 text-center"
+            className="mt-5 mb-6 text-center sm:mt-8 sm:mb-16"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
@@ -244,11 +245,11 @@ export default function CollectionPage() {
               {collection.tagline || (collection.status === 'soon' ? 'COMING SOON' : 'LIVE NOW')}
             </span>
             {collection.coverImage && (
-              <div className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-2xl border border-border">
+              <div className="mx-auto mt-4 max-w-3xl sm:mt-8 overflow-hidden rounded-2xl border border-border">
                 <img
                   src={collection.coverImage}
                   alt={collection.name}
-                  className="h-56 w-full object-cover sm:h-72"
+                  className="h-40 w-full sm:h-56 object-cover sm:h-72"
                 />
               </div>
             )}
@@ -318,14 +319,12 @@ export default function CollectionPage() {
 
         {/* Empty state — filters/search matched nothing */}
         {!loading && !error && collectionProducts.length > 0 && filteredProducts.length === 0 && (
-          <p className="text-center text-muted">
-            No products match your search or filters.
-          </p>
+          <CatalogState filtered onReset={handleReset} />
         )}
 
         {/* Product grid */}
         {!loading && !error && orderedFilteredProducts.length > 0 && (
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <motion.div layout className={`product-grid grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4 ${orderedFilteredProducts.length === 1 ? 'single-product-grid' : ''}`}>
             <AnimatePresence mode="popLayout">
               {orderedFilteredProducts.map((product, index) => (
                 <motion.div

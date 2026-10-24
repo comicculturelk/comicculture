@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ShoppingBag, ShoppingCart, Search, PackageSearch } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import SearchOverlay from './SearchOverlay';
+import { useDialog } from '../hooks/useDialog';
 
 const MotionLink = motion.create(Link);
 
@@ -27,10 +28,15 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { totalItems, openCart } = useCart();
+  const location = useLocation();
+  const menuRef = useRef<HTMLElement>(null);
+  useDialog(mobileOpen, menuRef, () => setMobileOpen(false));
+  useEffect(() => { setMobileOpen(false); setSearchOpen(false); }, [location.pathname, location.hash]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -42,7 +48,7 @@ export default function Navbar() {
   return (
     <>
       <motion.header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`store-header fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled ? 'glass py-3' : 'border-b border-border bg-background/95 py-4 shadow-sm backdrop-blur-xl'
         }`}
         initial={{ y: -100 }}
@@ -53,7 +59,7 @@ export default function Navbar() {
             gets the leftover width (equal thirds would crowd the links into
             two lines at ~768px). From lg the original equal-thirds grid takes
             over, keeping the desktop layout exactly as before. */}
-        <nav className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center px-6 lg:grid-cols-3">
+        <nav className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center px-4 sm:px-6 lg:grid-cols-3">
           {/* Left: Logo — serves as the Home link */}
           <div className="flex items-center justify-start">
             <MotionLink
@@ -70,7 +76,7 @@ export default function Navbar() {
                   className="relative h-8 w-8"
                 />
               </div>
-              <div className="hidden sm:flex flex-col">
+              <div className="flex flex-col">
                 <span className="font-display text-base text-foreground leading-none">Comic</span>
                 <span className="font-display text-base text-primary leading-none">Culture</span>
               </div>
@@ -104,7 +110,7 @@ export default function Navbar() {
                 <Search className="h-5 w-5" />
               </button>
               <button
-                onClick={openCart}
+                onClick={() => { setMobileOpen(false); openCart(); }}
                 className="relative rounded-lg p-2 text-muted transition-colors hover:text-foreground"
                 aria-label="Open cart"
               >
@@ -131,7 +137,7 @@ export default function Navbar() {
                 <Search className="h-5 w-5" />
               </button>
               <button
-                onClick={openCart}
+                onClick={() => { setMobileOpen(false); openCart(); }}
                 className="relative p-2 text-foreground"
                 aria-label="Open cart"
               >
@@ -147,6 +153,8 @@ export default function Navbar() {
                 onClick={() => setMobileOpen(!mobileOpen)}
                 whileTap={{ scale: 0.9 }}
                 aria-label="Toggle menu"
+                aria-expanded={mobileOpen}
+                aria-controls="mobile-navigation"
               >
                 {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </motion.button>
@@ -159,7 +167,7 @@ export default function Navbar() {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            className="fixed inset-0 z-40 md:hidden"
+            className="fixed inset-0 z-[60] md:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -172,11 +180,21 @@ export default function Navbar() {
 
             {/* Menu Content */}
             <motion.nav
-              className="absolute top-20 left-0 right-0 max-h-[calc(100vh-5rem)] overflow-y-auto border-y border-border bg-background px-6 py-8 shadow-lg"
+              ref={menuRef}
+              id="mobile-navigation"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation"
+              tabIndex={-1}
+              className="mobile-navigation absolute inset-y-0 right-0 flex w-full max-w-sm flex-col overflow-y-auto bg-surface px-5 py-5 shadow-lg"
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
             >
+              <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
+                <span className="font-display text-2xl">Explore ComicCulture</span>
+                <button type="button" onClick={() => setMobileOpen(false)} className="icon-button" aria-label="Close menu"><X className="h-5 w-5" /></button>
+              </div>
               <ul className="flex flex-col gap-1">
                 {navLinks.map((link) => (
                   <li key={link.to}>
@@ -209,7 +227,7 @@ export default function Navbar() {
                     <li key={link.to}>
                       <Link
                         to={link.to}
-                        className="block rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                        className="block rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                         onClick={() => setMobileOpen(false)}
                       >
                         {link.label}

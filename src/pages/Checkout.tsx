@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useId, useState } from 'react';
+import { cloneElement, isValidElement, useId, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, ReactElement, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
@@ -66,6 +66,7 @@ const PHONE_REGEX = /^[0-9+\-\s]{9,15}$/;
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const checkoutFormRef = useRef<HTMLFormElement>(null);
   const { items, totalItems, totalPrice, clearCart } = useCart();
   const { products } = useProducts();
   const [form, setForm] = useState<CheckoutForm>(EMPTY_FORM);
@@ -204,7 +205,14 @@ export default function Checkout() {
     e.preventDefault();
     const nextErrors = validate();
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+    if (Object.keys(nextErrors).length > 0) {
+      requestAnimationFrame(() => {
+        const field = checkoutFormRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+        field?.focus();
+        field?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      });
+      return;
+    }
     if (receiptBlocksSubmit) return;
     if (preorderBlocksSubmit) return;
     if (promoChecking) return;
@@ -240,9 +248,7 @@ export default function Checkout() {
           totalItems,
           total: authoritativeTotal,
           paymentMethod,
-          // OrderSuccess.tsx should check this and render "Payment
-          // Verification Required" instead of "Order Confirmed" for
-          // Bank Transfer orders — see note in chat reply.
+          // Bank transfers await receipt verification before order processing.
           requiresPaymentVerification: paymentMethod === 'BANK_TRANSFER',
         },
       });
@@ -259,8 +265,9 @@ export default function Checkout() {
       <section className="relative flex min-h-screen flex-col items-center justify-center gap-4 overflow-hidden bg-background px-6 text-center">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
         <div className="relative z-10 flex flex-col items-center gap-4">
-          <ShoppingBag className="h-10 w-10 text-muted/30" />
-          <p className="text-muted/60">Your cart is empty — add something before checking out.</p>
+          <ShoppingBag aria-hidden="true" className="h-10 w-10 text-muted/30" />
+          <h1 className="font-display text-3xl text-foreground">Your cart is empty</h1>
+          <p className="text-muted">Add something before checking out.</p>
           <Link to="/shop" className="btn-primary">
             Browse Collection
           </Link>
@@ -270,10 +277,10 @@ export default function Checkout() {
   }
 
   return (
-    <section className="comic-page relative min-h-screen bg-background py-24 lg:py-32">
+    <section className="comic-page checkout-page relative min-h-screen bg-background py-24 lg:py-32">
       <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6">
+      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
           <Link to="/" className="transition-colors hover:text-foreground">
@@ -296,6 +303,7 @@ export default function Checkout() {
         </h1>
 
         <form
+          ref={checkoutFormRef}
           onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_400px] lg:items-start"
         >
@@ -336,7 +344,7 @@ export default function Checkout() {
 
           {/* Left: customer info, delivery, promo */}
           <motion.div
-            className="glass space-y-8 rounded-2xl p-6 lg:p-8"
+            className="checkout-details glass space-y-7 rounded-2xl p-4 sm:p-6 lg:p-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -463,6 +471,7 @@ export default function Checkout() {
                     className={inputClass(false)}
                     placeholder="10100"
                     autoComplete="postal-code"
+                    inputMode="numeric"
                   />
                 </FormField>
               </div>
@@ -471,7 +480,7 @@ export default function Checkout() {
             {/* Delivery */}
             <div>
               <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">Delivery</h2>
-              <div className="flex items-center justify-between rounded-lg border border-primary bg-primary/20 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary bg-primary/10 px-4 py-3">
                 <div className="flex items-center gap-3">
                   <Truck className="h-5 w-5 flex-shrink-0 text-primary" />
                   <div>
@@ -537,6 +546,7 @@ export default function Checkout() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('COD')}
+                  aria-pressed={paymentMethod === 'COD'}
                   className={paymentOptionClass(paymentMethod === 'COD')}
                 >
                   <Wallet className="h-5 w-5 flex-shrink-0 text-primary" />
@@ -552,6 +562,7 @@ export default function Checkout() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('BANK_TRANSFER')}
+                  aria-pressed={paymentMethod === 'BANK_TRANSFER'}
                   className={paymentOptionClass(paymentMethod === 'BANK_TRANSFER')}
                 >
                   <Landmark className="h-5 w-5 flex-shrink-0 text-primary" />
@@ -607,7 +618,8 @@ export default function Checkout() {
                         type="file"
                     accept="image/jpeg,image/png,image/webp"
                         onChange={handleReceiptChange}
-                        className="hidden"
+                        className="sr-only"
+                        aria-label="Upload payment receipt"
                       />
                     </label>
 
@@ -637,8 +649,8 @@ export default function Checkout() {
             {/* Promo code */}
             <div>
               <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">Promo code</h2>
-              <div className="flex gap-3">
-                <div className="relative flex-1">
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
                   <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted/30" />
                   <input
                     type="text"
@@ -650,13 +662,14 @@ export default function Checkout() {
                     }}
                     className={`${inputClass(false)} pl-9`}
                     placeholder="Enter promo code"
+                    aria-label="Promo code"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={(e) => void handleApplyPromo(e)}
                   disabled={promoChecking || !promoCode.trim()}
-                  className="btn-outline px-6 py-2.5 text-sm"
+                  className="btn-outline shrink-0 px-4 py-2.5 text-sm"
                 >
                   {promoChecking ? 'Checking…' : currentPromo ? 'Applied' : 'Apply'}
                 </button>
@@ -671,7 +684,7 @@ export default function Checkout() {
 
           {/* Right: order summary */}
           <motion.div
-            className="glass space-y-6 rounded-2xl p-6 lg:sticky lg:top-28 lg:p-8"
+            className="checkout-summary glass space-y-6 rounded-2xl p-4 sm:p-6 lg:sticky lg:top-28 lg:p-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -690,7 +703,7 @@ export default function Checkout() {
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-background">
                     <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
                   </div>
-                  <div className="flex flex-1 flex-col justify-center">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
                       Size: {item.size} · Qty: {item.quantity}
@@ -701,7 +714,7 @@ export default function Checkout() {
                       </p>
                     )}
                   </div>
-                  <p className="self-center text-sm font-medium text-muted">
+                  <p className="shrink-0 self-center text-sm font-medium text-muted">
                     {formatPrice(item.price * item.quantity)}
                   </p>
                 </div>
@@ -810,10 +823,12 @@ function FormField({
     ? cloneElement(children as ReactElement<{
         id?: string;
         'aria-invalid'?: boolean;
+        'aria-required'?: boolean;
         'aria-describedby'?: string;
       }>, {
         id,
         'aria-invalid': Boolean(error),
+        'aria-required': required || undefined,
         'aria-describedby': error ? errorId : undefined,
       })
     : children;
