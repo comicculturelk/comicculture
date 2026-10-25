@@ -20,6 +20,7 @@ export default function Admin() {
   const [checkingAdmin, setCheckingAdmin] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [accessRetry, setAccessRetry] = useState(0);
+  const userId = session?.user.id;
 
   useEffect(() => {
     supabaseAdmin.auth.getSession().then(({ data, error }) => {
@@ -30,14 +31,12 @@ export default function Admin() {
     }).finally(() => setCheckingSession(false));
     const { data: listener } = supabaseAdmin.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      setAdminRole(null);
-      setAccessError(null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setAdminRole(null);
       setCheckingAdmin(false);
       return;
@@ -53,7 +52,9 @@ export default function Admin() {
       if (!cancelled) setCheckingAdmin(false);
     });
     return () => { cancelled = true; };
-    }, [session, accessRetry]);
+    // Refocusing the browser can emit SIGNED_IN again for the same user.
+    // Keep the panel mounted unless the signed-in account actually changes.
+  }, [userId, accessRetry]);
 
   if (checkingSession) {
     return (
