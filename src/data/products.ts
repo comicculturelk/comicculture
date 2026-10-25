@@ -34,9 +34,14 @@ export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
 /** Canonical display order for garment sizes. Anything not in this list sorts after, alphabetically. */
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
+/** Display aliases only; selection and cart operations keep the original SKU size. */
+export function formatSize(size: string): string {
+  return ({ XXL: '2XL', XXXL: '3XL' } as Record<string, string>)[size.toUpperCase()] ?? size;
+}
+
 function compareSizes(a: string, b: string): number {
-  const ai = SIZE_ORDER.indexOf(a);
-  const bi = SIZE_ORDER.indexOf(b);
+  const ai = SIZE_ORDER.findIndex((size) => formatSize(size) === formatSize(a));
+  const bi = SIZE_ORDER.findIndex((size) => formatSize(size) === formatSize(b));
   if (ai === -1 && bi === -1) return a.localeCompare(b);
   if (ai === -1) return 1;
   if (bi === -1) return -1;
@@ -379,7 +384,7 @@ export function filterProducts(products: Product[], filters: ProductFilters): Pr
         .toLowerCase();
       if (!haystack.includes(query)) return false;
     }
-    if (size && !getProductSizes(product).includes(size)) return false;
+    if (size && !getProductSizes(product).some((item) => formatSize(item) === formatSize(size))) return false;
     if (collection && product.collection !== collection) return false;
     if (availableOnly) {
       if (!isProductAvailable(product)) return false;
@@ -406,7 +411,8 @@ export function sortProducts(products: Product[], sort: ProductSort): Product[] 
       return sorted.sort((a, b) => a.name.localeCompare(b.name));
     case 'recommended':
     default:
-      return sorted.sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured))
+      return sorted.sort((a, b) => Number(isProductAvailable(b)) - Number(isProductAvailable(a))
+        || Number(Boolean(b.featured)) - Number(Boolean(a.featured))
         || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 }
@@ -414,8 +420,8 @@ export function sortProducts(products: Product[], sort: ProductSort): Product[] 
 /** Unique sizes present across a product list's versions, de-duplicated. */
 export function getUniqueSizes(products: Product[]): string[] {
   const seen = new Set<string>();
-  products.forEach((p) => getProductSizes(p).forEach((s) => seen.add(s)));
-  return Array.from(seen);
+  products.forEach((p) => getProductSizes(p).forEach((s) => seen.add(formatSize(s))));
+  return Array.from(seen).sort(compareSizes);
 }
 
 /** Min/max price across active version-sizes in a product list. */

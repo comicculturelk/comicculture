@@ -5,7 +5,7 @@ import CatalogState from '../components/CatalogState';
 import ProductCard from '../components/ProductCard';
 import ProductFilters from '../components/ProductFilters';
 import { useProducts } from '../hooks/useProducts';
-import { filterProducts, getUniqueSizes, getPriceBounds, sortProducts, type ProductSort } from '../data/products';
+import { filterProducts, getUniqueSizes, getPriceBounds, isProductAvailable, sortProducts, type ProductSort } from '../data/products';
 import SEO from '../components/SEO';
 import ProductGridSkeleton from '../components/ProductGridSkeleton';
 
@@ -17,9 +17,7 @@ export default function Shop() {
 
   const { products, loading, error } = useProducts();
 
-  // fetchProducts() already returns the full active catalog in its default
-  // (oldest-first) order. `sort=newest` re-sorts a copy by createdAt
-  // descending; otherwise that default order is preserved untouched.
+  // Explicit newest links retain their sort; the default uses available-first recommendations.
   const [sort, setSort] = useState<ProductSort>(isNewest ? 'newest' : 'recommended');
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [availableOnly, setAvailableOnly] = useState(false);
@@ -40,7 +38,6 @@ export default function Shop() {
   const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [priceLimit, setPriceLimit] = useState<number | null>(null);
-  const [featuredOnly, setFeaturedOnly] = useState(false);
 
   const effectivePriceLimit = priceLimit ?? priceBounds.max;
 
@@ -50,24 +47,22 @@ export default function Shop() {
         search,
         size: selectedSize,
         maxPrice: priceLimit !== null ? priceLimit : null,
-        featuredOnly,
         collection: selectedCollection,
         availableOnly,
       }),
-    [sortedProducts, search, selectedSize, priceLimit, featuredOnly, selectedCollection, availableOnly]
+    [sortedProducts, search, selectedSize, priceLimit, selectedCollection, availableOnly]
   );
 
   const hasActiveFilters =
     search.trim() !== '' ||
     selectedSize !== null ||
     (priceLimit !== null && priceLimit < priceBounds.max) ||
-    featuredOnly || selectedCollection !== null || availableOnly;
+    selectedCollection !== null || availableOnly;
 
   const handleReset = () => {
     setSearch('');
     setSelectedSize(null);
     setPriceLimit(null);
-    setFeaturedOnly(false);
     setSelectedCollection(null);
     setAvailableOnly(false);
   };
@@ -125,8 +120,6 @@ export default function Shop() {
               priceBounds={priceBounds}
               priceLimit={effectivePriceLimit}
               onPriceLimitChange={setPriceLimit}
-              featuredOnly={featuredOnly}
-              onFeaturedChange={setFeaturedOnly}
               onReset={handleReset}
               hasActiveFilters={hasActiveFilters}
               sort={sort}
@@ -163,7 +156,13 @@ export default function Shop() {
           {!loading && !error && filteredProducts.length > 0 && (
             <motion.div layout className={`product-grid grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4 ${filteredProducts.length === 1 ? 'single-product-grid' : ''}`}>
               <AnimatePresence mode="popLayout">
-                {filteredProducts.map((product, index) => (
+                {filteredProducts.flatMap((product, index) => [
+                  sort === 'recommended' && !isProductAvailable(product) && (index === 0 || isProductAvailable(filteredProducts[index - 1]))
+                    ? <motion.div key="sold-out-heading" className="col-span-full border-t border-border pt-6">
+                        <h2 className="font-display text-2xl">Currently sold out</h2>
+                        <p className="mt-1 text-sm text-muted">These designs are unavailable right now. Available designs are shown first.</p>
+                      </motion.div>
+                    : null,
                   <motion.div
                     key={product.id}
                     layout
@@ -173,8 +172,8 @@ export default function Shop() {
                     transition={{ duration: 0.25 }}
                   >
                     <ProductCard product={product} index={index} />
-                  </motion.div>
-                ))}
+                  </motion.div>,
+                ])}
               </AnimatePresence>
             </motion.div>
           )}

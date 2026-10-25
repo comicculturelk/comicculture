@@ -39,7 +39,7 @@ export default function Contact() {
         {/* Header */}
         <motion.div
           className="text-center mb-16"
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
@@ -61,7 +61,7 @@ export default function Contact() {
               target="_blank"
               rel="noopener noreferrer"
               className="group relative"
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1, duration: 0.5 }}
@@ -99,10 +99,11 @@ export default function Contact() {
           </Link>
         </div>
 
+        <p className="mb-6 text-sm leading-relaxed text-muted">For order questions, include your order reference. For sizing, send the design name and the size you are considering so we can help.</p>
         {/* Location card */}
         <motion.div
           className="glass rounded-2xl p-8 md:p-12 overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}

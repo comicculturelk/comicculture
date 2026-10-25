@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
-import { filterProducts, formatPrice } from '../data/products';
+import { filterProducts, isProductAvailable, sortProducts } from '../data/products';
 import { useDialog } from '../hooks/useDialog';
-import type { Product } from '../data/products';
+import { getProductPriceLabel } from '../lib/merchandising';
 
 interface SearchOverlayProps {
   onClose: () => void;
@@ -13,27 +13,16 @@ interface SearchOverlayProps {
 
 const MAX_RESULTS = 6;
 
-/**
- * Lowest price across the product's active versions/sizes (0 if none).
- * Price now lives per version-size (Phase 2B), not directly on the
- * product.
- */
-function getLowestPrice(product: Product): number {
-  const prices = product.versions
-    .filter((v) => v.isActive)
-    .flatMap((v) => v.sizes.map((s) => s.price));
-  return prices.length > 0 ? Math.min(...prices) : 0;
-}
-
 export default function SearchOverlay({ onClose }: SearchOverlayProps) {
   const { products, loading } = useProducts();
   const [query, setQuery] = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   useDialog(true, panelRef, onClose);
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
-    return filterProducts(products, { search: query }).slice(0, MAX_RESULTS);
+    return filterProducts(sortProducts(products, 'recommended'), { search: query }).slice(0, MAX_RESULTS);
   }, [products, query]);
 
   const showEmptyState = query.trim() !== '' && !loading && results.length === 0;
@@ -69,6 +58,7 @@ export default function SearchOverlay({ onClose }: SearchOverlayProps) {
           <div className="flex items-center gap-2 border-b border-border px-3 py-3 sm:gap-3 sm:px-5 sm:py-4">
             <Search className="h-5 w-5 shrink-0 text-muted" />
             <input
+              ref={inputRef}
               type="search"
               aria-label="Search products and collections"
               enterKeyHint="search"
@@ -100,9 +90,11 @@ export default function SearchOverlay({ onClose }: SearchOverlayProps) {
               )}
 
               {showEmptyState && (
-                <p className="px-3 py-6 text-center text-sm text-muted">
-                  No products found for "{query}".
-                </p>
+                <div className="px-3 py-6 text-center text-sm text-muted">
+                  <p>No products found for &quot;{query}&quot;.</p>
+                  <button type="button" onClick={() => { setQuery(''); inputRef.current?.focus(); }} className="btn-outline mt-4">Clear search</button>
+                  <Link to="/shop" onClick={onClose} className="mt-3 block py-3 font-semibold text-primary">Browse available designs →</Link>
+                </div>
               )}
 
               {!loading &&
@@ -125,11 +117,11 @@ export default function SearchOverlay({ onClose }: SearchOverlayProps) {
                         {product.name}
                       </p>
                       <p className="truncate text-xs uppercase tracking-wide text-muted">
-                        {product.collection}
+                        {product.collection}{!isProductAvailable(product) && <span className="ml-2 font-semibold text-foreground">· Sold out</span>}
                       </p>
                     </div>
                     <span className="shrink-0 font-display text-base text-foreground">
-                      {formatPrice(getLowestPrice(product))}
+                      {getProductPriceLabel(product)}
                     </span>
                   </Link>
                 ))}

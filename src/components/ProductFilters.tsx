@@ -10,8 +10,6 @@ interface ProductFiltersProps {
   priceBounds: { min: number; max: number };
   priceLimit: number;
   onPriceLimitChange: (value: number) => void;
-  featuredOnly: boolean;
-  onFeaturedChange: (value: boolean) => void;
   onReset: () => void;
   hasActiveFilters: boolean;
   sort?: ProductSort;
@@ -34,8 +32,6 @@ export default function ProductFilters({
   priceBounds,
   priceLimit,
   onPriceLimitChange,
-  featuredOnly,
-  onFeaturedChange,
   onReset,
   hasActiveFilters,
   sort,
@@ -86,17 +82,13 @@ export default function ProductFilters({
             })}
           </div>
         )}
-        <button type="button" onClick={() => onFeaturedChange(!featuredOnly)} aria-pressed={featuredOnly}
-          className={`min-h-11 rounded-lg border px-3.5 text-xs font-medium transition-colors ${featuredOnly ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground'}`}>
-          Featured
-        </button>
         {onAvailableChange && (
           <button type="button" onClick={() => onAvailableChange(!availableOnly)} aria-pressed={availableOnly}
             className={`min-h-11 rounded-lg border px-3.5 text-xs font-medium transition-colors ${availableOnly ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground'}`}>
             In stock / preorder
           </button>
         )}
-        {priceBounds.max > priceBounds.min && (
+        {priceBounds.max - priceBounds.min >= 1000 && (
           <label className="flex min-h-11 flex-1 items-center gap-3 rounded-lg border border-border px-4 sm:max-w-xs">
             <span className="shrink-0 text-xs font-medium text-muted">Up to {formatPrice(priceLimit)}</span>
             <input aria-label="Maximum price" type="range" min={priceBounds.min} max={priceBounds.max} value={priceLimit}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchProducts } from '../data/products';
 import type { Product } from '../data/products';
+import { fetchCollections } from '../data/collections';
 
 interface UseProductsResult {
   products: Product[];
@@ -16,10 +17,12 @@ export function useProducts(): UseProductsResult {
   useEffect(() => {
     let cancelled = false;
 
-    fetchProducts()
-      .then((data) => {
+    Promise.all([fetchProducts(), fetchCollections().catch(() => [])])
+      .then(([data, collections]) => {
         if (!cancelled) {
-          setProducts(data);
+          // Use the collection's current name for display; keep IDs and SKUs intact.
+          const names = new Map(collections.map((collection) => [collection.id, collection.name]));
+          setProducts(data.map((product) => ({ ...product, collection: names.get(product.collectionId ?? '') ?? product.collection })));
           setLoading(false);
         }
       })

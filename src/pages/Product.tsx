@@ -24,10 +24,16 @@ import {
   getPreorderMessage,
   getProductMinPrice,
   PRODUCT_TYPE_LABELS,
+  formatSize,
+  isProductAvailable,
+  sortProducts,
 } from '../data/products';
 import type { Product as ProductType, ProductVersion } from '../data/products';
 import { fetchCollectionById } from '../data/collections';
 import SEO, { type JsonLdBlock } from '../components/SEO';
+import Reviews from '../components/Reviews';
+import ProductCard from '../components/ProductCard';
+import { getProductSummary } from '../lib/merchandising';
 import { STORE_CONFIG } from '../config/store';
 import { useDialog } from '../hooks/useDialog';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -115,13 +121,6 @@ function pickDefaultVersion(product: ProductType): ProductVersion | undefined {
   return (active.length > 0 ? active : product.versions)[0];
 }
 
-/** First in-stock size of a version, falling back to its first size at all. */
-function pickDefaultSize(version: ProductVersion | undefined): string {
-  if (!version) return '';
-  const inStock = version.sizes.find((s) => isSizeInStock(version, s.size));
-  return inStock?.size ?? version.sizes[0]?.size ?? '';
-}
-
 type AccordionKey = 'story' | 'details' | 'care' | 'shipping';
 
 export default function Product() {
@@ -136,6 +135,7 @@ export default function Product() {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [openSection, setOpenSection] = useState<AccordionKey | null>(null);
+  const [collectionName, setCollectionName] = useState('');
   const [collectionSlug, setCollectionSlug] = useState<string | null>(null);
   const sizeGuidePanelRef = useRef<HTMLDivElement>(null);
   useDialog(showSizeGuide, sizeGuidePanelRef, () => setShowSizeGuide(false));
@@ -144,14 +144,14 @@ export default function Product() {
   const [showStickyBuy, setShowStickyBuy] = useState(false);
 
   // Reset per-product UI state whenever the loaded product changes: land on
-  // the default version, its default size, and its own image (falling back
+  // the default version, no selected size, and its own image (falling back
   // to the product's design image if the version has none uploaded yet).
   useEffect(() => {
     if (product) {
       const defaultVersion = pickDefaultVersion(product);
       setSelectedVersionId(defaultVersion?.id ?? '');
       setActiveImage(defaultVersion?.images?.[0] ?? product.image);
-      setSelectedSize(pickDefaultSize(defaultVersion));
+      setSelectedSize('');
       setQuantity(1);
     }
   }, [product]);
@@ -161,13 +161,17 @@ export default function Product() {
   // display name. Legacy products with no collectionId simply get no link.
   useEffect(() => {
     let cancelled = false;
+    setCollectionName('');
     if (!product?.collectionId) {
       setCollectionSlug(null);
       return;
     }
     fetchCollectionById(product.collectionId)
       .then((collection) => {
-        if (!cancelled) setCollectionSlug(collection?.slug ?? null);
+        if (!cancelled) {
+          setCollectionSlug(collection?.slug ?? null);
+          setCollectionName(collection?.name ?? '');
+        }
       })
       .catch(() => {
         if (!cancelled) setCollectionSlug(null);
@@ -244,9 +248,11 @@ export default function Product() {
     setActiveImage(galleryImages[nextIndex]);
   };
 
-  const relatedProducts = allProducts
-    .filter((p) => p.collection === product.collection && p.slug !== product.slug)
+  const relatedProducts = sortProducts(allProducts.filter((p) => p.slug !== product.slug && isProductAvailable(p)), 'recommended')
+    .sort((a, b) => Number(b.collectionId === product.collectionId) - Number(a.collectionId === product.collectionId))
     .slice(0, 4);
+  const displayCollection = collectionName || product.collection;
+  const displayedPrice = selectedVersionSize?.price ?? (selectedVersion?.sizes.length ? Math.min(...selectedVersion.sizes.map((size) => size.price)) : getProductMinPrice(product));
 
   const availableStock = selectedVersion ? getStockForSize(selectedVersion, selectedSize) : 0;
   const maxQuantity = Math.max(1, Math.min(10, availableStock));
@@ -274,7 +280,7 @@ export default function Product() {
       offers: {
         '@type': 'Offer',
         url: canonicalUrl,
-        price: selectedVersionSize?.price ?? 0,
+        price: displayedPrice,
         priceCurrency: 'LKR',
         availability: isInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
         hasMerchantReturnPolicy: RETURN_POLICY_JSONLD,
@@ -301,13 +307,17 @@ export default function Product() {
     const version = product.versions.find((v) => v.id === versionId);
     setSelectedVersionId(versionId);
     setActiveImage(version?.images?.[0] ?? product.image);
-    setSelectedSize(pickDefaultSize(version));
+    setSelectedSize('');
     setQuantity(1);
     setShowSizeGuide(false);
   };
 
+  const focusSizes = () => {
+    sizeOptionsRef.current?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    sizeOptionsRef.current?.querySelector<HTMLButtonElement>('.comic-size-choice:not(:disabled)')?.focus({ preventScroll: true });
+  };
   const handleAddToCart = () => {
-    if (!selectedVersion || !selectedVersionSize) return;
+    if (!selectedVersion || !selectedVersionSize) { focusSizes(); return; }
     addItem(
       {
         versionSizeId: selectedVersionSize.id,
@@ -363,7 +373,7 @@ export default function Product() {
             <>
               <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
               <Link to={`/collections/${collectionSlug}`} className="transition-colors hover:text-foreground">
-                {product.collection}
+                {displayCollection}
               </Link>
             </>
           )}
@@ -465,11 +475,11 @@ export default function Product() {
                   to={`/collections/${collectionSlug}`}
                   className="product-collection-link"
                 >
-                  {product.collection}
+                  {displayCollection}
                 </Link>
               ) : (
                 <span className="product-collection-link">
-                  {product.collection}
+                  {displayCollection}
                 </span>
               )}
             </div>
@@ -479,12 +489,12 @@ export default function Product() {
               {product.name}
             </h1>
 
-            {product.tagline && <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground">{product.tagline}</p>}
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">{getProductSummary(product, selectedVersion)}</p>
 
             {/* Price */}
             <div className="product-price-row mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <p className="font-display text-4xl leading-none text-foreground sm:text-5xl">
-                {selectedVersionSize ? formatPrice(selectedVersionSize.price) : 'Unavailable'}
+                {displayedPrice > 0 ? formatPrice(displayedPrice) : 'Unavailable'}
               </p>
               {selectedVersion?.isPreorder && <span className="rounded-full bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary">Pre-order</span>}
             </div>
@@ -527,16 +537,17 @@ export default function Product() {
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Size</p>
-                  <p className="mt-1 text-xs text-muted">{!isInStock ? 'No sizes available' : selectedSize ? `Selected: ${selectedSize}` : 'Choose a size'}</p>
+                  <p className="mt-1 text-xs text-muted">{!isInStock ? 'No sizes available' : selectedSize ? `Selected: ${formatSize(selectedSize)}` : 'Choose a size'}</p>
                 </div>
-                {hasSizeGuide && (
+                {(
+
                   <button
                     type="button"
                     onClick={() => setShowSizeGuide(true)}
                     className="comic-size-guide inline-flex min-h-10 items-center gap-2 px-3 text-xs font-medium transition-all"
                   >
                     <Ruler className="h-3.5 w-3.5" />
-                    Fit guide
+                    {hasSizeGuide ? 'Fit guide' : 'Fit help'}
                   </button>
                 )}
               </div>
@@ -550,7 +561,7 @@ export default function Product() {
                         type="button"
                         disabled={!inStock}
                         aria-pressed={selectedSize === size && inStock}
-                        aria-label={`${size}${inStock ? '' : ' — sold out'}`}
+                        aria-label={`${formatSize(size)}${inStock ? '' : ' — sold out'}`}
                         className={`comic-size-choice min-h-12 min-w-14 px-4 py-2 text-sm font-semibold transition-all ${
                           selectedSize === size && inStock
                             ? 'is-selected'
@@ -562,7 +573,7 @@ export default function Product() {
                           setQuantity(1);
                         }}
                       >
-                        {size}
+                        {formatSize(size)}
                       </motion.button>
                       {!inStock && (
                         <span className="text-[9px] font-extrabold uppercase tracking-wide text-primary">
@@ -606,7 +617,7 @@ export default function Product() {
               </div>
             </div>}
 
-            {selectedSize && availableStock === 0 && (
+            {!isInStock && (
               <p role="status" className="mt-3 text-sm font-medium text-muted-foreground">
                 {isInStock ? 'This size is currently sold out. Choose another available size to continue.' : activeVersions.length > 1 ? 'This style is currently sold out. Try another style or browse the shop.' : 'This design is currently sold out. Browse the shop for available designs.'}
               </p>
@@ -626,14 +637,16 @@ export default function Product() {
                 ref={purchaseCtaRef}
                 type="button"
                 onClick={handleAddToCart}
-                disabled={availableStock === 0 || !selectedVersionSize}
+                disabled={!isInStock}
                 className="btn-primary relative min-h-12 w-full disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ShoppingBag aria-hidden="true" className="h-5 w-5" />
                 {activeVersions.length === 0
                   ? 'Currently Unavailable'
-                  : availableStock === 0
+                  : !isInStock
                   ? 'Sold Out'
+                  : !selectedSize
+                  ? 'Choose your size'
                   : selectedVersion?.isPreorder
                     ? 'Pre-Order Now'
                     : 'Add to Cart'}
@@ -650,7 +663,7 @@ export default function Product() {
             <div className="product-trust mt-5 grid grid-cols-1 gap-2 border-y border-border py-4 sm:grid-cols-3">
               <div className="comic-trust-card flex items-center gap-2 px-2 py-2 text-xs font-medium leading-tight text-muted-foreground">
                 <Truck className="h-4 w-4 flex-shrink-0 text-primary" />
-                Island-wide delivery
+                Delivery · {formatPrice(STORE_CONFIG.deliveryFee)}
               </div>
               <div className="comic-trust-card flex items-center gap-2 px-2 py-2 text-xs font-medium leading-tight text-muted-foreground">
                 <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
@@ -661,6 +674,9 @@ export default function Product() {
                 Read exchange policy
               </Link>
             </div>
+
+            <Link to="/delivery" className="inline-flex min-h-11 items-center text-xs font-medium text-primary underline underline-offset-4">Delivery cost and timing</Link>
+            <Reviews productName={product.name} compact />
 
             {/* Accordion: details, materials, care, shipping */}
             <div className="comic-accordion mt-6">
@@ -695,14 +711,14 @@ export default function Product() {
                       <span className="text-muted">Fit:</span> {selectedVersion.fit}
                     </li>
                   )}
-                  {selectedVersion?.color && (
+                  {selectedVersion?.color && selectedVersion.color.toLowerCase() !== 'other' && (
                     <li>
                       <span className="text-muted">Color:</span> {selectedVersion.color}
                     </li>
                   )}
                   <li>
                     <span className="text-muted">Available sizes:</span>{' '}
-                    {(selectedVersion?.sizes ?? []).map((s) => s.size).join(', ')}
+                    {(selectedVersion?.sizes ?? []).filter((s) => selectedVersion && isSizeInStock(selectedVersion, s.size)).map((s) => formatSize(s.size)).join(', ') || 'Currently sold out'}
                   </li>
                 </ul>
               </AccordionItem>
@@ -725,7 +741,7 @@ export default function Product() {
                 onToggle={() => toggleSection('shipping')}
               >
                 <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-                  <p>Orders are usually dispatched within 1–2 business days and arrive within 2–4 business days across Sri Lanka. The delivery fee is shown at checkout.</p>
+                  <p>{STORE_CONFIG.deliveryTiming} Delivery costs {formatPrice(STORE_CONFIG.deliveryFee)}. Pre-orders follow the timeframe shown for the selected style.</p>
                   <p>For a size exchange or change-of-mind return, contact us within 3 days of delivery. Exchanges depend on stock, and return delivery charges may apply. Damaged or incorrect items are handled under the full policy.</p>
                   <Link to="/return-policy" className="inline-flex font-medium text-primary underline underline-offset-4 hover:text-primary-hover">Read the return and exchange policy</Link>
                 </div>
@@ -738,11 +754,11 @@ export default function Product() {
         {relatedProducts.length > 0 && (
           <div className="mt-16">
             <h2 className="font-display text-2xl text-foreground tracking-wide">
-              More from {product.collection}
+              {isInStock ? 'You may also like' : 'Available designs to explore'}
             </h2>
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {relatedProducts.map((related) => (
-                <RelatedProductCard key={related.id} product={related} />
+              {relatedProducts.map((related, index) => (
+                <ProductCard key={related.id} product={related} index={index} />
               ))}
             </div>
           </div>
@@ -756,11 +772,11 @@ export default function Product() {
               sizeOptionsRef.current?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
               sizeOptionsRef.current?.querySelector<HTMLButtonElement>('.comic-size-choice:not(:disabled)')?.focus({ preventScroll: true });
             }} className="min-h-11 min-w-0 flex-1 text-left">
-              <span className="block truncate text-xs text-muted-foreground">{!isInStock ? 'No sizes available' : selectedSize ? `Size ${selectedSize} · Change` : 'Choose a size'}</span>
-              <span className="block font-semibold text-foreground">{selectedVersionSize ? formatPrice(selectedVersionSize.price) : 'Unavailable'}</span>
+              <span className="block truncate text-xs text-muted-foreground">{!isInStock ? 'No sizes available' : selectedSize ? `Size ${formatSize(selectedSize)} · Change` : 'Choose a size'}</span>
+              <span className="block font-semibold text-foreground">{displayedPrice > 0 ? formatPrice(displayedPrice) : 'Unavailable'}</span>
             </button>
-            <button type="button" onClick={handleAddToCart} disabled={availableStock === 0 || !selectedVersionSize} className="btn-primary min-h-11 shrink-0 disabled:cursor-not-allowed disabled:opacity-50">
-              {availableStock === 0 ? 'Sold out' : selectedVersion?.isPreorder ? 'Pre-order' : 'Add to cart'}
+            <button type="button" onClick={handleAddToCart} disabled={!isInStock} className="btn-primary min-h-11 shrink-0 disabled:cursor-not-allowed disabled:opacity-50">
+              {!isInStock ? 'Sold out' : !selectedSize ? 'Choose your size' : selectedVersion?.isPreorder ? 'Pre-order' : 'Add to cart'}
             </button>
           </div>
         </div>
@@ -770,7 +786,7 @@ export default function Product() {
 
       {/* Size guide modal */}
       <AnimatePresence>
-        {showSizeGuide && hasSizeGuide && (
+        {showSizeGuide && (
           <motion.div
             className="fixed inset-0 z-[90] flex items-center justify-center bg-foreground/70 px-3 py-4"
             initial={{ opacity: 0 }}
@@ -792,8 +808,8 @@ export default function Product() {
             >
             <div className="mb-4 flex items-center justify-between border-b border-border bg-white px-5 py-4">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Garment measurements</p>
-                  <h3 id="product-size-guide-title" className="font-display text-2xl text-foreground tracking-wide">Size guide</h3>
+                  <p className="text-xs font-medium text-muted-foreground">{hasSizeGuide ? 'Garment measurements · Inches' : 'Choose with confidence'}</p>
+                  <h3 id="product-size-guide-title" className="font-display text-2xl text-foreground tracking-wide">{hasSizeGuide ? 'Size guide' : 'Fit help'}</h3>
                 </div>
                 <button
                   type="button"
@@ -805,7 +821,14 @@ export default function Product() {
                 </button>
               </div>
               <div className="overflow-x-auto px-5">
-              <table className="w-full text-left text-xs sm:text-sm">
+              {hasSizeGuide && <svg viewBox="0 0 240 125" role="img" aria-label="Compare the chest, body length and sleeve of a garment laid flat" className="mx-auto mb-3 h-28 w-full max-w-xs text-muted">
+                <path d="M85 15 55 25 20 60 47 80 63 62 63 113 177 113 177 62 193 80 220 60 185 25 155 15Q120 43 85 15Z" fill="none" stroke="currentColor" strokeWidth="2" />
+                <path d="M74 65H166M120 47V103M183 37 205 60" stroke="#c52832" strokeWidth="2" />
+                <text x="120" y="59" textAnchor="middle" fontSize="10" fill="currentColor">Chest</text>
+                <text x="126" y="94" fontSize="10" fill="currentColor">Length</text>
+                <text x="191" y="26" fontSize="10" fill="currentColor">Sleeve</text>
+              </svg>}
+              {hasSizeGuide ? <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface text-foreground">
                     <th scope="col" className="py-2 font-semibold">Size</th>
@@ -817,18 +840,18 @@ export default function Product() {
                 <tbody>
                   {sizeGuide.map((row) => (
                     <tr key={row.size} className="border-b border-border text-muted-foreground">
-                      <td className="py-2 font-medium text-foreground">{row.size}</td>
+                      <td className="py-2 font-medium text-foreground">{formatSize(row.size)}</td>
                       <td className="py-2">{row.chest}</td>
                       <td className="py-2">{row.length}</td>
                       <td className="py-2">{row.sleeve}</td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table> : <p className="py-4 text-sm leading-relaxed text-muted">Measurements for this style are not published yet. Ask us for the fit details before choosing your size.</p>}
               </div>
               <p className="px-5 pb-5 pt-4 text-xs leading-relaxed text-muted-foreground">
-                Measurements are approximate. Between sizes? Message us on WhatsApp and we'll
-                help you pick the right fit.
+                {hasSizeGuide ? 'Measurements are in inches. Compare these garment measurements with a T-shirt you own. Measurements are approximate.' : 'Include your usual size and the style you are considering when asking for fit details.'}
+                <a href={`https://wa.me/94787756338?text=${encodeURIComponent(`Hi, can you help me with sizing for ${product.name}?`)}`} target="_blank" rel="noopener noreferrer" className="mt-3 flex min-h-11 items-center font-semibold text-primary underline underline-offset-4">Ask about fit on WhatsApp</a>
               </p>
             </motion.div>
           </motion.div>
@@ -881,27 +904,5 @@ function AccordionItem({
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function RelatedProductCard({ product }: { product: ProductType }) {
-  return (
-    <Link
-      to={`/product/${product.slug}`}
-      className="comic-panel group overflow-hidden transition-all hover:-translate-y-1 hover:shadow-[7px_7px_0_#d21f38]"
-    >
-      <div className="aspect-square overflow-hidden bg-background">
-        <img
-          src={product.image}
-          alt={product.name}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-      </div>
-      <div className="p-3">
-        <p className="truncate text-sm font-medium text-foreground">{product.name}</p>
-        <p className="mt-1 text-sm text-primary">{formatPrice(getProductMinPrice(product))}</p>
-      </div>
-    </Link>
   );
 }

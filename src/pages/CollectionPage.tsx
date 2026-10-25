@@ -100,7 +100,6 @@ export default function CollectionPage() {
   const [search, setSearch] = useState('');
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [priceLimit, setPriceLimit] = useState<number | null>(null);
-  const [featuredOnly, setFeaturedOnly] = useState(false);
   const [availableOnly, setAvailableOnly] = useState(false);
   const [sort, setSort] = useState<ProductSort>('recommended');
 
@@ -112,10 +111,9 @@ export default function CollectionPage() {
         search,
         size: selectedSize,
         maxPrice: priceLimit !== null ? priceLimit : null,
-        featuredOnly,
         availableOnly,
       }),
-    [collectionProducts, search, selectedSize, priceLimit, featuredOnly, availableOnly]
+    [collectionProducts, search, selectedSize, priceLimit, availableOnly]
   );
   const orderedFilteredProducts = useMemo(() => sortProducts(filteredProducts, sort), [filteredProducts, sort]);
 
@@ -123,13 +121,12 @@ export default function CollectionPage() {
     search.trim() !== '' ||
     selectedSize !== null ||
     (priceLimit !== null && priceLimit < priceBounds.max) ||
-    featuredOnly || availableOnly;
+    availableOnly;
 
   const handleReset = () => {
     setSearch('');
     setSelectedSize(null);
     setPriceLimit(null);
-    setFeaturedOnly(false);
     setAvailableOnly(false);
   };
 
@@ -244,7 +241,7 @@ export default function CollectionPage() {
             <span className="inline-block rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
               {collection.tagline || (collection.status === 'soon' ? 'COMING SOON' : 'LIVE NOW')}
             </span>
-            {collection.coverImage && (
+            {collection.coverImage && collectionProducts.length !== 1 && (
               <div className="mx-auto mt-4 max-w-3xl sm:mt-8 overflow-hidden rounded-2xl border border-border">
                 <img
                   src={collection.coverImage}
@@ -283,7 +280,7 @@ export default function CollectionPage() {
         )}
 
         {/* Search & filters */}
-        {!loading && !error && collectionProducts.length > 0 && (
+        {!loading && !error && collectionProducts.length > 1 && (
           <ProductFilters
             search={search}
             onSearchChange={setSearch}
@@ -293,8 +290,6 @@ export default function CollectionPage() {
             priceBounds={priceBounds}
             priceLimit={effectivePriceLimit}
             onPriceLimitChange={setPriceLimit}
-            featuredOnly={featuredOnly}
-            onFeaturedChange={setFeaturedOnly}
             onReset={handleReset}
             hasActiveFilters={hasActiveFilters}
             sort={sort}

@@ -1,3 +1,4 @@
+import { STORE_CONFIG } from '../config/store';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -22,7 +23,7 @@ const faqs = [
   },
   {
     question: 'How long does delivery take?',
-    answer: 'Orders are delivered islandwide via Koombiyo, typically within 2-4 business days depending on your location.',
+    answer: STORE_CONFIG.deliveryTiming,
   },
   {
     question: 'Can I change my order after placing it?',

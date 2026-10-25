@@ -18,7 +18,7 @@ import {
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import { CHECKOUT_ERROR_MESSAGE, createOrder } from '../data/orders';
-import { formatPrice, getPreorderMessage } from '../data/products';
+import { formatPrice, formatSize, getPreorderMessage } from '../data/products';
 import { uploadFile } from '../lib/storage';
 import { STORE_CONFIG } from '../config/store';
 import { supabase } from '../lib/supabase';
@@ -323,7 +323,7 @@ export default function Checkout() {
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex flex-shrink-0 -space-x-2">
                   {items.slice(0, 3).map((item) => (
-                    <div key={`${item.productId}-${item.size}`} className="h-11 w-11 overflow-hidden rounded-lg border border-border bg-background">
+                    <div key={item.versionSizeId} className="h-11 w-11 overflow-hidden rounded-lg border border-border bg-background">
                       <img src={item.image} alt="" loading="lazy" className="h-full w-full object-cover" />
                     </div>
                   ))}
@@ -370,6 +370,7 @@ export default function Checkout() {
                     className={inputClass(!!errors.fullName)}
                     placeholder="Peter Parker"
                     autoComplete="name"
+                    required
                   />
                 </FormField>
 
@@ -381,17 +382,7 @@ export default function Checkout() {
                     className={inputClass(!!errors.phone)}
                     placeholder="07X XXX XXXX"
                     autoComplete="tel"
-                  />
-                </FormField>
-
-                <FormField label="Mobile Number (Optional)" error={errors.mobilePhone}>
-                  <input
-                    type="tel"
-                    value={form.mobilePhone}
-                    onChange={(e) => handleChange('mobilePhone', e.target.value)}
-                    className={inputClass(!!errors.mobilePhone)}
-                    placeholder="07X XXX XXXX"
-                    autoComplete="tel-national"
+                    required
                   />
                 </FormField>
 
@@ -418,19 +409,7 @@ export default function Checkout() {
                       className={inputClass(!!errors.addressLine1)}
                       placeholder="House number, street"
                       autoComplete="address-line1"
-                    />
-                  </FormField>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <FormField label="Address Line 2">
-                    <input
-                      type="text"
-                      value={form.addressLine2}
-                      onChange={(e) => handleChange('addressLine2', e.target.value)}
-                      className={inputClass(false)}
-                      placeholder="Apartment, suite, unit (optional)"
-                      autoComplete="address-line2"
+                      required
                     />
                   </FormField>
                 </div>
@@ -443,11 +422,13 @@ export default function Checkout() {
                     className={inputClass(!!errors.city)}
                     placeholder="Colombo"
                     autoComplete="address-level2"
+                    required
                   />
                 </FormField>
 
                 <FormField label="District" required error={errors.district}>
                   <select
+                    required
                     value={form.district}
                     onChange={(e) => handleChange('district', e.target.value)}
                     className={inputClass(!!errors.district)}
@@ -474,6 +455,35 @@ export default function Checkout() {
                     inputMode="numeric"
                   />
                 </FormField>
+                <details className="sm:col-span-2" open={!!errors.mobilePhone}>
+                  <summary className="cursor-pointer py-2 text-sm font-medium text-primary">Add apartment or alternate phone (optional)</summary>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <FormField label="Mobile Number (Optional)" error={errors.mobilePhone}>
+                      <input
+                        type="tel"
+                        value={form.mobilePhone}
+                        onChange={(e) => handleChange('mobilePhone', e.target.value)}
+                        className={inputClass(!!errors.mobilePhone)}
+                        placeholder="07X XXX XXXX"
+                        autoComplete="tel-national"
+                      />
+                    </FormField>
+
+                    <div className="sm:col-span-2">
+                      <FormField label="Address Line 2">
+                        <input
+                          type="text"
+                          value={form.addressLine2}
+                          onChange={(e) => handleChange('addressLine2', e.target.value)}
+                          className={inputClass(false)}
+                          placeholder="Apartment, suite, unit (optional)"
+                          autoComplete="address-line2"
+                        />
+                      </FormField>
+                    </div>
+
+                  </div>
+                </details>
               </div>
             </section>
 
@@ -487,7 +497,7 @@ export default function Checkout() {
                     <p className="text-sm font-medium text-foreground">
                       Standard Delivery (Islandwide)
                     </p>
-                    <p className="text-xs text-muted-foreground">Arrives in 2-4 business days</p>
+                    <p className="text-xs text-muted-foreground">{STORE_CONFIG.deliveryTiming}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -515,9 +525,9 @@ export default function Checkout() {
                   </div>
                   <ul className="ml-7 space-y-1 text-sm text-muted-foreground">
                     {preorderLines.map(({ item, message }) => (
-                      <li key={`${item.productId}-${item.size}`}>
+                      <li key={item.versionSizeId}>
                         <span className="font-medium text-foreground">{item.name}</span>{' '}
-                        ({item.size}) — {message}
+                        ({formatSize(item.size)}) — {message}
                       </li>
                     ))}
                   </ul>
@@ -588,8 +598,8 @@ export default function Checkout() {
                   <div className="flex items-start gap-3">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                     <p className="text-sm text-muted-foreground">
-                      Complete your payment using bank transfer. After transferring the amount,
-                      you will be able to submit your payment receipt in the next step.
+                      Transfer the order total, upload your receipt below, then place your order.
+                      We'll verify your payment before processing the order.
                     </p>
                   </div>
                   <div className="grid grid-cols-1 gap-3 border-t border-border pt-4 text-sm sm:grid-cols-3">
@@ -613,7 +623,7 @@ export default function Checkout() {
                     </label>
                     <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-background px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/40">
                       <Upload className="h-4 w-4 flex-shrink-0" />
-                      {receiptFileName ?? 'Choose receipt image (JPG, PNG — max 5MB)'}
+                      {receiptFileName ?? 'Choose receipt image (JPG, PNG, WebP — max 5MB)'}
                       <input
                         type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -699,14 +709,14 @@ export default function Checkout() {
                 );
                 const preorderMessage = version ? getPreorderMessage(version) : null;
                 return (
-                <div key={`${item.productId}-${item.size}`} className="flex gap-3">
+                <div key={item.versionSizeId} className="flex gap-3">
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-background">
                     <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Size: {item.size} · Qty: {item.quantity}
+                      Size: {formatSize(item.size)} · Qty: {item.quantity}
                     </p>
                     {preorderMessage && (
                       <p className="mt-0.5 text-[11px] font-medium text-primary">

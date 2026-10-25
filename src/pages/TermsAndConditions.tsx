@@ -1,3 +1,4 @@
+import PolicyContents from '../components/PolicyContents';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -164,7 +165,7 @@ export default function TermsAndConditions() {
           </Link>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
@@ -180,12 +181,15 @@ export default function TermsAndConditions() {
             </p>
           </motion.div>
 
+          <PolicyContents sections={SECTIONS} prefix="terms" />
           <div className="space-y-6">
             {SECTIONS.map((section, index) => (
               <motion.div
                 key={section.title}
+                id={`terms-${index}`}
+                style={{ scrollMarginTop: '6rem' }}
                 className="glass rounded-2xl p-4 sm:p-6 lg:p-8"
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.05 * index }}
               >
@@ -211,7 +215,7 @@ export default function TermsAndConditions() {
 
             <motion.div
               className="rounded-2xl border border-primary bg-primary/10 p-6 lg:p-8"
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.05 * SECTIONS.length }}
             >

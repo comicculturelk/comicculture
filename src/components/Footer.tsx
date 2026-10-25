@@ -7,6 +7,7 @@ const infoLinks = [
   { label: 'FAQ', to: '/faq' },
   { label: 'Contact', to: '/contact' },
   { label: 'Track Order', to: '/track-order' },
+  { label: 'Delivery information', to: '/delivery' },
   { label: 'Return & Exchange Policy', to: '/return-policy' },
   { label: 'Terms & Conditions', to: '/terms-and-conditions' },
 ];

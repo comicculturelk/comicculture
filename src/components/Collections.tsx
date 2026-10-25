@@ -63,7 +63,7 @@ export default function Collections({ collections, loading, error }: Collections
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6">
         <motion.div
           className="mb-6 flex flex-col justify-between gap-6 sm:mb-12 sm:flex-row sm:items-end"
-          initial={reduceMotion ? false : { opacity: 0, y: 22 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.35 }}
           transition={{ duration: 0.55, ease: 'easeOut' }}
@@ -159,7 +159,7 @@ export default function Collections({ collections, loading, error }: Collections
                       </h3>
                       <div className="mt-4 flex items-center justify-between border-t border-border pt-3.5">
                         <span className="font-sans text-sm font-medium text-foreground">
-                          {isLive ? 'Shop collection' : 'Coming soon'}
+                          {isLive ? 'Shop collection' : <a href="https://instagram.com/comicculture.lk" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Follow for launch updates</a>}
                         </span>
                         <span className={`flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground transition-all duration-200 ${isLive ? 'group-hover:border-primary group-hover:bg-primary/5 group-hover:text-primary' : 'opacity-70'}`}>
                           {isLive ? <ArrowUpRight aria-hidden="true" className="h-5 w-5" /> : <Lock aria-hidden="true" className="h-4 w-4" />}
@@ -173,7 +173,7 @@ export default function Collections({ collections, loading, error }: Collections
                   <motion.article
                     key={collection.id}
                     className="min-w-0 snap-start snap-always"
-                    initial={reduceMotion || isMobile ? false : { opacity: 0, y: 18 }}
+                    initial={false}
                     animate={isMobile ? { opacity: 1, y: 0 } : undefined}
                     whileInView={isMobile ? undefined : { opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.2 }}

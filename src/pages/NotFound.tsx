@@ -15,8 +15,8 @@ export default function NotFound() {
         <p className="mt-4 text-muted">
           This page doesn’t exist. Let’s get you back to the shop.
         </p>
-        <Link to="/" className="btn-primary mt-8 inline-flex">
-          Back to Home
+        <Link to="/shop" className="btn-primary mt-8 inline-flex">
+          Back to Shop
         </Link>
       </div>
     </section>

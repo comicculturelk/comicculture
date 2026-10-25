@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { FormEvent } from 'react';
@@ -5,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, PackageSearch, CheckCircle2, Package, Truck, Home as HomeIcon, XCircle } from 'lucide-react';
 import { trackOrder } from '../data/tracking';
 import type { TrackedOrder, TrackedOrderItem } from '../data/tracking';
-import { formatPrice } from '../data/products';
+import { formatPrice, formatSize } from '../data/products';
 
 type ContactMethod = 'email' | 'phone';
 
@@ -100,6 +101,7 @@ export default function TrackOrder() {
       <div className="absolute inset-0 halftone-overlay opacity-30" />
 
       <div className="relative z-10 mx-auto max-w-2xl">
+        {error && <Link to="/contact" className="mb-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">Still need help? Contact order support</Link>}
         <div className="text-center">
           <h1 className="font-display text-3xl text-foreground tracking-wide md:text-4xl">
             Track your <span className="text-gradient-red">order</span>
@@ -287,7 +289,7 @@ export default function TrackOrder() {
                     <div>
                       <p className="text-foreground">{item.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        Size {item.size} · Qty {item.quantity}
+                        Size {formatSize(item.size)} · Qty {item.quantity}
                       </p>
                       {preorderMessage(item) && (
                         <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">

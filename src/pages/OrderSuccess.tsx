@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle2, Clock } from 'lucide-react';
+import { CheckCircle2, Clock, Search } from 'lucide-react';
 import { formatPrice } from '../data/products';
 
 interface OrderSuccessState {
@@ -20,7 +20,7 @@ export default function OrderSuccess() {
   // showing a half-empty page.
   const hasOrderDetails = Boolean(state.orderReference);
   const requiresPaymentVerification = hasOrderDetails && state.requiresPaymentVerification === true;
-  const StatusIcon = requiresPaymentVerification ? Clock : CheckCircle2;
+  const StatusIcon = !hasOrderDetails ? Search : requiresPaymentVerification ? Clock : CheckCircle2;
 
   return (
     <section className="comic-page relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 pb-16 pt-28 text-center sm:px-6">
@@ -43,7 +43,7 @@ export default function OrderSuccess() {
         </motion.div>
 
         <h1 className="mt-6 font-display text-3xl text-foreground tracking-wide md:text-4xl">
-          {requiresPaymentVerification ? (
+          {!hasOrderDetails ? <>Find your <span className="text-gradient-red">order</span></> : requiresPaymentVerification ? (
             <>Payment <span className="text-gradient-red">verification required</span></>
           ) : (
             <>Order <span className="text-gradient-red">received</span></>
@@ -66,7 +66,7 @@ export default function OrderSuccess() {
           <p className="mt-4 text-muted">
             We can't show your order confirmation details on this page right now — this can
             happen after a refresh or when opening this page directly. If you just placed an
-            order, it's still been received. Use Track Order below with your order reference and
+            order, check its status to confirm the details. Use Track Order below with your order reference and
             the email or phone number you checked out with to see its status.
           </p>
         )}

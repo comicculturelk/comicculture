@@ -1,48 +1,16 @@
-import { motion } from 'framer-motion';
-import type { ReactNode } from 'react';
-import { PackageCheck, RefreshCw, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Truck, Wallet, RefreshCw } from 'lucide-react';
+import { STORE_CONFIG } from '../config/store';
+import { formatPrice } from '../data/products';
 
 export default function BrandStory() {
   return (
-    <section className="relative bg-surface py-16 lg:py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="mb-8 max-w-2xl">
-          <motion.h2
-          className="font-display text-3xl leading-tight tracking-tight text-foreground md:text-4xl"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          Made for everyday fandom
-          </motion.h2>
-
-          <motion.p
-          className="mt-3 max-w-xl text-base text-muted"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1, duration: 0.6 }}
-        >
-          Thoughtful designs, comfortable fits, and clear delivery details from checkout to your door.
-          </motion.p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Benefit icon={<PackageCheck className="h-5 w-5" />} title="Island-wide delivery" text="Delivery fees and timing are shown before you place an order." />
-          <Benefit icon={<Wallet className="h-5 w-5" />} title="Flexible payment" text="Choose cash on delivery or bank transfer at checkout." />
-          <Benefit icon={<RefreshCw className="h-5 w-5" />} title="Exchange support" text="Read the exchange policy before choosing your size." />
-        </div>
+    <section aria-label="Shopping with ComicCulture" className="border-y border-border bg-surface">
+      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-6 sm:grid-cols-3 sm:px-6">
+        <Link to="/delivery" className="flex min-h-11 items-center gap-3 text-sm"><Truck aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" /><span><strong className="block font-semibold">Island-wide delivery · {formatPrice(STORE_CONFIG.deliveryFee)}</strong><span className="text-xs text-muted">See delivery details</span></span></Link>
+        <div className="flex min-h-11 items-center gap-3 text-sm"><Wallet aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" /><span><strong className="block font-semibold">COD or bank transfer</strong><span className="text-xs text-muted">Choose at checkout</span></span></div>
+        <Link to="/return-policy" className="flex min-h-11 items-center gap-3 text-sm"><RefreshCw aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" /><span><strong className="block font-semibold">Size exchange support</strong><span className="text-xs text-muted">Stock dependent · Read the policy</span></span></Link>
       </div>
     </section>
-  );
-}
-
-function Benefit({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-background p-5">
-      <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/5 text-primary">{icon}</span>
-      <h3 className="mt-4 text-base font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{text}</p>
-    </div>
   );
 }

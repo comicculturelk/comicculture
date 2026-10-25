@@ -4,18 +4,15 @@ import BrandStory from '../components/BrandStory';
 import Collections from '../components/Collections';
 import ProductShowcase from '../components/ProductShowcase';
 import Reviews from '../components/Reviews';
-import FinalCTA from '../components/FinalCTA';
 import SEO from '../components/SEO';
 import { useProducts } from '../hooks/useProducts';
 import { fetchCollections, type Collection } from '../data/collections';
 import { isProductAvailable } from '../data/products';
-import { useMediaQuery } from '../hooks/useMediaQuery';
 
 const SITE_URL = 'https://comicculture.lk';
 const NEW_ARRIVALS_COUNT = 4;
 
 export default function Home() {
-  const mobileLayout = useMediaQuery('(max-width: 767px)');
   const { products, loading: productsLoading, error: productsError } = useProducts();
 
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -44,17 +41,15 @@ export default function Home() {
     };
   }, []);
 
-  // Keep homepage merchandising newest-first without changing the shop's
-  // default product order.
+  // The homepage highlights the newest purchasable designs.
   const newestFirstProducts = [...products].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  // Keep the new-arrivals section small and purchasable; put every other
-  // active catalog item in the separate discovery section without duplicates.
+  // Additional recommendations remain purchasable and never duplicate arrivals.
   const newArrivals = newestFirstProducts.filter(isProductAvailable).slice(0, NEW_ARRIVALS_COUNT);
   const arrivalIds = new Set(newArrivals.map((product) => product.id));
-  const moreToExplore = newestFirstProducts.filter((product) => !arrivalIds.has(product.id));
+  const moreToExplore = newestFirstProducts.filter((product) => isProductAvailable(product) && !arrivalIds.has(product.id));
   const showMoreToExplore = !productsLoading && !productsError && moreToExplore.length > 0;
 
   const collectionsSection = (
@@ -84,9 +79,10 @@ export default function Home() {
         ogType="website"
         image={`${SITE_URL}/images/logo/comicculture-logo.png`}
       />
-      <Hero collections={collections} loading={collectionsLoading} />
-      {mobileLayout ? [arrivalsSection, collectionsSection] : [collectionsSection, arrivalsSection]}
+      <Hero collections={collections} products={newestFirstProducts} loading={collectionsLoading || productsLoading} />
+      {arrivalsSection}
       <BrandStory />
+      {collectionsSection}
       {showMoreToExplore && (
         <ProductShowcase
           sectionId="more-to-explore"
@@ -98,7 +94,6 @@ export default function Home() {
         />
       )}
       <Reviews />
-      <FinalCTA />
     </>
   );
 }

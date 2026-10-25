@@ -5,8 +5,9 @@ import { Link } from 'react-router-dom';
 import { X, Minus, Plus, Trash2, Info, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
-import { formatPrice, getPreorderMessage } from '../data/products';
+import { formatPrice, formatSize, getPreorderMessage } from '../data/products';
 import type { Product, ProductVersion } from '../data/products';
+import { STORE_CONFIG } from '../config/store';
 
 /**
  * Preorder status now lives on ProductVersion, not Product. A cart line only
@@ -139,7 +140,7 @@ export default function CartDrawer() {
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                        <p className="text-xs text-muted">Size: {item.size}</p>
+                        <p className="text-xs text-muted">Size: {formatSize(item.size)}</p>
                         {preorderMessage && (
                           <div className="mt-1 flex items-center gap-1.5">
                               <span className="inline-flex items-center border-2 border-border bg-warning px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-foreground">
@@ -185,18 +186,20 @@ export default function CartDrawer() {
             {/* Footer */}
             {items.length > 0 && (
               <div className="cart-footer shrink-0 border-t-4 border-border bg-surface/95 p-4 sm:p-6">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
                     Subtotal · {totalItems} {totalItems === 1 ? 'item' : 'items'}
                   </span>
                   <span className="font-display text-2xl text-foreground">{formatPrice(totalPrice)}</span>
                 </div>
+                <div className="mb-2 flex justify-between text-sm text-muted-foreground"><Link to="/delivery" onClick={closeCart} className="underline underline-offset-4">Delivery</Link><span>{formatPrice(STORE_CONFIG.deliveryFee)}</span></div>
+                <div className="mb-4 flex justify-between border-t border-border pt-3 font-semibold"><span>Total before discounts</span><span>{formatPrice(totalPrice + STORE_CONFIG.deliveryFee)}</span></div>
                 <Link to="/checkout" onClick={closeCart} className="btn-primary w-full">
                   Proceed to Checkout
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
-                  No payment is collected online yet — we'll confirm delivery with you directly.
+                  Cash on delivery or bank transfer. Choose at checkout.
                 </p>
               </div>
             )}

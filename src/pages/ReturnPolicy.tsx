@@ -1,3 +1,4 @@
+import PolicyContents from '../components/PolicyContents';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -160,7 +161,7 @@ export default function ReturnPolicy() {
         </Link>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
@@ -199,12 +200,15 @@ export default function ReturnPolicy() {
           <p className="mt-4 text-xs text-muted-foreground">This summary is a guide; the full policy below covers eligibility, delivery charges, and the request process.</p>
         </div>
 
+        <PolicyContents sections={[...SECTIONS, { title: '10. Important Note About Stock Availability' }]} prefix="returns" />
         <div className="space-y-6">
           {SECTIONS.map((section, index) => (
             <motion.div
               key={section.title}
+              id={`returns-${index}`}
+              style={{ scrollMarginTop: '6rem' }}
               className="glass rounded-2xl p-4 sm:p-6 lg:p-8"
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.05 * index }}
             >
@@ -248,8 +252,10 @@ export default function ReturnPolicy() {
 
           {/* Important note */}
           <motion.div
+            id="returns-9"
+            style={{ scrollMarginTop: '6rem' }}
             className="flex gap-3 rounded-2xl border border-primary bg-primary/10 p-6 lg:p-8"
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 * SECTIONS.length }}
           >
