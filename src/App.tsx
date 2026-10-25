@@ -7,8 +7,6 @@ import ScrollToTop from './components/ScrollToTop';
 import { CartProvider } from './context/CartContext';
 import CollectionPage from './pages/CollectionPage';
 import NotFound from './pages/NotFound';
-import SEO from './components/SEO';
-import { SITE_URL, UTILITY_PATHS } from './lib/seo';
 
 const Home = lazy(() => import('./pages/Home'));
 const Shop = lazy(() => import('./pages/Shop'));
@@ -26,14 +24,11 @@ const Admin = lazy(() => import('./pages/Admin'));
 const CartDrawer = lazy(() => import('./components/CartDrawer'));
 
 export default function App() {
-  const pathname = useLocation().pathname;
-  const isAdminRoute = pathname.startsWith('/admin');
-  const utilityRoute = UTILITY_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const isAdminRoute = useLocation().pathname.startsWith('/admin');
 
   return (
     <MotionConfig reducedMotion="user">
       <CartProvider>
-        {utilityRoute && <SEO title="ComicCulture" description="ComicCulture shopping and order support." canonical={`${SITE_URL}${pathname}`} robots="noindex,follow" />}
         <ScrollToTop />
         {!isAdminRoute && <Navbar />}
         <a href="#main-content" className="skip-link">Skip to content</a>

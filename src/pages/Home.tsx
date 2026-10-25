@@ -9,7 +9,7 @@ import { useProducts } from '../hooks/useProducts';
 import { fetchCollections, type Collection } from '../data/collections';
 import { isProductAvailable } from '../data/products';
 
-import { SITE_URL, HOME_TITLE, HOME_DESCRIPTION, STORE_SCHEMA } from '../lib/seo';
+const SITE_URL = 'https://comicculture.lk';
 const NEW_ARRIVALS_COUNT = 4;
 
 export default function Home() {
@@ -73,11 +73,10 @@ export default function Home() {
   return (
     <>
       <SEO
-        title={HOME_TITLE}
-        description={HOME_DESCRIPTION}
+        title="ComicCulture — Wear Your Universe | Premium Fan Apparel"
+        description="ComicCulture is a Sri Lankan fan-apparel brand creating premium clothing inspired by comics, superheroes, fictional universes, and fandoms. Explore unique designs and high-quality apparel made for fans."
         canonical={`${SITE_URL}/`}
         ogType="website"
-        jsonLd={[{ id: 'store', data: STORE_SCHEMA }, { id: 'website', data: { '@context': 'https://schema.org', '@type': 'WebSite', name: 'ComicCulture', url: `${SITE_URL}/` } }]}
         image={`${SITE_URL}/images/logo/comicculture-logo.png`}
       />
       <Hero collections={collections} products={newestFirstProducts} loading={collectionsLoading || productsLoading} />

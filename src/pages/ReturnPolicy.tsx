@@ -1,4 +1,3 @@
-import { STATIC_SEO } from '../lib/seo';
 import PolicyContents from '../components/PolicyContents';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -134,8 +133,8 @@ export default function ReturnPolicy() {
   return (
     <>
       <SEO
-        title={STATIC_SEO['/return-policy'].title}
-        description={STATIC_SEO['/return-policy'].description}
+        title="Return & Exchange Policy | ComicCulture"
+        description="ComicCulture's return and exchange policy, covering order changes, size exchanges, damaged items, refunds, and how to start a request."
         canonical={canonicalUrl}
         ogType="website"
         jsonLd={[breadcrumbJsonLd]}

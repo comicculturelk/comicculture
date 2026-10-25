@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 
-# Utility routes use noindex headers; allow crawling so Google sees them.
+Disallow: /admin
+
 Sitemap: https://comicculture.lk/sitemap.xml

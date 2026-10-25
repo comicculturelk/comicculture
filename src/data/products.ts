@@ -4,9 +4,31 @@ import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
 import { optimizeImageForStorage } from '../lib/optimizeImage';
 import { slugify } from '../lib/slug';
 
-import type { ProductType } from '../config/catalog';
-export type { ProductType } from '../config/catalog';
-export { PRODUCT_TYPES, PRODUCT_TYPE_LABELS } from '../config/catalog';
+/**
+ * Structured apparel category, replacing free-text guessing from
+ * `material`/`fit`. Mirrors the `product_versions_product_type_check`
+ * constraint in supabase/migrations — add new values in both places
+ * together. Lives on `product_versions` now (Phase 2A model), not on the
+ * product itself, since different versions of the same design can be
+ * different garment types (e.g. a Spider-Man tee vs. a Spider-Man jersey).
+ */
+export type ProductType = 'regular_tshirt' | 'oversized_tshirt' | 'jersey' | 'polo' | 'hoodie';
+
+export const PRODUCT_TYPES: ProductType[] = [
+  'regular_tshirt',
+  'oversized_tshirt',
+  'jersey',
+  'polo',
+  'hoodie',
+];
+
+export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
+  regular_tshirt: 'Regular T-Shirt',
+  oversized_tshirt: 'Oversized T-Shirt',
+  jersey: 'Jersey',
+  polo: 'Polo',
+  hoodie: 'Hoodie',
+};
 
 /** Canonical display order for garment sizes. Anything not in this list sorts after, alphabetically. */
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];

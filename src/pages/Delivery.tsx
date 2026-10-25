@@ -1,4 +1,3 @@
-import { STATIC_SEO } from '../lib/seo';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { STORE_CONFIG } from '../config/store';
@@ -6,7 +5,7 @@ import { formatPrice } from '../data/products';
 
 export default function Delivery() {
   return <section className="comic-page mx-auto max-w-3xl px-4 pb-16 pt-24 sm:px-6">
-    <SEO title={STATIC_SEO['/delivery'].title} description={STATIC_SEO['/delivery'].description} canonical="https://comicculture.lk/delivery" />
+    <SEO title="Delivery information | ComicCulture" description="Delivery fees, dispatch information and pre-order guidance for ComicCulture orders in Sri Lanka." canonical="https://comicculture.lk/delivery" />
     <Link to="/shop" className="inline-flex min-h-11 items-center text-sm text-muted">← Back to shop</Link>
     <h1 className="mt-4 font-display text-4xl">Delivery information</h1>
     <div className="mt-6 space-y-6 rounded-2xl border border-border bg-surface p-5 sm:p-8">

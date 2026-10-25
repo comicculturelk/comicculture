@@ -9,7 +9,7 @@ import { filterProducts, getUniqueSizes, getPriceBounds, isProductAvailable, sor
 import SEO from '../components/SEO';
 import ProductGridSkeleton from '../components/ProductGridSkeleton';
 
-import { SITE_URL, STATIC_SEO, SHOP_DESCRIPTION } from '../lib/seo';
+const SITE_URL = 'https://comicculture.lk';
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,13 +68,13 @@ export default function Shop() {
   };
 
   const pageTitle = isNewest ? 'New Arrivals' : 'Shop All';
-  const canonicalUrl = `${SITE_URL}/shop`;
+  const canonicalUrl = isNewest ? `${SITE_URL}/shop?sort=newest` : `${SITE_URL}/shop`;
 
   return (
     <>
       <SEO
-        title={isNewest ? 'New Arrivals: Fan Apparel Sri Lanka | ComicCulture' : STATIC_SEO['/shop'].title}
-        description={SHOP_DESCRIPTION}
+        title={`${pageTitle} | ComicCulture`}
+        description="Browse ComicCulture's full catalog of fan-inspired apparel — premium designs inspired by comics, superheroes, and pop culture."
         canonical={canonicalUrl}
         ogType="website"
       />
@@ -99,7 +99,6 @@ export default function Shop() {
             <h1 className="mt-3 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide uppercase">
               {pageTitle}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mx-auto">{SHOP_DESCRIPTION}</p>
           </motion.div>
 
           {/* Loading state */}
