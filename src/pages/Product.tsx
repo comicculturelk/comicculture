@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ShoppingBag,
   ChevronLeft,
@@ -30,86 +30,14 @@ import {
 } from '../data/products';
 import type { Product as ProductType, ProductVersion } from '../data/products';
 import { fetchCollectionById } from '../data/collections';
-import SEO, { type JsonLdBlock } from '../components/SEO';
+import SEO from '../components/SEO';
+import { SITE_URL, productSeo, productSchema, breadcrumbs, STORE_SCHEMA, isIndexableProduct } from '../lib/seo';
 import Reviews from '../components/Reviews';
 import ProductCard from '../components/ProductCard';
 import { getProductSummary } from '../lib/merchandising';
 import { STORE_CONFIG } from '../config/store';
 import { useDialog } from '../hooks/useDialog';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-
-const SITE_URL = 'https://comicculture.lk';
-
-// --- Merchant Listings structured data: store-wide policy constants ---
-// These describe ComicCulture's actual, already-published policies (see
-// ReturnPolicy.tsx and the "Shipping & Returns" accordion below) — not
-// per-product data, so they're defined once here and reused for every
-// product's JSON-LD automatically.
-
-/**
- * Mirrors ReturnPolicy.tsx section 2 ("Change of Mind Returns"): a 3-day
- * contact window, and the customer covers return delivery charges. This
- * intentionally represents the general/default policy — ReturnPolicy.tsx's
- * carve-outs (e.g. damaged/defective items, where ComicCulture arranges a
- * free resolution) aren't expressible in this single structured field.
- */
-const RETURN_POLICY_JSONLD = {
-  '@type': 'MerchantReturnPolicy',
-  returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-  merchantReturnDays: 3,
-  returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility',
-  applicableCountry: 'LK',
-} as const;
-
-/**
- * Mirrors the "Shipping & Returns" accordion text below: dispatch within
- * 1-2 business days, arrival within 2-4 business days, island-wide
- * (Sri Lanka only — the site has no other delivery region anywhere).
- * `shippingRate` uses the centralized STORE_CONFIG.deliveryFee (the same
- * Rs. 350 customer-facing delivery fee charged at checkout) rather than a
- * hardcoded value.
- */
-const SHIPPING_DETAILS_JSONLD = {
-  '@type': 'OfferShippingDetails',
-  shippingRate: {
-    '@type': 'MonetaryAmount',
-    value: STORE_CONFIG.deliveryFee,
-    currency: STORE_CONFIG.currency,
-  },
-  shippingDestination: {
-    '@type': 'DefinedRegion',
-    addressCountry: 'LK',
-  },
-  deliveryTime: {
-    '@type': 'ShippingDeliveryTime',
-    handlingTime: {
-      '@type': 'QuantitativeValue',
-      minValue: 1,
-      maxValue: 2,
-      unitCode: 'DAY',
-    },
-    transitTime: {
-      '@type': 'QuantitativeValue',
-      minValue: 2,
-      maxValue: 4,
-      unitCode: 'DAY',
-    },
-  },
-} as const;
-
-/**
- * Builds a concise, unique meta description from real product data only —
- * no invented claims (e.g. "limited edition"). Falls back through
- * description -> tagline -> a plain collection-based sentence, and trims
- * to a search-snippet-friendly length.
- */
-function buildProductMetaDescription(product: ProductType): string {
-  const source =
-    product.description?.trim() ||
-    product.tagline?.trim() ||
-    `${product.name} from ComicCulture's ${product.collection} collection.`;
-  return source.length > 160 ? `${source.slice(0, 157).trimEnd()}…` : source;
-}
 
 /**
  * Picks the version a freshly-loaded product (or a version switch) should
@@ -126,6 +54,8 @@ type AccordionKey = 'story' | 'details' | 'care' | 'shipping';
 export default function Product() {
   const mobileLayout = useMediaQuery('(max-width: 767px)');
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const variantId = searchParams.get('variant');
   const { product, loading, error } = useProduct(slug);
   const { products: allProducts } = useProducts();
   const { addItem, openCart, stockMessage } = useCart();
@@ -148,13 +78,14 @@ export default function Product() {
   // to the product's design image if the version has none uploaded yet).
   useEffect(() => {
     if (product) {
-      const defaultVersion = pickDefaultVersion(product);
+      const linkedVersion = product.versions.find((v) => v.isActive && v.sizes.some((size) => size.id === variantId));
+      const defaultVersion = linkedVersion ?? pickDefaultVersion(product);
       setSelectedVersionId(defaultVersion?.id ?? '');
       setActiveImage(defaultVersion?.images?.[0] ?? product.image);
-      setSelectedSize('');
+      setSelectedSize(defaultVersion?.sizes.find((size) => size.id === variantId)?.size ?? '');
       setQuantity(1);
     }
-  }, [product]);
+  }, [product, variantId]);
 
   // Resolve the product's collection slug (for the internal collection link)
   // from the relational collection_id, since `product.collection` is only a
@@ -208,6 +139,7 @@ export default function Product() {
   if (error || !product) {
     return (
       <section className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <SEO title={error ? 'Product temporarily unavailable | ComicCulture' : 'Product not found | ComicCulture'} description="Explore fan-inspired apparel at ComicCulture." canonical={`${SITE_URL}/product/${slug}`} robots="noindex,follow" />
         <p className="text-primary">
           {error ? "Couldn't load this product." : "We couldn't find that product."}
         </p>
@@ -228,6 +160,7 @@ export default function Product() {
   const selectedVersionSize = selectedVersion?.sizes.find((s) => s.size === selectedSize);
   const sizeGuide = selectedVersion?.sizeGuide ?? [];
   const hasSizeGuide = sizeGuide.length > 0;
+  const isInStock = selectedVersion?.sizes.some((size) => isSizeInStock(selectedVersion, size.size)) ?? false;
 
   const galleryImages =
     selectedVersion?.images && selectedVersion.images.length > 0
@@ -259,48 +192,7 @@ export default function Product() {
   const preorderMessage = selectedVersion ? getPreorderMessage(selectedVersion) : null;
 
   const canonicalUrl = `${SITE_URL}/product/${product.slug}`;
-  const metaDescription = buildProductMetaDescription(product);
-  const isInStock = selectedVersion
-    ? selectedVersion.sizes.some((size) => isSizeInStock(selectedVersion, size.size))
-    : false;
-
-  const productJsonLd: JsonLdBlock = {
-    id: 'product',
-    data: {
-      '@context': 'https://schema.org',
-      '@type': 'Product',
-      name: product.name,
-      description: metaDescription,
-      image: product.image,
-      sku: selectedVersionSize?.sku,
-      brand: {
-        '@type': 'Brand',
-        name: 'ComicCulture',
-      },
-      offers: {
-        '@type': 'Offer',
-        url: canonicalUrl,
-        price: displayedPrice,
-        priceCurrency: 'LKR',
-        availability: isInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-        hasMerchantReturnPolicy: RETURN_POLICY_JSONLD,
-        shippingDetails: SHIPPING_DETAILS_JSONLD,
-      },
-    },
-  };
-
-  const breadcrumbJsonLd: JsonLdBlock = {
-    id: 'breadcrumb',
-    data: {
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
-        { '@type': 'ListItem', position: 2, name: 'Shop', item: `${SITE_URL}/shop` },
-        { '@type': 'ListItem', position: 3, name: product.name, item: canonicalUrl },
-      ],
-    },
-  };
+  const metadata = productSeo(product);
 
   const handleSelectVersion = (versionId: string) => {
     if (versionId === selectedVersionId) return;
@@ -349,12 +241,13 @@ export default function Product() {
   return (
     <>
       <SEO
-        title={`${product.name} | ComicCulture`}
-        description={metaDescription}
+        title={metadata.title}
+        description={metadata.description}
         canonical={canonicalUrl}
         ogType="product"
         image={product.image}
-        jsonLd={[productJsonLd, breadcrumbJsonLd]}
+        robots={isIndexableProduct(product) ? 'index,follow' : 'noindex,follow'}
+        jsonLd={isIndexableProduct(product) ? [{ id: 'store', data: STORE_SCHEMA }, { id: 'product', data: productSchema(product) }, { id: 'breadcrumb', data: breadcrumbs(product.name, `/product/${product.slug}`) }] : []}
       />
       <section className="comic-page product-detail-page relative min-h-screen bg-background pb-28 pt-24 sm:pb-20 lg:pt-28">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />

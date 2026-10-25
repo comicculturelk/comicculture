@@ -1,3 +1,4 @@
+import { STATIC_SEO } from '../lib/seo';
 import PolicyContents from '../components/PolicyContents';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -137,8 +138,8 @@ export default function TermsAndConditions() {
   return (
     <>
       <SEO
-        title="Terms & Conditions | ComicCulture"
-        description="Read the Terms & Conditions for using the ComicCulture website and placing orders for fan-inspired apparel."
+        title={STATIC_SEO['/terms-and-conditions'].title}
+        description={STATIC_SEO['/terms-and-conditions'].description}
         canonical={canonicalUrl}
         ogType="website"
         jsonLd={[breadcrumbJsonLd]}

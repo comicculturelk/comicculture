@@ -1,8 +1,11 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import SEO from '../components/SEO';
 
 export default function NotFound() {
+  const { pathname } = useLocation();
   return (
     <section className="comic-page relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
+      <SEO title="Page not found | ComicCulture" description="This page could not be found. Explore the ComicCulture shop." canonical={`https://comicculture.lk${pathname}`} robots="noindex,follow" />
       {/* Background */}
       <div className="absolute inset-0 bg-web-pattern opacity-20" />
       <div className="absolute inset-0 halftone-overlay opacity-30" />

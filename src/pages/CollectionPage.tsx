@@ -12,30 +12,7 @@ import { fetchCollectionBySlug, type Collection } from '../data/collections';
 import SEO, { type JsonLdBlock } from '../components/SEO';
 import ProductGridSkeleton from '../components/ProductGridSkeleton';
 
-const SITE_URL = 'https://comicculture.lk';
-
-/**
- * Builds a concise, unique meta description from real collection data only —
- * no invented claims (limited edition, exclusive, jersey, etc.). For a
- * 'soon' collection, appends a plain "Coming soon" notice instead of
- * implying products are currently purchasable.
- */
-function buildCollectionMetaDescription(collection: Collection): string {
-  if (collection.status === 'soon') {
-    const base =
-      collection.description?.trim() ||
-      collection.tagline?.trim() ||
-      `${collection.name} — a new collection from ComicCulture.`;
-    const withNotice = `${base} Coming soon.`;
-    return withNotice.length > 160 ? `${withNotice.slice(0, 157).trimEnd()}…` : withNotice;
-  }
-
-  const base =
-    collection.description?.trim() ||
-    collection.tagline?.trim() ||
-    `Explore the ${collection.name} collection from ComicCulture.`;
-  return base.length > 160 ? `${base.slice(0, 157).trimEnd()}…` : base;
-}
+import { SITE_URL, collectionSeo } from '../lib/seo';
 
 export default function CollectionPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -140,7 +117,7 @@ export default function CollectionPage() {
   const error = collectionError || (collection ? productsError : null);
 
   const canonicalUrl = collection ? `${SITE_URL}/collections/${collection.slug}` : '';
-  const metaDescription = collection ? buildCollectionMetaDescription(collection) : '';
+  const metaDescription = collection ? collectionSeo(collection).description : '';
 
   const breadcrumbJsonLd: JsonLdBlock | null = collection
     ? {
@@ -190,9 +167,10 @@ export default function CollectionPage() {
     <>
       {collection && (
         <SEO
-          title={`${collection.name} | ComicCulture`}
+          title={collectionSeo(collection).title}
           description={metaDescription}
           canonical={canonicalUrl}
+          robots={collection.status === 'live' ? 'index,follow' : 'noindex,follow'}
           ogType="website"
           image={collection.coverImage ?? undefined}
           jsonLd={[breadcrumbJsonLd, collectionPageJsonLd].filter((b): b is JsonLdBlock => b !== null)}
@@ -253,8 +231,8 @@ export default function CollectionPage() {
             <h1 className="mt-6 font-display text-4xl md:text-5xl lg:text-6xl text-foreground tracking-wide uppercase">
               {collection.name}
             </h1>
-            {collection.description && (
-              <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">{collection.description}</p>
+            {(collection.description || collection.tagline || collection.status === 'live') && (
+              <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">{collection.description || collection.tagline || collectionSeo(collection).description}</p>
             )}
           </motion.div>
         )}
