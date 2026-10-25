@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { uploadCollectionCoverImage } from '../../data/collections';
 import { formatImageBytes, optimizeExistingImage } from '../../lib/optimizeImage';
@@ -9,6 +9,7 @@ interface CollectionCoverUploadProps {
   value: string | null;
   onChange: (url: string | null) => void;
   disabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /**
@@ -21,6 +22,7 @@ export default function CollectionCoverUpload({
   value,
   onChange,
   disabled,
+  onBusyChange,
 }: CollectionCoverUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +31,10 @@ export default function CollectionCoverUpload({
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => { onBusyChange?.(uploading || optimizing); }, [uploading, optimizing, onBusyChange]);
+
   const handleFile = async (file: File | undefined | null) => {
-    if (!file) return;
+    if (disabled || uploading || optimizing || !file) return;
     setError(null);
     setNotice(null);
     setUploading(true);

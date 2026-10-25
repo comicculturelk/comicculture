@@ -184,7 +184,7 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
           icon={Clock}
           label="Pending Orders"
           value={metrics.pending_orders}
-          subtext={metrics.pending_orders > 0 ? 'Needs attention' : 'All caught up'}
+          subtext={metrics.pending_orders > 0 ? 'Needs attention' : 'No pending orders'}
           accent={metrics.pending_orders > 0 ? 'warning' : 'default'}
         />
         <DashboardCard
@@ -197,7 +197,7 @@ export default function AdminDashboard({ onViewOrders }: { onViewOrders?: () => 
           icon={Wallet}
           label="Revenue"
           value={`Rs. ${Number(metrics.collected_revenue).toLocaleString()}`}
-          subtext={`Rs. ${Math.round(Number(metrics.collected_order_count) ? Number(metrics.collected_revenue) / Number(metrics.collected_order_count) : 0).toLocaleString()} avg collected order`}
+          subtext={`Rs. ${Math.round(Number(metrics.collected_order_count) ? Number(metrics.collected_revenue) / Number(metrics.collected_order_count) : 0).toLocaleString()} avg collected order · includes delivered legacy COD`}
         />
         <DashboardCard
           icon={AlertTriangle}

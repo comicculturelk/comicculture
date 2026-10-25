@@ -22,6 +22,7 @@ import {
 import { fetchCollections, type Collection } from '../../data/collections';
 import { slugify } from '../../lib/slug';
 import ImageManager from './ImageManager';
+import { useAdminForm } from '../../hooks/useAdminForm';
 
 interface ProductFormProps {
   mode: 'create' | 'edit';
@@ -239,6 +240,7 @@ type ExistingVersionEdit = Pick<
   | 'careInstructions'
   | 'isPreorder'
   | 'preorderDays'
+  | 'isActive'
 > & {
   /** Size Guide measurements keyed by existing size id (or new-size localId). */
   guide: Record<string, SizeMeasurements>;
@@ -258,6 +260,7 @@ function existingVersionEditFrom(version: ProductVersion): ExistingVersionEdit {
     fit: version.fit ?? '',
     color: version.color ?? '',
     careInstructions: (version.careInstructions ?? []).join('\n'),
+    isActive: version.isActive,
     isPreorder: version.isPreorder,
     preorderDays: version.preorderDays ? String(version.preorderDays) : '',
   };
@@ -265,8 +268,7 @@ function existingVersionEditFrom(version: ProductVersion): ExistingVersionEdit {
 
 /**
  * Editable SKU/price for a size that already exists in the database.
- * Stock is submitted as an absolute target with these fields, while the
- * database records the correction through the inventory adjustment RPC.
+ * Existing stock is intentionally managed only through Inventory actions.
  */
 interface ExistingSizeEdit {
   sku: string;
@@ -299,7 +301,7 @@ function existingVersionEditToInput(
       .filter(Boolean),
     isPreorder: edit.isPreorder,
     preorderDays: edit.isPreorder ? Number(edit.preorderDays) : null,
-    isActive: version.isActive,
+    isActive: edit.isActive,
     sortOrder: version.sortOrder,
     sizeGuide,
   };
@@ -401,7 +403,8 @@ function SizeGuideEditor({
   const fields = ['chest', 'length', 'sleeve'] as const;
   return (
     <div className="space-y-2">
-      <span className={fieldLabelClass()}>Size Guide</span>
+      <span className={fieldLabelClass()}>Size Guide (inches)</span>
+      <p className="text-xs text-muted-foreground">Measure the garment laid flat. Chest is the width across the front, not the body circumference. Leave unknown measurements blank.</p>
       {sizes.length === 0 ? (
         <p className="text-xs text-muted">Add sizes to this version to fill in its size guide.</p>
       ) : (
@@ -435,7 +438,7 @@ function SizeGuideEditor({
 
 /**
  * Editable card for a version that already exists in the database.
- * Version metadata, size pricing/SKUs, stock targets, and new sizes are
+ * Version metadata, size pricing/SKUs, and new sizes are
  * submitted together through the atomic product save function.
  * Existing sizes can be deleted immediately (not deferred to submit) via
  * deleteProductVersionSize(), after a hasOrderHistory() check blocks
@@ -446,8 +449,6 @@ function ExistingVersionCard({
   edit,
   productCode,
   onEditChange,
-  stockEdits,
-  onStockChange,
   sizeEdits,
   onSizeEditChange,
   newSizes,
@@ -465,8 +466,6 @@ function ExistingVersionCard({
   /** Immutable product code used in new-size SKU previews. */
   productCode: string;
   onEditChange: (patch: Partial<ExistingVersionEdit>) => void;
-  stockEdits: Record<string, string>;
-  onStockChange: (sizeId: string, value: string) => void;
   sizeEdits: Record<string, ExistingSizeEdit>;
   onSizeEditChange: (sizeId: string, patch: Partial<ExistingSizeEdit>) => void;
   newSizes: DraftSize[];
@@ -483,12 +482,14 @@ function ExistingVersionCard({
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
+      <label className="flex items-center gap-2 text-sm text-foreground"><input type="checkbox" checked={edit.isActive} onChange={(event) => onEditChange({ isActive: event.target.checked })} />Active on storefront</label>
+      <p className="text-xs text-muted-foreground">Existing stock is shown for reference. Use Inventory for restocks and adjustments. Delete actions below take effect immediately; Cancel cannot undo them.</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs uppercase tracking-wide text-muted">
           {version.versionName || 'Version'}
         </span>
         <div className="flex items-center gap-3">
-          {!version.isActive && (
+          {!edit.isActive && (
             <span className="text-[11px] uppercase tracking-wide text-muted">Inactive</span>
           )}
           <button
@@ -652,8 +653,9 @@ function ExistingVersionCard({
                   <input
                     type="number"
                     min="0"
-                    value={stockEdits[size.id] ?? String(size.stock)}
-                    onChange={(e) => onStockChange(size.id, e.target.value)}
+                    value={size.stock}
+                    readOnly
+                    title="Stock at opening. Use Inventory to restock or adjust current stock."
                     className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
                   />
                 </label>
@@ -912,7 +914,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         : []
   );
 
-  // --- Existing versions (edit mode) — saved atomically with sizes and stock.
+  // --- Existing versions and size metadata are saved atomically.
   const [versionEdits, setVersionEdits] = useState<Record<string, ExistingVersionEdit>>(() => {
     const map: Record<string, ExistingVersionEdit> = {};
     product?.versions.forEach((v) => {
@@ -921,13 +923,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
     return map;
   });
 
-  const [stockEdits, setStockEdits] = useState<Record<string, string>>(() => {
-    const map: Record<string, string> = {};
-    product?.versions.forEach((v) => v.sizes.forEach((s) => { map[s.id] = String(s.stock); }));
-    return map;
-  });
-
-  // --- Existing sizes (edit mode) — metadata and stock are saved atomically.
+  // --- Existing size metadata. Stock changes belong in Inventory.
   const [sizeEdits, setSizeEdits] = useState<Record<string, ExistingSizeEdit>>(() => {
     const map: Record<string, ExistingSizeEdit> = {};
     product?.versions.forEach((v) =>
@@ -959,7 +955,11 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
+  const [imagesBusy, setImagesBusy] = useState(false);
+  const busy = submitting || imagesBusy || deletingSizeId !== null || deletingVersionId !== null;
+  const { markDirty, confirmDiscard, errorRef } = useAdminForm(busy);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error, errorRef]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1004,14 +1004,17 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   };
 
   const addDraftVersion = () => {
+    markDirty();
     setDraftVersions((prev) => [...prev, emptyDraftVersion()]);
   };
 
   const removeDraftVersion = (localId: string) => {
+    markDirty();
     setDraftVersions((prev) => prev.filter((v) => v.localId !== localId));
   };
 
   const addDraftSize = (versionLocalId: string) => {
+    markDirty();
     setDraftVersions((prev) =>
       prev.map((v) =>
         v.localId === versionLocalId ? { ...v, sizes: [...v.sizes, emptyDraftSize()] } : v
@@ -1020,6 +1023,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   };
 
   const removeDraftSize = (versionLocalId: string, sizeLocalId: string) => {
+    markDirty();
     setDraftVersions((prev) =>
       prev.map((v) =>
         v.localId === versionLocalId
@@ -1047,6 +1051,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   };
 
   const addNewSizeToVersion = (versionId: string) => {
+    markDirty();
     setNewExistingSizes((prev) => ({
       ...prev,
       [versionId]: [...(prev[versionId] ?? []), emptyDraftSize()],
@@ -1054,6 +1059,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   };
 
   const removeNewSizeFromVersion = (versionId: string, sizeLocalId: string) => {
+    markDirty();
     setNewExistingSizes((prev) => ({
       ...prev,
       [versionId]: (prev[versionId] ?? []).filter((s) => s.localId !== sizeLocalId),
@@ -1082,23 +1088,24 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
    * check and the delete.
    */
   const handleDeleteSize = async (size: ProductVersionSize, versionName: string) => {
+    if (busy) return;
     setError(null);
     setDeletingSizeId(size.id);
     try {
       const hasHistory = await hasOrderHistory(size.id);
       if (hasHistory) {
         setError(
-          `Size "${size.size}" in "${versionName}" cannot be deleted because it has existing order or inventory history. Set its stock to 0 instead.`
+          `Size "${size.size}" in "${versionName}" cannot be deleted because it has existing order or inventory history. Use Inventory to adjust stock, or deactivate its version instead.`
         );
         return;
       }
-      if (!window.confirm(`Delete size "${size.size}" from "${versionName}"? This cannot be undone.`)) {
+      if (!window.confirm(`Delete size "${size.size}" from "${versionName}"? This deletes immediately, before Save Changes, and cannot be undone by Cancel.`)) {
         return;
       }
       await deleteProductVersionSize(size.id);
+      markDirty();
       setDeletedSizeIds((prev) => new Set(prev).add(size.id));
       setSizeEdits((prev) => withoutKey(prev, size.id));
-      setStockEdits((prev) => withoutKey(prev, size.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete size');
     } finally {
@@ -1114,6 +1121,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
    * no sizes has nothing to check and is safe to delete once confirmed.
    */
   const handleDeleteVersion = async (version: ProductVersion) => {
+    if (busy) return;
     setError(null);
     setDeletingVersionId(version.id);
     try {
@@ -1126,13 +1134,14 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       }
       if (
         !window.confirm(
-          `Delete version "${version.versionName}" and all of its sizes? This cannot be undone.`
+          `Delete version "${version.versionName}" and all of its sizes? This deletes immediately, before Save Changes, and cannot be undone by Cancel.`
         )
       ) {
         return;
       }
       await deleteProductVersion(version.id);
 
+      markDirty();
       setDeletedVersionIds((prev) => new Set(prev).add(version.id));
 
       const sizeIds = new Set(version.sizes.map((s) => s.id));
@@ -1141,9 +1150,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
       setSizeEdits((prev) =>
         Object.fromEntries(Object.entries(prev).filter(([id]) => !sizeIds.has(id)))
       );
-      setStockEdits((prev) =>
-        Object.fromEntries(Object.entries(prev).filter(([id]) => !sizeIds.has(id)))
-      );
+
       // These sizes no longer exist at all, so they don't need to keep
       // occupying the "deleted this session" overlay either.
       setDeletedSizeIds((prev) => {
@@ -1160,6 +1167,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     if (!skuProductCode) return setError(productCodeError ?? 'Wait for the product code to finish generating, then try again.');
     setError(null);
 
@@ -1405,12 +1413,10 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
               .filter((size) => !deletedSizeIds.has(size.id))
               .map((size) => {
                 const edit = sizeEdits[size.id] ?? existingSizeEditFrom(size);
-                const requestedStock = stockEdits[size.id] == null ? size.stock : Number(stockEdits[size.id]);
                 return {
                   id: size.id,
                   sku: edit.sku.trim(),
                   price: Number(edit.price),
-                  stock: Number.isFinite(requestedStock) ? Math.max(0, requestedStock) : size.stock,
                 };
               })
       );
@@ -1471,12 +1477,12 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
   const visibleVersions = product?.versions.filter((v) => !deletedVersionIds.has(v.id)) ?? [];
 
   return (
-    <form onSubmit={handleSubmit} className="glass space-y-6 rounded-2xl p-4 sm:p-6">
+    <form onChangeCapture={markDirty} onSubmit={handleSubmit} className="glass space-y-6 rounded-2xl p-4 sm:p-6">
       <h2 className="font-display text-xl tracking-wide text-foreground">
         {mode === 'create' ? 'New Product' : 'Edit Product'}
       </h2>
 
-      {error && <p className="text-sm text-primary">{error}</p>}
+      {error && <p ref={errorRef} tabIndex={-1} role="alert" className="text-sm text-primary">{error}</p>}
 
       {/* Core product (design/story) details */}
       {productCodeError && mode === 'create' && <p role="alert" className="text-sm text-primary">{productCodeError}</p>}
@@ -1550,6 +1556,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
           <span className="text-sm text-foreground">Featured product</span>
         </label>
 
+        <p className="text-xs text-muted-foreground sm:col-span-2">The newest available featured product leads the homepage. Unfeature other designs to choose an older one. Product details and photography supply the presentation.</p>
         <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className={fieldLabelClass()}>Tagline</span>
           <input
@@ -1570,7 +1577,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 sm:col-span-2">
+        <details className="sm:col-span-2"><summary className="cursor-pointer text-sm text-muted-foreground">Optional product story</summary><label className="mt-3 flex flex-col gap-1.5">
           <span className={fieldLabelClass()}>Lore</span>
           <textarea
             value={lore}
@@ -1578,12 +1585,12 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
             rows={3}
             className={inputClass()}
           />
-        </label>
+        </label></details>
       </div>
 
       {/* Images */}
       <div className="border-t border-border pt-6">
-        <ImageManager slug={slug} images={images} onChange={setImages} disabled={submitting} />
+        <ImageManager slug={slug} images={images} onChange={(next) => { setImages(next); markDirty(); }} onBusyChange={setImagesBusy} disabled={busy} />
       </div>
 
       {/* Existing versions (edit mode only) */}
@@ -1602,10 +1609,6 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
                     ...prev,
                     [v.id]: { ...prev[v.id], ...patch },
                   }))
-                }
-                stockEdits={stockEdits}
-                onStockChange={(sizeId, value) =>
-                  setStockEdits((prev) => ({ ...prev, [sizeId]: value }))
                 }
                 sizeEdits={sizeEdits}
                 onSizeEditChange={(sizeId, patch) =>
@@ -1630,7 +1633,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
           </div>
           <p className="text-xs text-muted">
             Use "Add Size" above to add a new size, or "Delete" on a size to remove it. Sizes with
-            existing order or inventory history can't be deleted — set their stock to 0 instead.
+            existing order or inventory history can't be deleted — use Inventory to adjust stock instead.
             "Delete Version" removes a whole version and its sizes, but only when none of its
             sizes has order or inventory history — deactivate it instead if it does. Existing
             sizes can't be renamed here — add a new version below for a different apparel
@@ -1676,15 +1679,16 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Produc
         </div>
       </div>
 
+      {imagesBusy && <p role="status" className="text-sm text-muted-foreground">Uploading or optimizing images. Please wait before saving or leaving.</p>}
       {/* Actions */}
-      <div className="flex items-center gap-3 border-t border-border pt-6">
-        <button type="submit" disabled={submitting || (mode === 'create' && !skuProductCode)} className="btn-primary px-6 py-2.5 text-sm disabled:opacity-50">
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 border-t border-border bg-background py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <button type="submit" disabled={busy || (mode === 'create' && !skuProductCode)} className="btn-primary px-6 py-2.5 text-sm disabled:opacity-50">
           {submitting ? 'Saving...' : mode === 'create' ? 'Create Product' : 'Save Changes'}
         </button>
         <button
           type="button"
-          onClick={onCancel}
-          disabled={submitting}
+          onClick={() => { if (confirmDiscard()) onCancel(); }}
+          disabled={busy}
           className="rounded-lg border border-border px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           Cancel

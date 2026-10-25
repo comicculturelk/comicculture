@@ -177,7 +177,7 @@ export async function updateCollection(id: string, input: CollectionInput): Prom
  * clear, actionable message instead of a raw DB error.
  */
 export async function deleteCollection(id: string): Promise<void> {
-  const { error } = await supabaseAdmin.from('collections').delete().eq('id', id);
+  const { data, error } = await supabaseAdmin.from('collections').delete().eq('id', id).select('id').single();
   if (error) {
     if (error.code === '23503') {
       throw new Error(
@@ -186,6 +186,7 @@ export async function deleteCollection(id: string): Promise<void> {
     }
     throw new Error(`Failed to delete collection: ${error.message}`);
   }
+  if (!data) throw new Error('Collection was not deleted. Reload and check your access.');
 }
 
 // --- Admin: cover image upload ---

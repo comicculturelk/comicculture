@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { formatPrice } from '../../data/products';
+import { toLocalDateTimeInput } from '../../lib/adminDate';
+import { useAdminForm } from '../../hooks/useAdminForm';
 
 interface PromoCode {
   id: string;
@@ -31,6 +33,8 @@ export default function AdminPromos() {
   const [startsAt, setStartsAt] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const { markDirty, markSaved, confirmDiscard, errorRef } = useAdminForm(saving || Boolean(togglingId));
 
   const loadPromos = useCallback(async () => {
     setLoading(true);
@@ -47,9 +51,11 @@ export default function AdminPromos() {
   }, []);
 
   useEffect(() => { void loadPromos(); }, [loadPromos]);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error, errorRef]);
 
   const createPromo = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving || togglingId) return;
     setError(null);
     setNotice(null);
     const value = Number(discountValue);
@@ -69,6 +75,7 @@ export default function AdminPromos() {
     }
     const starts = startsAt ? new Date(startsAt) : null;
     const expires = expiresAt ? new Date(expiresAt) : null;
+    if ((starts && Number.isNaN(starts.getTime())) || (expires && Number.isNaN(expires.getTime()))) { setError('Enter valid start and expiry times.'); return; }
     if (starts && expires && expires <= starts) {
       setError('The expiry time must be later than the start time.');
       return;
@@ -85,11 +92,14 @@ export default function AdminPromos() {
       expires_at: expires?.toISOString() ?? null,
     };
     const result = editingId
-      ? await supabaseAdmin.from('promo_codes').update(payload).eq('id', editingId)
-      : await supabaseAdmin.from('promo_codes').insert(payload);
+      ? await supabaseAdmin.from('promo_codes').update(payload).eq('id', editingId).eq('usage_count', 0).select('id').single()
+      : await supabaseAdmin.from('promo_codes').insert(payload).select('id').single();
     const saveError = result.error;
-    if (saveError) setError(saveError.code === '23505' ? 'That promo code already exists.' : 'Could not save the promo code.');
+    if (saveError) setError(saveError.code === '23505' ? 'That promo code already exists.' : 'Could not save. The promo may have been redeemed, removed, or your access changed. Reload before editing.');
     else {
+      markSaved();
+      setMinimumSubtotal('0');
+      setDiscountType('percent');
       setNotice(editingId ? 'Promo code updated. Existing redemptions remain unchanged.' : 'Promo code created.');
       setEditingId(null);
       setCode('');
@@ -103,27 +113,31 @@ export default function AdminPromos() {
   };
 
   const editPromo = (promo: PromoCode) => {
-    if (promo.usage_count > 0) return;
+    if (promo.usage_count > 0 || !confirmDiscard()) return;
+    markSaved();
     setEditingId(promo.id);
     setCode(promo.code);
     setDiscountType(promo.discount_type);
     setDiscountValue(String(promo.discount_value));
     setMinimumSubtotal(String(promo.minimum_subtotal));
     setMaxRedemptions(promo.max_redemptions == null ? '' : String(promo.max_redemptions));
-    setStartsAt(promo.starts_at ? new Date(promo.starts_at).toISOString().slice(0, 16) : '');
-    setExpiresAt(promo.expires_at ? new Date(promo.expires_at).toISOString().slice(0, 16) : '');
+    setStartsAt(toLocalDateTimeInput(promo.starts_at));
+    setExpiresAt(toLocalDateTimeInput(promo.expires_at));
     setNotice('Editing unused promo. Used promo terms are locked to preserve redemption history.');
     setError(null);
   };
 
   const togglePromo = async (promo: PromoCode) => {
+    if (saving || togglingId) return;
     setError(null);
+    setTogglingId(promo.id);
     const { error: updateError } = await supabaseAdmin
       .from('promo_codes')
       .update({ is_active: !promo.is_active })
-      .eq('id', promo.id);
+      .eq('id', promo.id).select('id').single();
     if (updateError) setError('Could not update this promo code.');
     else setPromos((current) => current.map((row) => row.id === promo.id ? { ...row, is_active: !promo.is_active } : row));
+    setTogglingId(null);
   };
 
   return (
@@ -133,7 +147,7 @@ export default function AdminPromos() {
         <p className="mt-1 text-sm text-muted-foreground">Discounts are recalculated and redeemed atomically when the order is placed.</p>
       </div>
 
-      <form onSubmit={createPromo} className="glass grid grid-cols-1 gap-4 rounded-2xl p-5 md:grid-cols-2">
+      <form onChangeCapture={markDirty} onSubmit={createPromo} className="glass grid grid-cols-1 gap-4 rounded-2xl p-5 md:grid-cols-2">
         <label className="text-xs text-muted-foreground">Code
           <input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} maxLength={32} required className={`${inputClass} mt-1`} placeholder="FAN10" />
         </label>
@@ -153,15 +167,15 @@ export default function AdminPromos() {
         <label className="text-xs text-muted-foreground">Maximum redemptions (blank for unlimited)
           <input type="number" min="1" step="1" value={maxRedemptions} onChange={(event) => setMaxRedemptions(event.target.value)} className={`${inputClass} mt-1`} />
         </label>
-        <label className="text-xs text-muted-foreground">Starts at (optional)
+        <label className="text-xs text-muted-foreground">Starts at (optional, your local time)
           <input type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} className={`${inputClass} mt-1`} />
         </label>
-        <label className="text-xs text-muted-foreground">Expires at (optional)
+        <label className="text-xs text-muted-foreground">Expires at (optional, your local time)
           <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className={`${inputClass} mt-1`} />
         </label>
-        {error && <p role="alert" className="text-sm text-primary md:col-span-2">{error}</p>}
+        {error && <p ref={errorRef} tabIndex={-1} role="alert" className="text-sm text-primary md:col-span-2">{error}</p>}
         {notice && <p role="status" className="text-sm text-green-400 md:col-span-2">{notice}</p>}
-        <div className="flex gap-2 md:col-span-2"><button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : editingId ? 'Save promo changes' : 'Create promo code'}</button>{editingId && <button type="button" onClick={() => { setEditingId(null); setCode(''); setDiscountValue(''); setMinimumSubtotal('0'); setMaxRedemptions(''); setStartsAt(''); setExpiresAt(''); }} className="btn-outline">Cancel edit</button>}</div>
+        <div className="flex gap-2 md:col-span-2"><button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : editingId ? 'Save promo changes' : 'Create promo code'}</button>{editingId && <button type="button" disabled={saving} onClick={() => { if (!confirmDiscard()) return; markSaved(); setEditingId(null); setCode(''); setDiscountValue(''); setMinimumSubtotal('0'); setMaxRedemptions(''); setStartsAt(''); setExpiresAt(''); }} className="btn-outline">Cancel edit</button>}</div>
       </form>
 
       {loading ? <p className="text-sm text-muted-foreground">Loading promo codes…</p> : promos.length === 0 ? (
@@ -179,7 +193,7 @@ export default function AdminPromos() {
                 </p>
                 {(promo.starts_at || promo.expires_at) && <p className="mt-1 text-xs text-muted">{promo.starts_at ? `Starts ${new Date(promo.starts_at).toLocaleString()}` : 'Available now'}{promo.expires_at ? ` · Expires ${new Date(promo.expires_at).toLocaleString()}` : ''}</p>}
               </div>
-              <div className="flex gap-2"><button type="button" disabled={saving || promo.usage_count > 0} title={promo.usage_count > 0 ? 'Terms lock after first redemption' : 'Edit promo terms'} onClick={() => editPromo(promo)} className="btn-outline text-xs disabled:opacity-40">Edit</button><button type="button" onClick={() => void togglePromo(promo)} className="btn-outline text-xs">{promo.is_active ? 'Deactivate' : 'Activate'}</button></div>
+              <div className="flex gap-2"><button type="button" disabled={saving || Boolean(togglingId) || promo.usage_count > 0} title={promo.usage_count > 0 ? 'Terms lock after first redemption' : 'Edit promo terms'} onClick={() => editPromo(promo)} className="btn-outline text-xs disabled:opacity-40">Edit</button><button type="button" disabled={saving || Boolean(togglingId)} onClick={() => void togglePromo(promo)} className="btn-outline text-xs">{promo.is_active ? 'Deactivate' : 'Activate'}</button></div>
             </article>
           ))}
         </div>

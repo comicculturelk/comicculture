@@ -240,6 +240,7 @@ export default function AdminInventory() {
 
                         {isActive && (
                           <StockActionForm
+                            key={`${activeAction.versionSizeId}:${activeAction.kind}`}
                             action={activeAction}
                             onCancel={() => setActiveAction(null)}
                             onDone={handleDone}

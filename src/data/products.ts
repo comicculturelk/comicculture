@@ -2,7 +2,6 @@ import { supabase } from '../lib/supabase';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { uploadFile, deleteFile, getPathFromPublicUrl } from '../lib/storage';
 import { optimizeImageForStorage } from '../lib/optimizeImage';
-import { fetchCollectionById } from './collections';
 import { slugify } from '../lib/slug';
 
 /**
@@ -139,6 +138,7 @@ interface ProductVersionRow {
 }
 
 interface ProductRow {
+  collection_record?: { name: string } | null;
   id: string;
   product_code: string;
   name: string;
@@ -174,6 +174,7 @@ const PRODUCT_IMAGES_BUCKET = 'product-images';
  */
 const PRODUCT_SELECT = `
   *,
+  collection_record:collections(name),
   versions:product_versions (
     *,
     sizes:product_version_sizes (*)
@@ -225,7 +226,7 @@ function mapRowToProduct(row: ProductRow): Product {
     productCode: row.product_code,
     name: row.name,
     slug: row.slug,
-    collection: row.collection,
+    collection: row.collection_record?.name ?? row.collection,
     collectionId: row.collection_id ?? null,
     tagline: row.tagline,
     description: row.description,
@@ -324,22 +325,6 @@ export function getStockForSize(version: Pick<ProductVersion, 'sizes'>, size: st
 /** Whether a given size of a given version can currently be ordered. */
 export function isSizeInStock(version: Pick<ProductVersion, 'sizes'>, size: string): boolean {
   return getStockForSize(version, size) > 0;
-}
-
-/**
- * Overwrites the stock for a single product_version_sizes row (admin use
- * only). Previously this took a productId + a whole per-size stock map,
- * because stock lived directly on `products`; now stock is per
- * (version, size) row, so callers must target the specific row by id.
- */
-export async function updateProductStock(versionSizeId: string, stock: number): Promise<void> {
-  const { error } = await supabaseAdmin
-    .from('product_version_sizes')
-    .update({ stock })
-    .eq('id', versionSizeId);
-  if (error) {
-    throw new Error(`Failed to update stock: ${error.message}`);
-  }
 }
 
 // --- Search & filtering (client-side, over already-fetched products) ---
@@ -467,13 +452,13 @@ export interface ProductInput {
 export interface AdminProductSaveInput {
   isCreate: boolean;
   product: ProductInput;
-  existingVersions: unknown[];
-  existingSizes: unknown[];
-  newExistingSizes: unknown[];
-  newVersions: unknown[];
+  existingVersions: (ProductVersionInput & { id: string })[];
+  existingSizes: { id: string; sku: string; price: number }[];
+  newExistingSizes: (ProductVersionSizeInput & { versionId: string })[];
+  newVersions: (ProductVersionInput & { sizes: ProductVersionSizeInput[] })[];
 }
 
-/** Persists the catalog editor's product, versions, sizes, and stock atomically. */
+/** Saves catalog changes atomically; only new sizes may set opening stock. */
 export async function saveAdminProduct(input: AdminProductSaveInput): Promise<string> {
   const { data, error } = await supabaseAdmin.rpc('save_admin_product', {
     p_is_create: input.isCreate,
@@ -494,36 +479,6 @@ export async function reserveProductCode(): Promise<string> {
   if (error) throw new Error(`Could not reserve product code: ${error.message}`);
   if (typeof data !== 'string' || !/^CC-P\d{6,}$/.test(data)) throw new Error('Product code reservation returned an invalid code.');
   return data;
-}
-
-/**
- * Resolves the write-side row shape from admin input. Async because the
- * legacy `products.collection` text column (still NOT NULL in the DB) is
- * derived here from the selected collection's canonical name — looked up
- * server-side via collectionId, never trusted from the client — rather
- * than accepting arbitrary typed text. `collection_id` is the new source
- * of truth; `collection` is written only for backward compatibility.
- */
-async function mapProductInputToRow(input: ProductInput) {
-  const collection = await fetchCollectionById(input.collectionId);
-  if (!collection) {
-    throw new Error('Selected collection could not be found. Please re-select a collection.');
-  }
-
-  return {
-    ...(input.id ? { id: input.id } : {}),
-    product_code: input.productCode,
-    name: input.name,
-    slug: input.slug,
-    collection_id: input.collectionId,
-    collection: collection.name,
-    tagline: input.tagline,
-    description: input.description,
-    lore: input.lore,
-    image: input.images[0] ?? '',
-    images: input.images,
-    featured: input.featured ?? false,
-  };
 }
 
 /** Whether a slug is already in use by another product. */
@@ -577,38 +532,6 @@ export async function isSkuTaken(sku: string, excludeSizeId?: string): Promise<b
   return !!data;
 }
 
-export async function createProduct(input: ProductInput): Promise<Product> {
-  const row = { ...(await mapProductInputToRow(input)), id: input.id ?? crypto.randomUUID(), product_code: input.productCode };
-  const { data, error } = await supabaseAdmin.from('products').insert(row).select().single();
-
-  if (error) {
-    throw new Error(`Failed to create product: ${error.message}`);
-  }
-  // A freshly created product has no versions yet; mapRowToProduct defaults
-  // `versions` to [] since `data` has no nested `versions` key here.
-  return mapRowToProduct(data as ProductRow);
-}
-
-export async function updateProduct(id: string, input: ProductInput): Promise<Product> {
-  const row = await mapProductInputToRow(input);
-  // Product codes are assigned on create and remain immutable afterward.
-  delete (row as { product_code?: string }).product_code;
-  const { data, error } = await supabaseAdmin
-    .from('products')
-    .update(row)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to update product: ${error.message}`);
-  }
-  // Same note as createProduct: this response has no nested versions, so
-  // callers that need the full versions/sizes tree should re-fetch via
-  // fetchProductBySlug/fetchProducts after an update.
-  return mapRowToProduct(data as ProductRow);
-}
-
 /**
  * Deletes a product row without deleting its images from Storage. Product
  * copies and collection covers may share image URLs, so object deletion must
@@ -639,9 +562,7 @@ export async function deleteProduct(product: Pick<Product, 'id'>): Promise<void>
 
 // --- Admin: product version & version-size management ---
 //
-// Minimal CRUD to support duplicateProduct below and any Phase 2B version
-// editor. `ProductForm.tsx` itself is untouched in this phase per the task
-// scope, so nothing here is wired into the UI yet.
+// Shared variant payloads, guarded deletion, and inactive duplication.
 
 /** Fields an admin can set when creating or editing a product version. */
 export interface ProductVersionInput {
@@ -657,84 +578,6 @@ export interface ProductVersionInput {
   isActive?: boolean;
   sortOrder?: number;
   sizeGuide?: SizeGuideRow[] | null;
-}
-
-function mapVersionInputToRow(productId: string, input: ProductVersionInput) {
-  return {
-    product_id: productId,
-    version_name: input.versionName,
-    product_type: input.productType,
-    material: input.material ?? null,
-    fit: input.fit ?? null,
-    color: input.color ?? null,
-    images: input.images ?? null,
-    care_instructions: input.careInstructions ?? null,
-    is_preorder: input.isPreorder ?? false,
-    // Defensive: mirrors the DB check constraint (preorder_days must be
-    // null unless is_preorder is true) so a stale value can never slip
-    // through even if the caller passes one by mistake.
-    preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
-    is_active: input.isActive ?? true,
-    sort_order: input.sortOrder ?? 0,
-    size_guide: input.sizeGuide ?? null,
-  };
-}
-
-export async function createProductVersion(
-  productId: string,
-  input: ProductVersionInput
-): Promise<ProductVersion> {
-  const { data, error } = await supabaseAdmin
-    .from('product_versions')
-    .insert(mapVersionInputToRow(productId, input))
-    .select()
-    .single();
-  if (error) {
-    throw new Error(`Failed to create product version: ${error.message}`);
-  }
-  return mapRowToVersion({ ...(data as ProductVersionRow), sizes: [] });
-}
-
-/**
- * Maps ProductVersionInput to an update payload, deliberately omitting
- * product_id — a version's parent product never changes via this path,
- * so it's left untouched rather than re-sent on every edit.
- */
-function mapVersionInputToUpdateRow(input: ProductVersionInput) {
-  return {
-    version_name: input.versionName,
-    product_type: input.productType,
-    material: input.material ?? null,
-    fit: input.fit ?? null,
-    color: input.color ?? null,
-    images: input.images ?? null,
-    care_instructions: input.careInstructions ?? null,
-    is_preorder: input.isPreorder ?? false,
-    preorder_days: input.isPreorder ? (input.preorderDays ?? null) : null,
-    is_active: input.isActive ?? true,
-    sort_order: input.sortOrder ?? 0,
-    size_guide: input.sizeGuide ?? null,
-  };
-}
-
-/** Updates a version's metadata (versionName, productType, material, fit, color, images, careInstructions, isPreorder, preorderDays, isActive, sortOrder, sizeGuide). Does not touch its sizes. */
-export async function updateProductVersion(
-  id: string,
-  input: ProductVersionInput
-): Promise<ProductVersion> {
-  const { data, error } = await supabaseAdmin
-    .from('product_versions')
-    .update(mapVersionInputToUpdateRow(input))
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) {
-    throw new Error(`Failed to update product version: ${error.message}`);
-  }
-  // Like createProductVersion, this response has no nested sizes; callers
-  // needing the full sizes list should re-fetch via fetchProductBySlug/
-  // fetchProducts after an update.
-  return mapRowToVersion({ ...(data as ProductVersionRow), sizes: [] });
 }
 
 /**
@@ -774,52 +617,6 @@ export interface ProductVersionSizeInput {
   stock?: number;
 }
 
-export async function createProductVersionSize(
-  versionId: string,
-  input: ProductVersionSizeInput
-): Promise<ProductVersionSize> {
-  const { data, error } = await supabaseAdmin
-    .from('product_version_sizes')
-    .insert({
-      version_id: versionId,
-      size: input.size,
-      sku: input.sku,
-      price: input.price,
-      stock: input.stock ?? 0,
-    })
-    .select()
-    .single();
-  if (error) {
-    throw new Error(`Failed to create size: ${error.message}`);
-  }
-  return mapRowToVersionSize(data as ProductVersionSizeRow);
-}
-
-/**
- * Updates a size's size/SKU/price only. Deliberately does NOT accept
- * `stock` — stock changes must always go through adjustStock()/
- * restockProduct() in inventory.ts, which record an inventory_movements
- * row and enforce reasons/non-negative stock via the adjust_stock/
- * restock_product RPCs. Omitting `stock` from the input type (rather than
- * just ignoring it if passed) makes that impossible to get wrong at
- * compile time.
- */
-export async function updateProductVersionSize(
-  id: string,
-  input: Omit<ProductVersionSizeInput, 'stock'>
-): Promise<ProductVersionSize> {
-  const { data, error } = await supabaseAdmin
-    .from('product_version_sizes')
-    .update({ size: input.size, sku: input.sku, price: input.price })
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) {
-    throw new Error(`Failed to update size: ${error.message}`);
-  }
-  return mapRowToVersionSize(data as ProductVersionSizeRow);
-}
-
 /**
  * Deletes a single size row. Blocked by the database's foreign key
  * constraint if it already appears in `order_items` (or
@@ -837,7 +634,7 @@ export async function deleteProductVersionSize(id: string): Promise<void> {
   if (error) {
     if (error.code === '23503') {
       throw new Error(
-        'This size cannot be deleted because it has existing order or inventory history. Set its stock to 0 instead.'
+        'This size cannot be deleted because it has existing order or inventory history. Use Inventory to adjust stock, or deactivate its version instead.'
       );
     }
     throw new Error(`Failed to delete size: ${error.message}`);
@@ -907,11 +704,11 @@ export async function duplicateProduct(product: Product): Promise<Product> {
       material: version.material,
       fit: version.fit,
       color: version.color,
-      images: version.images,
-      careInstructions: version.careInstructions,
+      images: version.images ?? undefined,
+      careInstructions: version.careInstructions ?? undefined,
       isPreorder: version.isPreorder,
       preorderDays: version.preorderDays,
-      isActive: version.isActive,
+      isActive: false,
       sortOrder: version.sortOrder,
       sizeGuide: version.sizeGuide,
       sizes: version.sizes.map((size) => ({

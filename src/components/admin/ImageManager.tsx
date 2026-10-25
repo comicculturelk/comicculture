@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Upload, X, Star, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { uploadProductImage, deleteProductImage } from '../../data/products';
 import { formatImageBytes, optimizeExistingImage } from '../../lib/optimizeImage';
@@ -9,6 +9,7 @@ interface ImageManagerProps {
   images: string[];
   onChange: (images: string[]) => void;
   disabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /**
@@ -16,7 +17,7 @@ interface ImageManagerProps {
  * primary selection, and remove. Backed by Supabase Storage via
  * `uploadProductImage`/`deleteProductImage` in data/products.ts.
  */
-export default function ImageManager({ slug, images, onChange, disabled }: ImageManagerProps) {
+export default function ImageManager({ slug, images, onChange, disabled, onBusyChange }: ImageManagerProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -24,8 +25,10 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => { onBusyChange?.(uploading || optimizingIndex !== null); }, [uploading, optimizingIndex, onBusyChange]);
+
   const handleFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+    if (disabled || uploading || optimizingIndex !== null || !files || files.length === 0) return;
     if (!slug.trim()) {
       setError('Enter a product name first, so images have somewhere to be filed.');
       return;
@@ -113,7 +116,7 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
 
       {/* Drop zone */}
       <div
-        onClick={() => !disabled && inputRef.current?.click()}
+        onClick={() => !disabled && !uploading && optimizingIndex === null && inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
           if (!disabled) setDragActive(true);
@@ -122,7 +125,7 @@ export default function ImageManager({ slug, images, onChange, disabled }: Image
         onDrop={(e) => {
           e.preventDefault();
           setDragActive(false);
-          if (!disabled) handleFiles(e.dataTransfer.files);
+          if (!disabled && !uploading && optimizingIndex === null) handleFiles(e.dataTransfer.files);
         }}
         className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors duration-200 ${
           dragActive

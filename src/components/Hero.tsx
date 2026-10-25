@@ -11,8 +11,8 @@ interface HeroProps { collections: Collection[]; products: Product[]; loading?: 
 export default function Hero({ collections, products, loading = false }: HeroProps) {
   const [index, setIndex] = useState(0);
   const available = products.filter(isProductAvailable);
-  const launch = available.find((product) => product.slug === FEATURED_LAUNCH.productSlug)
-    ?? available.find((product) => product.featured) ?? available[0];
+  const launch = [...available].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).find((product) => product.featured)
+    ?? available.find((product) => product.slug === FEATURED_LAUNCH.productSlug) ?? available[0];
   const otherCollections = collections.filter((collection) => collection.status === 'live'
     && collection.coverImage && collection.id !== launch?.collectionId
     && available.some((product) => product.collectionId === collection.id));

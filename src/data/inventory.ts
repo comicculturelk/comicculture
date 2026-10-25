@@ -65,7 +65,8 @@ export async function fetchInventoryMovements(
   let query = supabaseAdmin
     .from('inventory_movements')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
 
   const limit = options.limit ?? 100;
   const offset = options.offset ?? 0;

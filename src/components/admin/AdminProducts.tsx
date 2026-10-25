@@ -185,9 +185,10 @@ export default function AdminProducts() {
         <p className="text-muted">No products yet. Add your first one to get started.</p>
       )}
 
+      {!loading && search.trim() && matchingProducts.length === 0 && <p role="status" className="text-sm text-muted-foreground">No products match your search. <button type="button" onClick={() => setSearch('')} className="underline">Clear search</button></p>}
       {!loading && (collections.length > 0 || products.length > 0) && (
         <div className="space-y-5">
-          {collections.map((collection) => {
+          {collections.filter((collection) => !search.trim() || productsByCollection.has(collection.id)).map((collection) => {
             const collectionProducts = productsByCollection.get(collection.id) ?? [];
             const expanded = Boolean(search.trim()) || expandedCollections.has(collection.id);
             const panelId = `admin-products-${collection.id}`;
@@ -212,7 +213,7 @@ export default function AdminProducts() {
                   <div id={panelId} className="admin-collection-content">
                     {collectionProducts.length > 0
                       ? renderProducts(collectionProducts)
-                      : <p className="text-sm text-muted-foreground">No products in this collection yet.</p>}
+                      : <p className="text-sm text-muted-foreground">{search.trim() ? 'No products match your search in this collection.' : 'No products in this collection yet.'}</p>}
                   </div>
                 )}
               </section>
@@ -224,7 +225,7 @@ export default function AdminProducts() {
               <button
                 type="button"
                 className="admin-collection-toggle"
-                aria-expanded={expandedCollections.has('unassigned')}
+                aria-expanded={(Boolean(search.trim()) || expandedCollections.has('unassigned'))}
                 aria-controls="admin-products-unassigned"
                 onClick={() => toggleCollection('unassigned')}
               >
@@ -234,9 +235,9 @@ export default function AdminProducts() {
                     {unassignedProducts.length} product{unassignedProducts.length === 1 ? '' : 's'}
                   </span>
                 </span>
-                <ChevronDown className={`h-5 w-5 shrink-0 transition-transform ${expandedCollections.has('unassigned') ? 'rotate-180' : ''}`} aria-hidden="true" />
+                <ChevronDown className={`h-5 w-5 shrink-0 transition-transform ${(Boolean(search.trim()) || expandedCollections.has('unassigned')) ? 'rotate-180' : ''}`} aria-hidden="true" />
               </button>
-              {expandedCollections.has('unassigned') && (
+              {(Boolean(search.trim()) || expandedCollections.has('unassigned')) && (
                 <div id="admin-products-unassigned" className="admin-collection-content">
                   {renderProducts(unassignedProducts)}
                 </div>

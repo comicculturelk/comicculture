@@ -8,6 +8,7 @@ import {
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { getSignedUrl } from '../../lib/storage';
 import { formatDate } from '../../lib/admin';
+import { useDialog } from '../../hooks/useDialog';
 import StatusBadge from './StatusBadge';
 
 const STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
@@ -130,8 +131,12 @@ export default function AdminOrders() {
   const [totalCount, setTotalCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
+  const [receiptUrls, setReceiptUrls] = useState<Record<string, { url: string; expiresAt: number }>>({});
   const [receiptLoadFailed, setReceiptLoadFailed] = useState<Set<string>>(new Set());
+  const [receiptReady, setReceiptReady] = useState<Set<string>>(new Set());
+  const [paymentNotes, setPaymentNotes] = useState<Record<string, string>>({});
+  const [notificationStatus, setNotificationStatus] = useState<Record<string, string | null>>({});
+  const [notificationError, setNotificationError] = useState(false);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [shipmentDrafts, setShipmentDrafts] = useState<Record<string, { courierName: string; trackingNumber: string; trackingUrl: string }>>({});
   const [shipmentSavingId, setShipmentSavingId] = useState<string | null>(null);
@@ -143,6 +148,8 @@ export default function AdminOrders() {
   const [refundReference, setRefundReference] = useState('');
   const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
   const requestId = useRef(0);
+  const cancelPanelRef = useRef<HTMLElement>(null);
+  useDialog(Boolean(cancellingOrder), cancelPanelRef, () => { if (!updatingId) setCancellingOrder(null); });
 
   useEffect(() => {
     if (!printOrder) return;
@@ -199,11 +206,14 @@ export default function AdminOrders() {
     }
   };
 
-  const loadReceiptUrl = async (order: OrderRow) => {
-    if (!order.receipt_url || receiptUrls[order.id]) return;
+  const loadReceiptUrl = async (order: OrderRow, force = false) => {
+    if (!order.receipt_url || (!force && receiptUrls[order.id]?.expiresAt > Date.now())) return;
+    setReceiptReady((prev) => { const next = new Set(prev); next.delete(order.id); return next; });
+    setReceiptLoadFailed((prev) => { const next = new Set(prev); next.delete(order.id); return next; });
+    setReceiptUrls((prev) => { const next = { ...prev }; delete next[order.id]; return next; });
     try {
       const url = await getSignedUrl('payment-receipts', order.receipt_url, 3600, supabaseAdmin);
-      setReceiptUrls((prev) => ({ ...prev, [order.id]: url }));
+      setReceiptUrls((prev) => ({ ...prev, [order.id]: { url, expiresAt: Date.now() + 55 * 60 * 1000 } }));
     } catch {
       // Signed URL generation failed (e.g. file missing) — show a fallback
       // in the UI rather than a broken image.
@@ -222,13 +232,14 @@ export default function AdminOrders() {
   };
 
   const handleVerifyPayment = async (orderId: string, outcome: 'paid' | 'failed') => {
+    if (outcome === 'failed' && (paymentNotes[orderId]?.trim().length ?? 0) < 3) { setOrderErrors((prev) => ({ ...prev, [orderId]: 'Enter a short rejection reason first.' })); return; }
     setVerifyingId(orderId);
     setOrderErrors((prev) => ({ ...prev, [orderId]: '' }));
     try {
       const { error: updateError } = await supabaseAdmin.rpc('admin_verify_order_payment', {
         p_order_id: orderId,
         p_outcome: outcome,
-        p_note: null,
+        p_note: paymentNotes[orderId]?.trim() || null,
       });
       if (updateError) throw updateError;
       setOrders((prev) => prev.map((o) => (o.id === orderId ? {
@@ -241,6 +252,22 @@ export default function AdminOrders() {
     } finally {
       setVerifyingId(null);
     }
+  };
+
+  const reopenPaymentReview = async (order: OrderRow) => {
+    const note = paymentNotes[order.id]?.trim() ?? '';
+    if (note.length < 3) { setOrderErrors((prev) => ({ ...prev, [order.id]: 'Explain why the existing payment proof needs another review.' })); return; }
+    setVerifyingId(order.id);
+    setOrderErrors((prev) => ({ ...prev, [order.id]: '' }));
+    try {
+      const { error: reopenError } = await supabaseAdmin.rpc('admin_reopen_payment_review', { p_order_id: order.id, p_note: note });
+      if (reopenError) throw reopenError;
+      setOrders((prev) => prev.map((row) => row.id === order.id ? { ...row, payment_status: 'awaiting_verification' } : row));
+      setPaymentNotes((prev) => ({ ...prev, [order.id]: '' }));
+      await loadReceiptUrl(order, true);
+    } catch (e) {
+      setOrderErrors((prev) => ({ ...prev, [order.id]: e instanceof Error ? e.message : 'Could not reopen payment review. Reload and try again.' }));
+    } finally { setVerifyingId(null); }
   };
 
   const loadOrders = useCallback(async () => {
@@ -263,6 +290,12 @@ export default function AdminOrders() {
       if (request !== requestId.current) return;
       setOrders((data ?? []) as OrderRow[]);
       setTotalCount(count ?? 0);
+      setNotificationStatus({});
+      setNotificationError(false);
+      const { data: confirmations, error: confirmationsError } = await supabaseAdmin.rpc('admin_order_notification_status', { p_order_ids: (data ?? []).map((row) => row.id) });
+      if (request !== requestId.current) return;
+      if (confirmationsError) setNotificationError(true);
+      else setNotificationStatus(Object.fromEntries((confirmations ?? []).map((row: { order_id: string; sent_at: string | null }) => [row.order_id, row.sent_at])));
     } catch (e) {
       if (request === requestId.current) setError(e instanceof Error ? e.message : 'Could not load orders.');
     } finally {
@@ -327,7 +360,10 @@ export default function AdminOrders() {
       {loading && <p className="text-muted-foreground">Loading orders...</p>}
       {error && <p role="alert" className="text-primary">{error}</p>}
 
-      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-5">
+      <details className="mb-4 rounded-xl border border-border p-3">
+        <summary className="cursor-pointer text-sm font-medium">Search and payment/date filters{[search, dateFrom, dateTo, paymentFilter !== 'all' ? paymentFilter : ''].filter(Boolean).length > 0 ? ' · Active' : ''}</summary>
+        <button type="button" className="btn-outline mt-3 text-xs" onClick={() => { setSearchInput(''); setSearch(''); setDateFrom(''); setDateTo(''); setPaymentFilter('all'); setStatusFilter('all'); setPage(0); }}>Clear all filters</button>
+      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-5">
         <label className="text-xs text-muted-foreground md:col-span-2">Search orders
           <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Order, customer, phone, email, tracking" className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
         </label>
@@ -343,6 +379,7 @@ export default function AdminOrders() {
           <input type="date" value={dateTo} onChange={(event) => { setPage(0); setDateTo(event.target.value); }} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" />
         </label>
       </div>
+      </details>
       <div className="admin-filter-row mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter orders by status">
         {(['all', ...STATUSES] as const).map((s) => (
           <button key={s} type="button" onClick={() => { setPage(0); setStatusFilter(s); }} className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize ${statusFilter === s ? 'border-primary bg-primary/20 text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}>{s}</button>
@@ -351,6 +388,7 @@ export default function AdminOrders() {
       </div>
       <p className="mb-3 text-xs text-muted-foreground">{totalCount} matching order{totalCount === 1 ? '' : 's'}</p>
 
+      <p className="mb-3 text-xs text-muted-foreground">Payment filters use the recorded payment status. Revenue includes delivered legacy COD orders; confirm cash collection before reconciling historical records.</p>
       {!loading && orders.length === 0 && (
         <p className="text-muted">No orders match these filters.</p>
       )}
@@ -511,7 +549,7 @@ export default function AdminOrders() {
                           <input
                             type={field === 'trackingUrl' ? 'url' : 'text'}
                             value={shipmentDrafts[order.id]?.[field] ?? savedValue}
-                            onChange={(event) => setShipmentDrafts((prev) => ({
+                            disabled={order.status === 'delivered' || order.status === 'cancelled'} onChange={(event) => setShipmentDrafts((prev) => ({
                               ...prev,
                               [order.id]: {
                                 courierName: prev[order.id]?.courierName ?? order.courier_name ?? '',
@@ -529,7 +567,7 @@ export default function AdminOrders() {
                     <div className="mt-3 flex items-center gap-3">
                       <button
                         type="button"
-                        disabled={shipmentSavingId === order.id}
+                        disabled={shipmentSavingId === order.id || order.status === 'delivered' || order.status === 'cancelled'}
                         onClick={() => void saveShipment(order)}
                         className="btn-outline text-xs"
                       >
@@ -539,6 +577,8 @@ export default function AdminOrders() {
                     </div>
                   </div>
 
+                  <p className="mt-3 text-xs text-muted-foreground">Order email: {notificationError ? 'Status unavailable. Refresh to retry.' : notificationStatus[order.id] ? `Send confirmed ${formatDate(notificationStatus[order.id]!)}` : 'Send not confirmed. Check the order manually; this does not prove delivery failed.'}</p>
+                  {order.status === 'packed' && (!order.courier_name || !order.tracking_number) && <p className="mt-2 text-xs text-muted-foreground">Save the courier name and tracking number before marking this order shipped.</p>}
                   {order.payment_method === 'BANK_TRANSFER' && (
                     <div className="mt-4 border-t border-border pt-4">
                       <p className="mb-2 text-xs uppercase tracking-wide text-muted">
@@ -547,13 +587,15 @@ export default function AdminOrders() {
 
                       {receiptUrls[order.id] ? (
                         <a
-                          href={receiptUrls[order.id]}
+                          href={receiptUrls[order.id].url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-block"
                         >
                           <img
-                            src={receiptUrls[order.id]}
+                            src={receiptUrls[order.id].url}
+                            onLoad={() => setReceiptReady((prev) => new Set(prev).add(order.id))}
+                            onError={() => { setReceiptUrls((prev) => { const next = { ...prev }; delete next[order.id]; return next; }); setReceiptLoadFailed((prev) => new Set(prev).add(order.id)); }}
                             alt="Payment receipt"
                             className="h-40 w-auto rounded-lg border border-border object-cover transition-opacity hover:opacity-80"
                           />
@@ -562,6 +604,7 @@ export default function AdminOrders() {
                         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                           <ImageOff className="h-4 w-4 flex-shrink-0" />
                           Couldn't load receipt preview
+                          <button type="button" onClick={() => void loadReceiptUrl(order, true)} className="underline">Retry</button>
                         </p>
                       ) : order.receipt_url ? (
                         <p className="text-sm text-muted-foreground">Loading receipt...</p>
@@ -569,11 +612,16 @@ export default function AdminOrders() {
                         <p className="text-sm text-muted-foreground">No receipt uploaded</p>
                       )}
 
-                      {order.payment_status === 'awaiting_verification' && (
+                      {order.status === 'pending' && order.payment_status === 'failed' && <p role="status" className="mt-3 text-sm text-amber-400">Payment was rejected. Contact the customer to resolve the payment. If it cannot be resolved, cancel this order to release its reserved stock. Reopen review only if the existing proof needs reassessment after speaking with the customer. Replacement proof needs a separate support process.</p>}
+                      {order.status === 'pending' && order.payment_status === 'awaiting_payment' && <p className="mt-3 text-sm text-muted-foreground">Awaiting payment proof. Contact the customer; cancel if the order will not proceed to release reserved stock.</p>}
+                      {order.status === 'pending' && ['failed', 'awaiting_verification'].includes(order.payment_status) && <label className="mt-3 block text-xs text-muted-foreground">Payment review reason (required to reject or reopen)<input value={paymentNotes[order.id] ?? ''} maxLength={1000} onChange={(event) => setPaymentNotes((prev) => ({ ...prev, [order.id]: event.target.value }))} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" /></label>}
+                      {order.status === 'pending' && order.payment_status === 'failed' && order.receipt_url && <button type="button" disabled={verifyingId === order.id || (paymentNotes[order.id]?.trim().length ?? 0) < 3} onClick={() => void reopenPaymentReview(order)} className="btn-outline mt-3 text-xs disabled:opacity-50">Reopen review of existing proof</button>}
+                      {order.status === 'pending' && order.payment_status === 'awaiting_verification' && (
                         <div className="mt-3 flex gap-2">
                           <button
                             type="button"
-                            disabled={verifyingId === order.id}
+                            disabled={verifyingId === order.id || !receiptReady.has(order.id) || !receiptUrls[order.id] || receiptLoadFailed.has(order.id)}
+                            title={!receiptUrls[order.id] ? 'Load and inspect the payment receipt first' : undefined}
                             onClick={() => handleVerifyPayment(order.id, 'paid')}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/20 px-3 py-1.5 text-xs font-medium text-green-400 transition-colors hover:bg-green-500/30 disabled:opacity-50"
                           >
@@ -582,7 +630,7 @@ export default function AdminOrders() {
                           </button>
                           <button
                             type="button"
-                            disabled={verifyingId === order.id}
+                            disabled={verifyingId === order.id || (paymentNotes[order.id]?.trim().length ?? 0) < 3}
                             onClick={() => handleVerifyPayment(order.id, 'failed')}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/30 disabled:opacity-50"
                           >
@@ -606,7 +654,7 @@ export default function AdminOrders() {
       </div>
       {cancellingOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="presentation">
-          <section role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" className="glass max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl p-4 sm:p-6">
+          <section ref={cancelPanelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" className="glass max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl p-4 sm:p-6">
             <h2 id="cancel-order-title" className="font-display text-xl text-foreground">Cancel {cancellingOrder.order_reference}?</h2>
             <p className="text-sm text-muted-foreground">This restores the reserved inventory. Record the reason for the audit history.</p>
             <label className="block text-xs text-muted-foreground">Cancellation reason<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} required minLength={3} rows={3} className="mt-1 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground" /></label>
@@ -615,7 +663,7 @@ export default function AdminOrders() {
               <label className="block text-xs text-muted-foreground">Refund reference<input value={refundReference} onChange={(event) => setRefundReference(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" /></label>
             </>}
             {orderErrors[cancellingOrder.id] && <p role="alert" className="text-sm text-primary">{orderErrors[cancellingOrder.id]}</p>}
-            <div className="flex justify-end gap-2"><button type="button" onClick={() => setCancellingOrder(null)} className="btn-outline text-sm">Keep order</button><button type="button" disabled={updatingId === cancellingOrder.id || cancelReason.trim().length < 3 || (cancellingOrder.payment_status === 'paid' && (!refundConfirmed || !refundReference.trim()))} onClick={submitCancellation} className="btn-primary text-sm disabled:opacity-50">{updatingId === cancellingOrder.id ? 'Cancelling…' : 'Confirm cancellation'}</button></div>
+            <div className="flex justify-end gap-2"><button type="button" disabled={Boolean(updatingId)} onClick={() => setCancellingOrder(null)} className="btn-outline text-sm">Keep order</button><button type="button" disabled={updatingId === cancellingOrder.id || cancelReason.trim().length < 3 || (cancellingOrder.payment_status === 'paid' && (!refundConfirmed || !refundReference.trim()))} onClick={submitCancellation} className="btn-primary text-sm disabled:opacity-50">{updatingId === cancellingOrder.id ? 'Cancelling…' : 'Confirm cancellation'}</button></div>
           </section>
         </div>
       )}

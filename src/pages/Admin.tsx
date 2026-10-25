@@ -12,6 +12,7 @@ import AdminOrders from '../components/admin/AdminOrders';
 import AdminPromos from '../components/admin/AdminPromos';
 import AdminReviews from '../components/admin/AdminReviews';
 import AdminTeam from '../components/admin/AdminTeam';
+import { ADMIN_LEAVE_EVENT } from '../hooks/useAdminForm';
 
 export default function Admin() {
   const [session, setSession] = useState<Session | null>(null);
@@ -150,10 +151,13 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
   const view: AdminView = ADMIN_VIEWS.includes(requestedView as AdminView) && (requestedView !== 'team' || role === 'owner')
     ? requestedView as AdminView
     : 'orders';
-  const setView = (next: AdminView) => setSearchParams({ section: next });
+  const setView = (next: AdminView) => {
+    if (next !== view && window.dispatchEvent(new Event(ADMIN_LEAVE_EVENT, { cancelable: true }))) setSearchParams({ section: next });
+  };
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const handleSignOut = async () => {
+    if (!window.dispatchEvent(new Event(ADMIN_LEAVE_EVENT, { cancelable: true }))) return;
     setSignOutError(null);
     const { error } = await supabaseAdmin.auth.signOut();
     if (error) setSignOutError('Could not sign out. Please try again.');

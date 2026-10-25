@@ -14,6 +14,7 @@ import { slugify } from '../../lib/slug';
 import ConfirmAction from './ConfirmAction';
 import CollectionCoverUpload from './CollectionCoverUpload';
 import HeroFocusPicker from './HeroFocusPicker';
+import { useAdminForm } from '../../hooks/useAdminForm';
 
 type View = 'list' | 'create' | 'edit';
 
@@ -197,8 +198,6 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
   const [tagline, setTagline] = useState(collection?.tagline ?? '');
   const [description, setDescription] = useState(collection?.description ?? '');
   const [coverImage, setCoverImage] = useState(collection?.coverImage ?? '');
-  const [heroFocusDesktop, setHeroFocusDesktop] = useState(collection?.heroFocusDesktop ?? '');
-  const [heroFocusMobile, setHeroFocusMobile] = useState(collection?.heroFocusMobile ?? '');
   const [cardFocus, setCardFocus] = useState(collection?.cardFocus ?? '');
   const [status, setStatus] = useState<CollectionStatus>(collection?.status ?? 'live');
   const [sortOrder, setSortOrder] = useState(
@@ -206,7 +205,10 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
   );
 
   const [submitting, setSubmitting] = useState(false);
+  const [imagesBusy, setImagesBusy] = useState(false);
+  const { markDirty, confirmDiscard, errorRef } = useAdminForm(submitting || imagesBusy);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error, errorRef]);
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -215,6 +217,7 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (imagesBusy || submitting) return;
     setError(null);
 
     if (!name.trim()) return setError('Name is required.');
@@ -240,8 +243,8 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
         tagline: tagline.trim() || null,
         description: description.trim() || null,
         coverImage: coverImage.trim() || null,
-        heroFocusDesktop: heroFocusDesktop.trim() || null,
-        heroFocusMobile: heroFocusMobile.trim() || null,
+        heroFocusDesktop: collection?.heroFocusDesktop ?? null,
+        heroFocusMobile: collection?.heroFocusMobile ?? null,
         cardFocus: cardFocus.trim() || null,
         status,
         sortOrder: sortOrderValue,
@@ -261,12 +264,12 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
   };
 
   return (
-    <form onSubmit={handleSubmit} className="glass space-y-6 rounded-2xl p-6">
+    <form onChangeCapture={markDirty} onSubmit={handleSubmit} className="glass space-y-6 rounded-2xl p-6">
       <h2 className="font-display text-xl tracking-wide text-foreground">
         {mode === 'create' ? 'New Collection' : 'Edit Collection'}
       </h2>
 
-      {error && <p className="text-sm text-primary">{error}</p>}
+      {error && <p ref={errorRef} tabIndex={-1} role="alert" className="text-sm text-primary">{error}</p>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
@@ -341,41 +344,9 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
           <CollectionCoverUpload
             slugHint={slug || 'collection'}
             value={coverImage || null}
-            onChange={(url) => setCoverImage(url ?? '')}
-            disabled={submitting}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <span className={fieldLabelClass()}>Desktop Hero Focus</span>
-          <HeroFocusPicker
-            hint="Drag the image or use the sliders to choose the focal point in the hero's right-side desktop panel."
-            image={coverImage || null}
-            value={heroFocusDesktop || '50% center'}
-            onChange={setHeroFocusDesktop}
-            // The real Hero is a full-viewport min-h-screen section, so its
-            // rendered ratio approximates the browser window's ratio (not
-            // pixel-perfect — min-h-screen can grow taller than the
-            // viewport if content needs more room). Still, no fixed guess
-            // can represent that as well as the window's own live ratio —
-            // whether an image crops horizontally or vertically depends on
-            // the viewer's window shape. matchViewportAspect tracks this
-            // browser window's own live ratio instead, approximating the
-            // real Hero.
-            aspectClassName="aspect-[16/9]"
-            matchViewportAspect
-            viewportWidthFraction={0.6}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <span className={fieldLabelClass()}>Mobile Hero Focus</span>
-          <HeroFocusPicker
-            hint="Drag the image or use the sliders to choose the focal point on phones and tablets."
-            image={coverImage || null}
-            value={heroFocusMobile || '50% center'}
-            onChange={setHeroFocusMobile}
-            aspectClassName="aspect-[9/16]"
+            onChange={(url) => { setCoverImage(url ?? ''); markDirty(); }}
+            onBusyChange={setImagesBusy}
+            disabled={submitting || imagesBusy}
           />
         </div>
 
@@ -385,7 +356,7 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
             hint="Drag to choose what's visible on the Shop/Home collection card."
             image={coverImage || null}
             value={cardFocus || '50% center'}
-            onChange={setCardFocus}
+            onChange={(value) => { setCardFocus(value); markDirty(); }}
             // Mirrors the real card's fixed ratio in Collections.tsx
             // (aspect-[3/4]), which doesn't change with viewport width, so
             // a single focus value (no desktop/mobile split) is enough.
@@ -394,14 +365,15 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-t border-border pt-6">
-        <button type="submit" disabled={submitting} className="btn-primary px-6 py-2.5 text-sm">
+      {imagesBusy && <p role="status" className="text-sm text-muted-foreground">Uploading or optimizing the cover. Please wait before saving or leaving.</p>}
+      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-6">
+        <button type="submit" disabled={submitting || imagesBusy} className="btn-primary px-6 py-2.5 text-sm">
           {submitting ? 'Saving...' : mode === 'create' ? 'Create Collection' : 'Save Changes'}
         </button>
         <button
           type="button"
-          onClick={onCancel}
-          disabled={submitting}
+          onClick={() => { if (confirmDiscard()) onCancel(); }}
+          disabled={submitting || imagesBusy}
           className="rounded-lg border border-border px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           Cancel
