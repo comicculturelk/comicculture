@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, rename } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
@@ -10,7 +10,7 @@ import sitemap from '../api/sitemap.js';
 export function seoPlugin(): Plugin {
   const middleware = (template: (url: string) => Promise<string>) => async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = new URL(req.url || '/', 'http://localhost');
-    if (url.pathname === '/index.html') { res.statusCode = 308; res.setHeader('Location', '/'); res.end(); return; }
+    if (['/index.html', '/app.html'].includes(url.pathname)) { res.statusCode = 308; res.setHeader('Location', '/'); res.end(); return; }
     if (url.pathname === '/sitemap.xml') {
       await sitemap(req, { setHeader: (name, value) => { res.setHeader(name, value); }, status(code) { res.statusCode = code; return this; }, send: (body) => { res.end(body); } });
       return;
@@ -32,11 +32,16 @@ export function seoPlugin(): Plugin {
   };
   return {
     name: 'comicculture-seo',
+    async writeBundle(options) {
+      // Vercel serves an existing index.html before rewrites. Keep the app
+      // template under another name so / reaches the same handler as products.
+      if (options.dir) await rename(resolve(options.dir, 'index.html'), resolve(options.dir, 'app.html'));
+    },
     configureServer(server) {
       server.middlewares.use(middleware(async (url) => server.transformIndexHtml(url, await readFile(resolve('index.html'), 'utf8'))));
     },
     configurePreviewServer(server) {
-      server.middlewares.use(middleware(() => readFile(resolve('dist/index.html'), 'utf8')));
+      server.middlewares.use(middleware(() => readFile(resolve('dist/app.html'), 'utf8')));
     },
   };
 }

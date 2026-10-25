@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { compileSeoRuntime } from './seo-runtime.mjs';
 
 const load = await compileSeoRuntime();
@@ -90,6 +90,8 @@ function response() {
 }
 
 test('production handler and sitemap preserve status, cache safety, and public-only credentials', async (t) => {
+  assert.equal(existsSync(new URL('../dist/index.html', import.meta.url)), false, 'a static homepage must not bypass the SEO handler');
+  assert.equal(existsSync(new URL('../dist/app.html', import.meta.url)), true);
   const oldFetch = globalThis.fetch;
   const oldUrl = process.env.VITE_SUPABASE_URL;
   const oldKey = process.env.VITE_SUPABASE_ANON_KEY;

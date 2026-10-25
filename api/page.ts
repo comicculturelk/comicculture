@@ -13,7 +13,7 @@ export default async function handler(req: PageRequest, res: PageResponse) {
   }
   const path = `/${Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path || ''}`.replace(/\/$/, '') || '/';
   try {
-    const template = await readFile(join(process.cwd(), 'dist', 'index.html'), 'utf8');
+    const template = await readFile(join(process.cwd(), 'dist', 'app.html'), 'utf8');
     const needsCatalog = path === '/' || path === '/shop' || /^\/(product|collections)\/[^/]+$/.test(path);
     const page = buildSeoPage(path, needsCatalog ? await fetchCatalog() : undefined);
     res.setHeader('X-Robots-Tag', page.robots);

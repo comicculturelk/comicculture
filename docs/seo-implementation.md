@@ -17,7 +17,7 @@ Changes are preserved in the repository and released through the existing Git de
 
 ## Implementation and hosting
 
-`api/page.ts` reads the built `dist/index.html`, injects public SEO content, and returns the correct status. Vercel configuration includes that template in the function bundle. Static assets continue to be served as files. Public catalog reads use the existing anonymous key, never an admin session/service credential. Only catalog tables are queried. Public HTML has a 60-second edge cache with a five-minute stale-while-revalidate window; utility/error responses are not cached. Shopping/cart/checkout still use their existing fresh validation.
+`api/page.ts` reads the built `dist/app.html`, injects public SEO content, and returns the correct status. Vercel configuration includes that template in the function bundle. Static assets continue to be served as files. Public catalog reads use the existing anonymous key, never an admin session/service credential. Only catalog tables are queried. Public HTML has a 60-second edge cache with a five-minute stale-while-revalidate window; utility/error responses are not cached. Shopping/cart/checkout still use their existing fresh validation.
 
 `server/viteSeo.ts` provides equivalent HTML/status handling for `npm run dev` and `npm run preview`, allowing local verification of the initial response. `npm run typecheck` now also checks the server/API/Vite configuration. No runtime dependency was added. Production-facing imports use .js specifiers matching the emitted files. The SEO tests compile the server modules to JavaScript before loading them, so native TypeScript execution cannot hide deployment import failures.
 
