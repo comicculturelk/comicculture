@@ -1,3 +1,4 @@
+import { STATIC_SEO } from '../lib/seo';
 import WhySection from '../components/WhySection';
 import Timeline from '../components/Timeline';
 import SEO from '../components/SEO';
@@ -6,8 +7,8 @@ export default function About() {
   return (
     <>
       <SEO
-        title="About | ComicCulture"
-        description="Learn about ComicCulture, a Sri Lankan fan-apparel brand creating premium apparel inspired by comics, superheroes, and pop culture."
+        title={STATIC_SEO['/about'].title}
+        description={STATIC_SEO['/about'].description}
         canonical="https://comicculture.lk/about"
         ogType="website"
       />

@@ -29,6 +29,7 @@ export interface SEOProps {
   description: string;
   /** Full canonical URL, e.g. https://comicculture.lk/product/classic-gwen */
   canonical: string;
+  robots?: string;
   /** og:type — defaults to 'website'. Use 'product' on product pages. */
   ogType?: string;
   /** Used for both og:image and twitter:image. Omit if no real image is available. */
@@ -63,14 +64,17 @@ export default function SEO({
   title,
   description,
   canonical,
+  robots = 'index,follow',
   ogType = 'website',
   image,
   jsonLd,
 }: SEOProps) {
   useEffect(() => {
+    document.getElementById('jsonld-initial')?.remove();
     const previousTitle = document.title;
 
     const metaTargets: MetaTarget[] = [
+      { attr: 'name', key: 'robots', value: robots },
       { attr: 'name', key: 'description', value: description },
       { attr: 'property', key: 'og:type', value: ogType },
       { attr: 'property', key: 'og:url', value: canonical },
@@ -140,7 +144,7 @@ export default function SEO({
     // Re-run whenever the page identity/content changes; jsonLd is stringified
     // for a stable dependency since it's a new array/object on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, description, canonical, ogType, image, JSON.stringify(jsonLd)]);
+  }, [title, description, canonical, robots, ogType, image, JSON.stringify(jsonLd)]);
 
   return null;
 }
