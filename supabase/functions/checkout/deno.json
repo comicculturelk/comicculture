@@ -1,0 +1,3 @@
+{
+  "imports": { "image-size": "npm:image-size@2.0.4" }
+}

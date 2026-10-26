@@ -19,9 +19,9 @@ import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import { CHECKOUT_ERROR_MESSAGE, createOrder } from '../data/orders';
 import { formatPrice, formatSize, getPreorderMessage } from '../data/products';
-import { uploadFile } from '../lib/storage';
+import CheckoutSecurity from '../components/CheckoutSecurity';
+import { checkoutRequest, completeCheckout, getCheckoutRequestId, uploadCheckoutReceipt } from '../lib/checkout';
 import { STORE_CONFIG } from '../config/store';
-import { supabase } from '../lib/supabase';
 
 const RECEIPT_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -83,6 +83,9 @@ export default function Checkout() {
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [preorderAck, setPreorderAck] = useState(false);
+  const [securityToken, setSecurityToken] = useState<string | null>(null);
+  const [securityAttempt, setSecurityAttempt] = useState(0);
+  const [requestId] = useState(getCheckoutRequestId);
 
   const deliveryFee = STORE_CONFIG.deliveryFee;
   const currentPromo = appliedPromo?.subtotal === totalPrice ? appliedPromo : null;
@@ -139,6 +142,10 @@ export default function Checkout() {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file after an error
     if (!file) return;
+    if (!securityToken || receiptUploading || isSubmitting) {
+      setReceiptError('Complete the security check before uploading your receipt.');
+      return;
+    }
 
     const extensionsByMime: Record<string, string> = {
       'image/jpeg': 'jpg',
@@ -161,8 +168,7 @@ export default function Checkout() {
     setReceiptUploading(true);
 
     try {
-      const path = `${crypto.randomUUID()}.${extension}`;
-      const { path: uploadedPath } = await uploadFile('payment-receipts', path, file, 'private');
+      const uploadedPath = await uploadCheckoutReceipt(file, requestId, securityToken);
       setReceiptPath(uploadedPath);
     } catch (err) {
       console.error('Receipt upload failed:', err);
@@ -170,6 +176,8 @@ export default function Checkout() {
       setReceiptFileName(null);
     } finally {
       setReceiptUploading(false);
+      setSecurityToken(null);
+      setSecurityAttempt(value => value + 1);
     }
   };
 
@@ -179,20 +187,18 @@ export default function Checkout() {
     setPromoChecking(true);
     setAppliedPromo(null);
     setPromoNote(null);
-    const { data, error } = await supabase.rpc('preview_promo_code', {
-      p_code: promoCode.trim().toUpperCase(),
-      p_subtotal: totalPrice,
-    });
-    if (error) {
+    try {
+      const data = await checkoutRequest<number | null>('promo', { code: promoCode.trim().toUpperCase(), subtotal: totalPrice });
+      if (typeof data === 'number' && data > 0) {
+        const code = promoCode.trim().toUpperCase();
+        setAppliedPromo({ code, discountAmount: data, subtotal: totalPrice });
+        setPromoNote(`${code} applied: ${formatPrice(data)} off.`);
+      } else {
+        setPromoNote('That code is invalid, expired, or your order does not meet its minimum.');
+      }
+    } catch {
       setPromoNote('We could not check that code right now. Please try again.');
-    } else if (typeof data === 'number' && data > 0) {
-      const code = promoCode.trim().toUpperCase();
-      setAppliedPromo({ code, discountAmount: data, subtotal: totalPrice });
-      setPromoNote(`${code} applied: ${formatPrice(data)} off.`);
-    } else {
-      setPromoNote('That code is invalid, expired, or your order does not meet its minimum.');
-    }
-    setPromoChecking(false);
+    } finally { setPromoChecking(false); }
   };
 
   // Bank Transfer requires a successfully uploaded receipt before the order
@@ -213,7 +219,7 @@ export default function Checkout() {
       });
       return;
     }
-    if (receiptBlocksSubmit) return;
+    if (receiptBlocksSubmit || !securityToken || isSubmitting) return;
     if (preorderBlocksSubmit) return;
     if (promoChecking) return;
 
@@ -238,8 +244,11 @@ export default function Checkout() {
         paymentMethod,
         receiptPath: receiptPath ?? undefined,
         promoCode: currentPromo?.code,
+        requestId,
+        token: securityToken,
       });
 
+      completeCheckout();
       clearCart();
       navigate('/order-success', {
         state: {
@@ -257,6 +266,8 @@ export default function Checkout() {
       // technical details; customers only ever see this controlled message.
       setSubmitError(CHECKOUT_ERROR_MESSAGE);
       setIsSubmitting(false);
+      setSecurityToken(null);
+      setSecurityAttempt(value => value + 1);
     }
   };
 
@@ -548,6 +559,7 @@ export default function Checkout() {
             )}
 
             {/* Payment method */}
+            <CheckoutSecurity attempt={securityAttempt} onToken={setSecurityToken} />
             <div>
               <h2 className="mb-4 font-display text-xl text-foreground tracking-wide">
                 Payment method
@@ -626,8 +638,9 @@ export default function Checkout() {
                       {receiptFileName ?? 'Choose receipt image (JPG, PNG, WebP — max 5MB)'}
                       <input
                         type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                        accept="image/jpeg,image/png,image/webp"
                         onChange={handleReceiptChange}
+                        disabled={!securityToken || receiptUploading || isSubmitting}
                         className="sr-only"
                         aria-label="Upload payment receipt"
                       />
@@ -761,7 +774,7 @@ export default function Checkout() {
 
             <button
               type="submit"
-              disabled={isSubmitting || receiptBlocksSubmit || preorderBlocksSubmit || promoChecking}
+              disabled={isSubmitting || receiptBlocksSubmit || preorderBlocksSubmit || promoChecking || !securityToken}
               className="btn-primary w-full"
             >
               {isSubmitting ? (

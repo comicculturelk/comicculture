@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { checkoutRequest } from '../lib/checkout';
 import type { CartItem } from '../context/CartContext';
 import { notifyAdminOfNewOrder } from './notifications';
 
@@ -39,6 +39,8 @@ export interface CreateOrderInput {
    */
   receiptPath?: string;
   promoCode?: string;
+  requestId: string;
+  token: string;
 }
 
 /**
@@ -69,7 +71,8 @@ interface CreateOrderRpcRow {
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
-  // Single server-side RPC does everything that touches money, stock,
+  // The verified/rate-limited gateway calls the existing database transaction
+  // through an idempotent wrapper. The transaction owns money, stock,
   // payment status, or the order reference: validates + decrements stock,
   // looks up each item's real price from `products`, computes
   // subtotal/delivery_fee/total itself, derives payment_status from
@@ -77,31 +80,17 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   // a database sequence — none of these are accepted as client
   // parameters — then inserts the order + order_items rows atomically.
   // See supabase/migrations/20260927010000_generate_order_reference_server_side.sql.
-  const { data, error } = await supabase.rpc('create_order_with_notification_token', {
-    p_full_name: input.fullName,
-    p_phone: input.phone,
-    p_mobile_phone: input.mobilePhone.trim() || null,
-    p_email: input.email.trim(),
-    p_address_line1: input.addressLine1,
-    p_address_line2: input.addressLine2.trim() || null,
-    p_city: input.city,
-    p_district: input.district,
-    p_postal_code: input.postalCode.trim() || null,
-    p_payment_method: input.paymentMethod,
-    p_receipt_url: input.receiptPath ?? null,
-    p_items: input.items.map((item) => ({
+  const result = await checkoutRequest<CreateOrderRpcRow>('order', {
+    fullName: input.fullName, phone: input.phone, mobilePhone: input.mobilePhone.trim() || null,
+    email: input.email.trim(), addressLine1: input.addressLine1, addressLine2: input.addressLine2.trim() || null,
+    city: input.city, district: input.district, postalCode: input.postalCode.trim() || null,
+    paymentMethod: input.paymentMethod, receiptPath: input.receiptPath ?? null,
+    items: input.items.map((item) => ({
       version_size_id: item.versionSizeId,
       quantity: item.quantity,
     })),
-    p_promo_code: input.promoCode?.trim() || null,
-  });
-
-  if (error) {
-    console.error('Order creation failed:', error);
-    throw new Error(CHECKOUT_ERROR_MESSAGE);
-  }
-
-  const result = (data as CreateOrderRpcRow[] | null)?.[0];
+    promoCode: input.promoCode?.trim() || null,
+  }, { requestId: input.requestId, token: input.token });
   if (!result) {
     console.error('Order creation returned no result.');
     throw new Error(CHECKOUT_ERROR_MESSAGE);

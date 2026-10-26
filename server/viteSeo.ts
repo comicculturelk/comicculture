@@ -40,7 +40,13 @@ export function seoPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use(middleware(async (url) => server.transformIndexHtml(url, await readFile(resolve('index.html'), 'utf8'))));
     },
-    configurePreviewServer(server) {
+    async configurePreviewServer(server) {
+      const config: { headers: { source: string; headers: { key: string; value: string }[] }[] } = JSON.parse(await readFile(resolve('vercel.json'), 'utf8'));
+      const securityHeaders = config.headers.find(rule => rule.source === '/(.*)')?.headers ?? [];
+      server.middlewares.use((_req, res, next) => {
+        for (const header of securityHeaders) res.setHeader(header.key, header.value);
+        next();
+      });
       server.middlewares.use(middleware(() => readFile(resolve('dist/app.html'), 'utf8')));
     },
   };

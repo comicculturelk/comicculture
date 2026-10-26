@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { checkoutRequest } from '../lib/checkout';
 
 export interface TrackedOrderItem {
   name: string;
@@ -29,21 +29,13 @@ export interface TrackOrderInput {
 }
 
 /**
- * Looks up a guest order by reference + email/phone via the
- * get_order_tracking RPC (SECURITY DEFINER). Returns null when there's no
- * exact match — orders/order_items stay locked down for anon; this is the
- * only read path, and only for the caller's own order.
+ * The rate-limited gateway delegates exact reference + contact matching to
+ * get_order_tracking. Direct anonymous table/RPC access remains closed.
  */
 export async function trackOrder(input: TrackOrderInput): Promise<TrackedOrder | null> {
-  const { data, error } = await supabase.rpc('get_order_tracking', {
-    p_order_reference: input.orderReference.trim(),
-    p_email: input.email?.trim() || null,
-    p_phone: input.phone?.trim() || null,
+  return checkoutRequest<TrackedOrder | null>('track', {
+    orderReference: input.orderReference.trim(),
+    email: input.email?.trim() || null,
+    phone: input.phone?.trim() || null,
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data as TrackedOrder | null) ?? null;
 }

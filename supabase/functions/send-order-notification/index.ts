@@ -17,7 +17,7 @@
 //   RESEND_FROM_EMAIL       - verified sender, e.g. "ComicCulture <orders@yourdomain.com>"
 //   ADMIN_NOTIFICATION_EMAIL - comma-separated recipient list
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.108.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

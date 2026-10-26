@@ -13,6 +13,7 @@ import AdminPromos from '../components/admin/AdminPromos';
 import AdminReviews from '../components/admin/AdminReviews';
 import AdminTeam from '../components/admin/AdminTeam';
 import { ADMIN_LEAVE_EVENT } from '../hooks/useAdminForm';
+import AdminMfaGate from '../components/admin/AdminMfaGate';
 
 export default function Admin() {
   const [session, setSession] = useState<Session | null>(null);
@@ -84,7 +85,7 @@ export default function Admin() {
       </section>
     );
   }
-  return <AdminPanel role={adminRole} />;
+  return <AdminMfaGate accessToken={session.access_token}><AdminPanel role={adminRole} /></AdminMfaGate>;
 }
 
 function AdminLogin() {
