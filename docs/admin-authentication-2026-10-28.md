@@ -2,7 +2,21 @@
 
 ## Status and audit
 
-LOCAL IMPLEMENTATION ONLY. No production migration, deployment, secret/configuration edit, account invitation, password change, factor removal, or customer-data write was performed. Live access was read-only (membership aggregates, function definitions, column types, security advisors). Existing owner membership and MFA remain untouched.
+Original audit below describes the local implementation. The owner subsequently authorized setup through the connected dashboards/plugins. **Backend setup is now active; frontend release and SMTP activation are waiting for the queued DNS migration.** Existing owner membership and MFA remain untouched. No invitation email, real order or customer-data write has been made.
+
+### Release progress and resume instructions
+
+- Applied `20261028060247_multi_user_admin_onboarding.sql` to the intended Supabase project. This is the actual recorded server migration version; the source file and tests were reconciled to it. Do not apply it again.
+- Deployed `admin-invite` version 1 with JWT verification enabled and saved `ADMIN_ORIGIN=https://comicculture.lk` in Supabase secrets.
+- Live checks: production-origin OPTIONS returns 204; an untrusted origin returns 403; an anonymous invitation POST returns 401 before any email send. Membership aggregates still show one active, verified-email owner with one verified factor. Private invitation-table/RPC grants remain closed to anonymous callers. Security advisors reviewed after migration.
+- Auth browser checks confirmed public signup and anonymous sign-in disabled, email confirmation enabled, and one-hour email OTP expiry. Site URL was corrected from localhost to https://comicculture.lk; exact invite/recovery URLs were saved. The minimum password length was set to 12 for future password creation/change. Existing passwords and factors were not replaced.
+- Custom SMTP was off and Resend had no verified domain. Added `auth.comicculture.lk` to the existing ComicCulture Resend account (domain ID `3e836de1-c322-4bd6-91d3-bcb6a39c1a00`, Tokyo). It is still pending verification. No new email API key has been created yet; the owner approved creating a sending-only, domain-restricted key when setup can proceed. Keep it out of chat, source and logs.
+- The LK registry rejected the standard DKIM underscore in its resource-record form. That attempted three-record update did NOT take effect. The owner then explicitly authorized moving DNS hosting to Cloudflare with all existing records preserved.
+- Created a Free Cloudflare zone in the ComicCulture account: zone `2ba58361d6e6749c459d7fdfb7374139`; nameservers `ace.ns.cloudflare.com` and `mary.ns.cloudflare.com`. Copied all five existing root A, www CNAME, MX, SPF and Google verification records and added the three Resend TXT/CNAME records. DNS-only mode is retained; no website proxy was enabled. See `docs/dns-migration-2026-10-28.json` for the exact backup and new record set. No previous customer mail record was overwritten. Public validated DNS lookup found no DS delegation record before the change.
+- The owner completed the registry OTP directly. The subsequent nameserver change was accepted by domains.lk and is **queued for processing**. Cloudflare still reports pending and public DNS has not switched. A registry screenshot is saved with the handover artifacts. Do not mistake this for completed propagation.
+- The owner chose **I’ll ask you to continue later**. No scheduled monitoring or automation was created. The frontend has NOT been merged into production main or deployed. Custom SMTP remains off so existing limited Auth email delivery is not switched to an unverified sender.
+- Resume: inspect registry delegation and Cloudflare zone activation; confirm all copied records/public website/MX survive; wait for Resend verification. Do not recreate the existing zone or domain. Then create the approved domain-restricted sending-only Resend key, store it only as the Supabase SMTP password (smtp.resend.com, port 465, username resend; branded sender under auth.comicculture.lk), and verify email sending with an owner-approved recipient. Check Auth templates use ConfirmationURL and exact redirects. Have human testers complete their own password/MFA flows. Only then merge/release the frontend and smoke-test owner access, Team, storefront and checkout. No paid plan, DNSSEC change or additional access grant is authorized merely by these notes.
+
 
 The architecture already uses Supabase Auth email/password, refreshable browser sessions in a separate `comicculture-admin-auth` namespace, and Supabase per-user TOTP. PostgreSQL `store_admins` is the authoritative active-role allowlist. `is_store_admin`/`is_store_owner` enforce MFA and live membership for operational RPCs and RLS/storage policies. The frontend has no service-role key. `api/page.ts` and `api/sitemap.ts` are public SEO/catalog handlers, not privileged administrative endpoints. Existing privileged operations run through Supabase RPCs/table policies, plus the token-protected notification Edge Function. Checkout retains its separate public session and protected Edge gateway.
 
@@ -24,7 +38,7 @@ Security gaps found: raw provider login errors were shown, verified email was no
 
 ## Migration and configuration — approval required before production
 
-Migration: `supabase/migrations/20261028054338_multi_user_admin_onboarding.sql`.
+Migration: `supabase/migrations/20261028060247_multi_user_admin_onboarding.sql`.
 It preserves existing users, roles and factor records; adds Staff, a private pending-invitation table, invitation lifecycle functions, verified-email membership checks, serialized team mutations, centralized permissions and a read-only inventory RPC. Run it in staging first, with the existing migrations already applied. Do not run `db push` against production without reviewing exactly which migrations would execute.
 
 1. Prepare an isolated Supabase staging project/database with synthetic users. Check existing owner email confirmation and a working MFA backup before any rollout. Keep the current production owner session and Supabase administrative recovery access.
@@ -73,5 +87,5 @@ References: [Supabase invitations](https://supabase.com/docs/reference/javascrip
 ## Files
 
 Modified: src/pages/Admin.tsx; src/data/admin.ts; src/components/admin/AdminMfaGate.tsx; src/components/admin/AdminTeam.tsx; tsconfig.node.json.
-Added: src/lib/adminPermissions.ts; src/components/admin/AdminAccount.tsx; src/components/admin/AdminPassword.tsx; src/components/admin/StaffInventory.tsx; supabase/functions/admin-invite/index.ts; supabase/functions/admin-invite/handler.ts; supabase/functions/admin-invite/deno.json; supabase/migrations/20261028054338_multi_user_admin_onboarding.sql; tests/admin-auth.test.mjs; this report.
+Added: src/lib/adminPermissions.ts; src/components/admin/AdminAccount.tsx; src/components/admin/AdminPassword.tsx; src/components/admin/StaffInventory.tsx; supabase/functions/admin-invite/index.ts; supabase/functions/admin-invite/handler.ts; supabase/functions/admin-invite/deno.json; supabase/migrations/20261028060247_multi_user_admin_onboarding.sql; tests/admin-auth.test.mjs; this report.
 Deleted: none. No dependency changes. Complete source files remain in the local working tree and the accompanying source ZIP, excluding environment files and credentials.

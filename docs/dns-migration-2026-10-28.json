@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-28",
+  "domain": "comicculture.lk",
+  "previousProvider": "LK Domain Registry inline resource records",
+  "cloudflareAccount": "Comicculturelk@gmail.com's Account",
+  "cloudflareZone": "2ba58361d6e6749c459d7fdfb7374139",
+  "nameservers": [
+    "ace.ns.cloudflare.com",
+    "mary.ns.cloudflare.com"
+  ],
+  "originalRecords": [
+    {
+      "type": "A",
+      "name": "comicculture.lk",
+      "content": "216.198.79.1",
+      "ttl": 86400,
+      "proxied": false
+    },
+    {
+      "type": "CNAME",
+      "name": "www.comicculture.lk",
+      "content": "bd3f61f460805210.vercel-dns-017.com",
+      "ttl": 86400,
+      "proxied": false
+    },
+    {
+      "type": "MX",
+      "name": "comicculture.lk",
+      "content": "mail.postale.io",
+      "priority": 1,
+      "ttl": 3600
+    },
+    {
+      "type": "TXT",
+      "name": "comicculture.lk",
+      "content": "google-site-verification=qLae6GpYM8b6zFrJFkrZrapPAEay7CSwIGZpSeo4gaU",
+      "ttl": 86400
+    },
+    {
+      "type": "TXT",
+      "name": "comicculture.lk",
+      "content": "v=spf1 mx ~all",
+      "ttl": 3600
+    }
+  ],
+  "addedMailRecords": [
+    {
+      "type": "TXT",
+      "name": "resend._domainkey.auth.comicculture.lk",
+      "content": "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDTt94Oq03hD+dXbJr4bbgqzUiKP2PL63ze6IgEw5pLVsvsWAK5ZLHSyvNgRr+QIJbS0lP4LXmcuVTmyXhqkUB/0vjPqK5FMC4GaFRxPuiM4OKzrhdPemVXmWWA+casac3fV6BVWn6gGPAR+aezkFpKBL/Kd1uZAgws3SJflnBDVwIDAQAB",
+      "ttl": 3600
+    },
+    {
+      "type": "CNAME",
+      "name": "rsend.auth.comicculture.lk",
+      "content": "rsend-apne1.forge.rmta.net",
+      "ttl": 3600,
+      "proxied": false
+    },
+    {
+      "type": "CNAME",
+      "name": "send.auth.comicculture.lk",
+      "content": "send.forge.rmta.net",
+      "ttl": 3600,
+      "proxied": false
+    }
+  ],
+  "notes": [
+    "All website and mail CNAME/A records remain DNS-only, without Cloudflare proxying.",
+    "No DS record found in validated Cloudflare public resolver lookup before delegation change.",
+    "Rollback requires restoring the original LK registry resource-record configuration shown here."
+  ]
+}

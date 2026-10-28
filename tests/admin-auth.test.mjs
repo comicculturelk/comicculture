@@ -5,7 +5,7 @@ import ts from "typescript";
 import { PGlite } from "@electric-sql/pglite";
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 const migration =
-  "../supabase/migrations/20261028054338_multi_user_admin_onboarding.sql";
+  "../supabase/migrations/20261028060247_multi_user_admin_onboarding.sql";
 const owner = "00000000-0000-0000-0000-000000000001",
   member = "00000000-0000-0000-0000-000000000002",
   stranger = "00000000-0000-0000-0000-000000000003";
