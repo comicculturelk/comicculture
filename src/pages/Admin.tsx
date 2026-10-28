@@ -13,6 +13,10 @@ import AdminPromos from '../components/admin/AdminPromos';
 import AdminReviews from '../components/admin/AdminReviews';
 import AdminTeam from '../components/admin/AdminTeam';
 import { ADMIN_LEAVE_EVENT } from '../hooks/useAdminForm';
+import { ADMIN_VIEWS, permittedViews, type AdminView } from '../lib/adminPermissions';
+import AdminPassword from '../components/admin/AdminPassword';
+import AdminAccount from '../components/admin/AdminAccount';
+import StaffInventory from '../components/admin/StaffInventory';
 import AdminMfaGate from '../components/admin/AdminMfaGate';
 
 export default function Admin() {
@@ -67,6 +71,9 @@ export default function Admin() {
   }
 
   if (!session) return <AdminLogin />;
+  const authFlow = new URLSearchParams(window.location.search).get('auth');
+  if (authFlow === 'invite') return <AdminPassword invite />;
+  if (authFlow === 'recovery') return <AdminMfaGate accessToken={session.access_token}><AdminPassword /></AdminMfaGate>;
   if (checkingAdmin) {
     return <section className="comic-page flex min-h-screen items-center justify-center bg-background"><p className="text-muted">Checking admin access…</p></section>;
   }
@@ -91,7 +98,7 @@ export default function Admin() {
 function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => new URLSearchParams(window.location.search).has('auth') ? 'This link may be unavailable or expired. Sign in or request a new recovery email.' : null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -100,10 +107,24 @@ function AdminLogin() {
     setError(null);
     try {
       const { error: signInError } = await supabaseAdmin.auth.signInWithPassword({ email, password });
-      if (signInError) setError(signInError.message);
+      if (signInError) setError('Could not sign in. Check your details or use password recovery.');
     } catch {
       setError('Could not sign in. Check your connection and try again.');
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const requestReset = async () => {
+    if (!email.trim()) { setError('Enter your email first.'); return; }
+    setLoading(true);
+    try {
+      await supabaseAdmin.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin + '/admin?auth=recovery',
+      });
+    } catch { /* Keep account existence private even on network errors. */ }
+    finally {
+      setError('If this account can receive recovery email, a link will arrive shortly.');
       setLoading(false);
     }
   };
@@ -134,7 +155,8 @@ function AdminLogin() {
           placeholder="Password"
           className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary"
         />
-        {error && <p className="text-sm text-primary">{error}</p>}
+        {error && <p role="status" className="text-sm text-primary">{error}</p>}
+        <button type="button" disabled={loading} className="btn-outline w-full" onClick={() => void requestReset()}>Forgot password?</button>
         <button type="submit" disabled={loading} className="btn-primary w-full">
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
@@ -143,15 +165,13 @@ function AdminLogin() {
   );
 }
 
-const ADMIN_VIEWS = ['dashboard', 'orders', 'products', 'collections', 'inventory', 'promos', 'reviews', 'history', 'team'] as const;
-type AdminView = typeof ADMIN_VIEWS[number];
 
 function AdminPanel({ role }: { role: StoreAdminRole }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedView = searchParams.get('section');
-  const view: AdminView = ADMIN_VIEWS.includes(requestedView as AdminView) && (requestedView !== 'team' || role === 'owner')
+  const view: AdminView = ADMIN_VIEWS.includes(requestedView as AdminView) && permittedViews(role).includes(requestedView as AdminView)
     ? requestedView as AdminView
-    : 'orders';
+    : role === 'staff' ? 'inventory' : 'orders';
   const setView = (next: AdminView) => {
     if (next !== view && window.dispatchEvent(new Event(ADMIN_LEAVE_EVENT, { cancelable: true }))) setSearchParams({ section: next });
   };
@@ -164,7 +184,7 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
     if (error) setSignOutError('Could not sign out. Please try again.');
   };
 
-  const visibleViews = role === 'owner' ? ADMIN_VIEWS : ADMIN_VIEWS.filter((item) => item !== 'team');
+  const visibleViews = permittedViews(role);
 
   return (
     <section className="admin-comic min-h-screen bg-background px-4 py-6 sm:px-6 lg:py-8">
@@ -208,7 +228,8 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
         {view === 'orders' && <AdminOrders />}
         {view === 'products' && <AdminProducts />}
         {view === 'collections' && <AdminCollections />}
-        {view === 'inventory' && <AdminInventory />}
+        {view === 'inventory' && (role === 'staff' ? <StaffInventory /> : <AdminInventory />)}
+        {view === 'account' && <AdminAccount />}
         {view === 'promos' && <AdminPromos />}
         {view === 'reviews' && <AdminReviews />}
         {view === 'dashboard' && <AdminDashboard onViewOrders={() => setView('orders')} />}

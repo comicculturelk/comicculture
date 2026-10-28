@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 
-export type StoreAdminRole = 'owner' | 'admin';
+import type { StoreAdminRole } from '../lib/adminPermissions';
+export type { StoreAdminRole } from '../lib/adminPermissions';
 
 export interface StoreAdmin {
   user_id: string;
@@ -26,7 +27,7 @@ export interface AdminActivity {
 export async function getStoreAdminRole(): Promise<StoreAdminRole | null> {
   const { data, error } = await supabaseAdmin.rpc('get_store_admin_role');
   if (error) throw new Error(error.message);
-  return data === 'owner' || data === 'admin' ? data : null;
+  return data === 'owner' || data === 'admin' || data === 'staff' ? data : null;
 }
 
 export async function listStoreAdmins(): Promise<StoreAdmin[]> {

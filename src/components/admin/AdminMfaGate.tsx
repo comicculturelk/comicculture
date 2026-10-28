@@ -13,6 +13,7 @@ export default function AdminMfaGate({ accessToken, children }: { accessToken: s
 
   useEffect(() => {
     let cancelled = false;
+    setVerified(false); setChecking(true);
     Promise.all([supabaseAdmin.auth.mfa.getAuthenticatorAssuranceLevel(), supabaseAdmin.auth.mfa.listFactors()])
       .then(([level, factors]) => {
         if (cancelled) return;
