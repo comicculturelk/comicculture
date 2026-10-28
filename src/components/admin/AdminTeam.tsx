@@ -150,7 +150,7 @@ export default function AdminTeam() {
           disabled={saving}
           className="btn-primary px-4 py-2 text-sm"
         >
-          {saving ? "Saving…" : "Grant access"}
+          {saving ? "Saving…" : mode === "invite" ? "Send invitation" : "Save access"}
         </button>
         {error && (
           <p role="alert" className="text-sm text-primary sm:col-span-3">
