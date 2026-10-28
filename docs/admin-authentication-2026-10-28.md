@@ -2,7 +2,7 @@
 
 ## Status and audit
 
-Original audit below describes the local implementation. The owner subsequently authorized setup through the connected dashboards/plugins. **Backend setup is now active; frontend release and SMTP activation are waiting for the queued DNS migration.** Existing owner membership and MFA remain untouched. No invitation email, real order or customer-data write has been made.
+Original audit below describes the local implementation. The owner subsequently authorized setup through the connected dashboards/plugins. **Backend setup, DNS migration and custom SMTP are active. The email domain is verified; frontend release verification is in progress.** Existing owner membership and MFA remain untouched. No invitation email, real order or customer-data write has been made.
 
 ### Release progress and resume instructions
 
@@ -13,8 +13,8 @@ Original audit below describes the local implementation. The owner subsequently 
 - Custom SMTP was off and Resend had no verified domain. Added `auth.comicculture.lk` to the existing ComicCulture Resend account (domain ID `3e836de1-c322-4bd6-91d3-bcb6a39c1a00`, Tokyo). It is still pending verification. No new email API key has been created yet; the owner approved creating a sending-only, domain-restricted key when setup can proceed. Keep it out of chat, source and logs.
 - The LK registry rejected the standard DKIM underscore in its resource-record form. That attempted three-record update did NOT take effect. The owner then explicitly authorized moving DNS hosting to Cloudflare with all existing records preserved.
 - Created a Free Cloudflare zone in the ComicCulture account: zone `2ba58361d6e6749c459d7fdfb7374139`; nameservers `ace.ns.cloudflare.com` and `mary.ns.cloudflare.com`. Copied all five existing root A, www CNAME, MX, SPF and Google verification records and added the three Resend TXT/CNAME records. DNS-only mode is retained; no website proxy was enabled. See `docs/dns-migration-2026-10-28.json` for the exact backup and new record set. No previous customer mail record was overwritten. Public validated DNS lookup found no DS delegation record before the change.
-- The owner completed the registry OTP directly. The subsequent nameserver change was accepted by domains.lk and is **queued for processing**. Cloudflare still reports pending and public DNS has not switched. A registry screenshot is saved with the handover artifacts. Do not mistake this for completed propagation.
-- The owner chose **I’ll ask you to continue later**. No scheduled monitoring or automation was created. The frontend has NOT been merged into production main or deployed. Custom SMTP remains off so existing limited Auth email delivery is not switched to an unverified sender.
+- The registry nameserver change is now active. Cloudflare API and public DNS confirm ace.ns.cloudflare.com and mary.ns.cloudflare.com. Resend shows auth.comicculture.lk Verified, with SPF CNAME and DKIM validated. Public website returned HTTP 200; existing MX and copied records remain intact.
+- No scheduled monitoring was created. The owner returned with Cloudflare activation confirmation and setup resumed. A sending-only key restricted to auth.comicculture.lk was created in Resend; its value was never logged or written to source. The browser redacts this value, so the owner must transfer it privately to the prepared Supabase SMTP form. Frontend main has not yet been updated.
 - Resume: inspect registry delegation and Cloudflare zone activation; confirm all copied records/public website/MX survive; wait for Resend verification. Do not recreate the existing zone or domain. Then create the approved domain-restricted sending-only Resend key, store it only as the Supabase SMTP password (smtp.resend.com, port 465, username resend; branded sender under auth.comicculture.lk), and verify email sending with an owner-approved recipient. Check Auth templates use ConfirmationURL and exact redirects. Have human testers complete their own password/MFA flows. Only then merge/release the frontend and smoke-test owner access, Team, storefront and checkout. No paid plan, DNSSEC change or additional access grant is authorized merely by these notes.
 
 
@@ -71,9 +71,9 @@ With every factor lost: identity-check the person outside email alone, deactivat
 
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
-- `npm run test:admin`: 22 passed (including 8 new tests counting their parent suites).
+- `npm run test:admin`: 23 passed, including an SDK-level callback/session isolation regression.
 - `npm run test:security`: 18 passed.
-- `npm run test:seo`: production build and 5 tests passed. Total 45 automated tests.
+- `npm run test:seo`: production build and 5 tests passed. Total 46 automated tests.
 - New tests execute the migration in isolated PGlite and use synthetic requests with mocked Auth/email. They cover existing owner preservation, independent member activation, mandatory MFA claims, uninvited access, metadata manipulation, Staff limits, null roles, self-demotion prevention, deactivation with old claims, expired/cancelled invitations, anonymous denials, authenticated invitation endpoint checks and fixed redirects. They do NOT claim to cryptographically test actual TOTP/password/email expiry on hosted Auth.
 - Existing inventory/catalog/order transaction tests and checkout/SEO regressions pass. No real order, stock mutation, customer receipt or notification was created.
 - Browser: actual local admin login rendered at desktop (1280 x 720) and mobile (375 x 812); mobile document width matched viewport with no horizontal overflow. Forgot-password with no email displayed guidance without sending anything. No live credentials were entered. Authenticated Team/Account/password-callback views have not been visually verified with staging credentials; complete those tests before production release.
@@ -89,3 +89,11 @@ References: [Supabase invitations](https://supabase.com/docs/reference/javascrip
 Modified: src/pages/Admin.tsx; src/data/admin.ts; src/components/admin/AdminMfaGate.tsx; src/components/admin/AdminTeam.tsx; tsconfig.node.json.
 Added: src/lib/adminPermissions.ts; src/components/admin/AdminAccount.tsx; src/components/admin/AdminPassword.tsx; src/components/admin/StaffInventory.tsx; supabase/functions/admin-invite/index.ts; supabase/functions/admin-invite/handler.ts; supabase/functions/admin-invite/deno.json; supabase/migrations/20261028060247_multi_user_admin_onboarding.sql; tests/admin-auth.test.mjs; this report.
 Deleted: none. No dependency changes. Complete source files remain in the local working tree and the accompanying source ZIP, excluding environment files and credentials.
+
+### Final-release callback correction
+
+The public storefront client previously used SDK defaults that detect authentication URL fragments. Because the admin page is lazy-loaded, this client could consume an invitation before the admin client initialized. Public shopping now explicitly disables URL-session detection, session persistence and token refresh. The separate admin client still handles authentication normally. A synthetic SDK runtime test verifies no callback consumption, stored-auth-session access or network call occurs in the public client.
+
+### SMTP activation
+
+Resend key ComicCulture Supabase Auth was created with sending-only permission restricted to auth.comicculture.lk. The owner transferred it directly into Supabase SMTP because the browser redacts credentials. After reloading, custom SMTP is confirmed enabled with smtp.resend.com, port 465, ComicCulture sender name, and a stored hidden password. No key value is in source, chat output or local files. A delivery-test permission request is pending; no password-reset test has yet been sent.

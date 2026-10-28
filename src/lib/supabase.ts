@@ -9,4 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Shopping is anonymous. Only the separate admin client may consume auth links
+// or retain a signed-in session; otherwise it can steal an invite's URL fragment.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { detectSessionInUrl: false, persistSession: false, autoRefreshToken: false },
+});

@@ -283,3 +283,29 @@ test("invitation endpoint authorizes before service role use and fixes redirect 
     401,
   );
 });
+
+
+test('the public SDK client leaves admin callback links and persisted sessions alone', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const source = read('../src/lib/supabase.ts')
+    .replace(/import\.meta\.env\.VITE_SUPABASE_URL/g, JSON.stringify('https://synthetic.example.invalid'))
+    .replace(/import\.meta\.env\.VITE_SUPABASE_ANON_KEY/g, JSON.stringify('synthetic-public-key'))
+    .replace("'@supabase/supabase-js'", JSON.stringify(import.meta.resolve('@supabase/supabase-js')));
+  const emitted = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(emitted).toString('base64');
+  const probe = `
+    import assert from 'node:assert/strict';
+    let network=0,storage=0,rewrites=0;
+    const hash='#access_token=synthetic-access&refresh_token=synthetic-refresh&type=invite&token_type=bearer&expires_in=3600';
+    globalThis.window={location:{href:'https://store.example.invalid/admin?auth=invite'+hash,hash},history:{replaceState(){rewrites++;}},addEventListener(){},removeEventListener(){}};
+    globalThis.document={visibilityState:'visible',addEventListener(){},removeEventListener(){}};
+    globalThis.localStorage={getItem(key){if(key.includes('auth-token'))storage++;return null;},setItem(key){if(key.includes('auth-token'))storage++;},removeItem(key){if(key.includes('auth-token'))storage++;}};
+    globalThis.fetch=async()=>{network++;throw Error('No network is permitted');};
+    const {supabase}=await import(${JSON.stringify(moduleUrl)});
+    const {data,error}=await supabase.auth.getSession();
+    assert.equal(error,null);assert.equal(data.session,null);assert.equal(network,0);assert.equal(storage,0);assert.equal(rewrites,0);assert.equal(window.location.hash,hash);
+    process.exit(0);
+  `;
+  const result=spawnSync(process.execPath,['--input-type=module','-e',probe],{encoding:'utf8',timeout:10000});
+  assert.equal(result.status,0,result.stderr || result.error?.message);
+});
