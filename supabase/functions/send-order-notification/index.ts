@@ -16,6 +16,7 @@
 //   RESEND_API_KEY          - Resend API key
 //   RESEND_FROM_EMAIL       - verified sender, e.g. "ComicCulture <orders@yourdomain.com>"
 //   ADMIN_NOTIFICATION_EMAIL - comma-separated recipient list
+//   RESEND_REPLY_TO_EMAIL   - optional monitored customer support address
 
 import { createClient } from 'npm:@supabase/supabase-js@2.108.2';
 
@@ -45,6 +46,7 @@ interface OrderRow {
   district: string;
   postal_code: string | null;
   payment_method: string | null;
+  payment_status: string | null;
   subtotal: number;
   delivery_fee: number;
   total: number;
@@ -137,6 +139,7 @@ async function sendViaResend(
         'Content-Type': 'application/json',
         'Idempotency-Key': idempotencyKey,
       },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         from: fromEmail,
         to: params.to,
@@ -297,6 +300,7 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
   // yet, so this never breaks a deploy that hasn't added it.
   const siteUrl = (Deno.env.get('SITE_URL') || 'https://comicculture.lk').replace(/\/$/, '');
   const trackOrderUrl = `${siteUrl}/track-order`;
+  const awaitingVerification = order.payment_method === 'BANK_TRANSFER' && order.payment_status !== 'paid';
 
   const itemsRows = order.order_items
     .map((item) => {
@@ -355,8 +359,8 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
             <tr>
               <td style="background-color:${primary};padding:36px 32px;text-align:center;">
                 <p style="margin:0;color:#FFFFFF;font-size:12px;letter-spacing:4px;text-transform:uppercase;opacity:0.85;">ComicCulture</p>
-                <h1 style="margin:10px 0 0;color:#FFFFFF;font-size:24px;letter-spacing:0.5px;">Order Confirmed</h1>
-                <p style="margin:6px 0 0;color:#FFFFFF;font-size:13px;opacity:0.85;">Issue No. ${escapeHtml(order.order_reference)} is officially yours.</p>
+                <h1 style="margin:10px 0 0;color:#FFFFFF;font-size:24px;letter-spacing:0.5px;">${awaitingVerification ? 'Order Received' : 'Order Confirmed'}</h1>
+                <p style="margin:6px 0 0;color:#FFFFFF;font-size:13px;opacity:0.85;">Order ${escapeHtml(order.order_reference)}</p>
               </td>
             </tr>
 
@@ -364,9 +368,11 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
               <td style="padding:32px 32px 0;">
                 <p style="margin:0;color:${foreground};font-size:15px;line-height:1.6;">Hi ${firstName},</p>
                 <p style="margin:10px 0 0;color:${muted};font-size:14px;line-height:1.6;">
-                  Thanks for adding to the collection. Your order is confirmed and already moving through
-                  our hands for prep — every piece is checked before it ships, so give us a little time to
-                  get it right.
+                  ${awaitingVerification
+                    ? 'Thank you for your order. Payment verification required: we will review your bank-transfer receipt before preparing your order. You can check its status using the tracking link below.'
+                    : order.payment_method === 'COD'
+                      ? 'Thank you for your order. Your order has been received. Pay in cash when it arrives; no online payment has been collected.'
+                      : 'Thank you for your order. Your payment has been verified. You can check your order status using the tracking link below.'}
                 </p>
               </td>
             </tr>
@@ -378,7 +384,7 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
                     <td style="padding:18px 20px;text-align:center;">
                       <p style="margin:0;color:${mutedForeground};font-size:10px;letter-spacing:3px;text-transform:uppercase;">Issue No.</p>
                       <p style="margin:4px 0 0;color:${foreground};font-size:20px;font-weight:700;letter-spacing:1px;font-family:'Courier New',Courier,monospace;">${escapeHtml(order.order_reference)}</p>
-                      <p style="margin:6px 0 0;color:${mutedForeground};font-size:12px;">Confirmed ${formatDate(order.created_at)}</p>
+                      <p style="margin:6px 0 0;color:${mutedForeground};font-size:12px;">Received ${formatDate(order.created_at)}</p>
                     </td>
                   </tr>
                 </table>
@@ -461,8 +467,9 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
                     <td style="padding:16px 20px;">
                       <p style="margin:0 0 4px;color:${foreground};font-size:13px;font-weight:600;">Shipping &amp; Fulfillment</p>
                       <p style="margin:0;color:${muted};font-size:13px;line-height:1.6;">
-                        Your order is being prepared for dispatch. We'll follow up with tracking details
-                        as soon as it's on its way to you.
+                        ${awaitingVerification
+                          ? 'Preparation begins after payment verification. Check your order status for updates.'
+                          : 'Check your order status for delivery updates.'}
                       </p>
                     </td>
                   </tr>
@@ -595,9 +602,9 @@ Deno.serve(async (req: Request) => {
       const customerResult = await sendViaResend(
         {
           to: [typedOrder.email],
-          subject: `ComicCulture Order Confirmed — ${typedOrder.order_reference}`,
+          subject: `ComicCulture Order ${typedOrder.payment_method === 'BANK_TRANSFER' && typedOrder.payment_status !== 'paid' ? 'Received' : 'Confirmed'} — ${typedOrder.order_reference}`,
           html: buildCustomerConfirmationHtml(typedOrder),
-          replyTo: adminEmails[0],
+          replyTo: Deno.env.get('RESEND_REPLY_TO_EMAIL') || adminEmails[0],
         },
         resendApiKey,
         fromEmail,
