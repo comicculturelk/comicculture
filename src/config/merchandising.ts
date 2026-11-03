@@ -1,4 +1,6 @@
-// Update this small editorial slot for each launch; product price, stock and
+export const HERO_ROTATION_INTERVAL_MS = 6000;
+
+// Update this small editorial slot for each launch; product stock and
 // photography always come from the existing catalog. No sale/stock claims.
 export const FEATURED_LAUNCH: {
   productSlug: string;
