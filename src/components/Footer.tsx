@@ -10,6 +10,7 @@ const infoLinks = [
   { label: 'Delivery information', to: '/delivery' },
   { label: 'Return & Exchange Policy', to: '/return-policy' },
   { label: 'Terms & Conditions', to: '/terms-and-conditions' },
+  { label: 'Privacy policy', to: '/privacy-policy' },
 ];
 
 export default function Footer() {

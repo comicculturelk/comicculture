@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Instagram, MessageCircle, Mail, MapPin, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { STORE_CONFIG } from '../config/store';
 
 const contactMethods = [
   {
@@ -20,8 +21,8 @@ const contactMethods = [
   {
     icon: Mail,
     label: 'Email',
-    value: 'comicculturelk@gmail.com',
-    href: 'mailto:comicculturelk@gmail.com',
+    value: STORE_CONFIG.supportEmail,
+    href: `mailto:${STORE_CONFIG.supportEmail}`,
     gradient: 'bg-secondary',
   },
 ];

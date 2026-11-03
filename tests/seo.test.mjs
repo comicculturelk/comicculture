@@ -75,6 +75,14 @@ test('catalog text cannot inject markup or terminate a structured-data script', 
   assert.equal(productSeo(unsafe).description, unsafe.description);
 });
 
+test('privacy deep links serve the full notice without JavaScript', () => {
+  const page = buildSeoPage('/privacy-policy');
+  assert.equal(page.status, 200);
+  assert.match(page.head, /rel="canonical" href="https:\/\/comicculture.lk\/privacy-policy"/);
+  assert.match(page.content, /Payment receipts are kept in private storage/);
+  assert.match(page.content, /mailto:comicculturelk@gmail.com/);
+});
+
 test('preorder schema does not promise ordinary dispatch; inactive variants are excluded', () => {
   const preorder = structuredClone(product);
   preorder.versions[0].isPreorder = true;

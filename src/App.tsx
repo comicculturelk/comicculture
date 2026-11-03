@@ -15,6 +15,7 @@ const Shop = lazy(() => import('./pages/Shop'));
 const Product = lazy(() => import('./pages/Product'));
 const About = lazy(() => import('./pages/About'));
 const Delivery = lazy(() => import('./pages/Delivery'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 const FAQ = lazy(() => import('./pages/FAQ'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Checkout = lazy(() => import('./pages/Checkout'));
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="/collections/:slug" element={<CollectionPage />} />
               <Route path="/about" element={<About />} />
               <Route path="/delivery" element={<Delivery />} />
+              <Route path="/privacy-policy" element={<Privacy />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/checkout" element={<Checkout />} />

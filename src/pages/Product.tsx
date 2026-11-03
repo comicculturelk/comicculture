@@ -12,8 +12,9 @@ import {
   Plus,
   X,
   Ruler,
+  ZoomIn,
 } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
 import { useProduct } from '../hooks/useProduct';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
@@ -50,6 +51,7 @@ function pickDefaultVersion(product: ProductType): ProductVersion | undefined {
 }
 
 type AccordionKey = 'story' | 'details' | 'care' | 'shipping';
+const ProductImageViewer = lazy(() => import('../components/ProductImageViewer'));
 
 export default function Product() {
   const mobileLayout = useMediaQuery('(max-width: 767px)');
@@ -64,6 +66,7 @@ export default function Product() {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
   const [openSection, setOpenSection] = useState<AccordionKey | null>(null);
   const [collectionName, setCollectionName] = useState('');
   const [collectionSlug, setCollectionSlug] = useState<string | null>(null);
@@ -84,6 +87,7 @@ export default function Product() {
       setActiveImage(defaultVersion?.images?.[0] ?? product.image);
       setSelectedSize(defaultVersion?.sizes.find((size) => size.id === variantId)?.size ?? '');
       setQuantity(1);
+      setShowImageViewer(false);
     }
   }, [product, variantId]);
 
@@ -202,6 +206,7 @@ export default function Product() {
     setSelectedSize('');
     setQuantity(1);
     setShowSizeGuide(false);
+    setShowImageViewer(false);
   };
 
   const focusSizes = () => {
@@ -283,6 +288,13 @@ export default function Product() {
           {/* Product image gallery */}
           <div className="product-gallery w-full min-w-0 lg:sticky lg:top-24 lg:self-start">
             <div className="product-gallery-frame relative aspect-[4/5] overflow-hidden bg-[#f1f2f4]">
+              <button
+                type="button"
+                onClick={() => setShowImageViewer(true)}
+                aria-label={`Enlarge image ${currentImageIndex + 1} of ${product.name}`}
+                aria-haspopup="dialog"
+                className="block h-full w-full cursor-zoom-in focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-primary"
+              >
               <motion.img
                 key={displayedImage}
                 src={displayedImage}
@@ -298,6 +310,10 @@ export default function Product() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
               />
+                <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full border border-border bg-white/95 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
+                  <ZoomIn aria-hidden="true" className="h-4 w-4" /> Tap to zoom
+                </span>
+              </button>
 
               {/* Editorial corner accents */}
 
@@ -676,6 +692,16 @@ export default function Product() {
       )}
 
     </section>
+
+      {showImageViewer && <Suspense fallback={null}>
+        <ProductImageViewer
+          images={galleryImages}
+          index={currentImageIndex}
+          productName={product.name}
+          onClose={() => setShowImageViewer(false)}
+          onIndexChange={(imageIndex) => setActiveImage(galleryImages[imageIndex])}
+        />
+      </Suspense>}
 
       {/* Size guide modal */}
       <AnimatePresence>

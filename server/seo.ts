@@ -1,4 +1,6 @@
 import type { Catalog } from './catalog.js';
+import { PRIVACY_SECTIONS, PRIVACY_UPDATED_ON } from '../src/config/privacy.js';
+import { STORE_CONFIG } from '../src/config/store.js';
 import { SITE_URL, STATIC_SEO, STORE_SCHEMA, UTILITY_PATHS, productSeo, collectionSeo, productSchema, breadcrumbs, isIndexableProduct } from '../src/lib/seo.js';
 
 export const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
@@ -40,6 +42,9 @@ export function buildSeoPage(path: string, catalog: Catalog = { products: [], co
   } else if (path === '/' || path === '/shop') {
     schema = [STORE_SCHEMA, { '@context': 'https://schema.org', '@type': 'WebSite', '@id': `${SITE_URL}/#website`, name: 'ComicCulture', url: `${SITE_URL}/` }];
     content = `<h1>${escapeHtml(metadata.title.split(' | ')[0])}</h1><p>${escapeHtml(metadata.description)}</p>${list(products)}<h2>Collections</h2><ul>${catalog.collections.filter((c) => c.status === 'live').map((c) => `<li><a href="/collections/${escapeHtml(c.slug)}">${escapeHtml(c.name)}</a></li>`).join('')}</ul>`;
+  }
+  if (path === '/privacy-policy') {
+    content = `<h1>Privacy policy</h1><p>Last updated: ${escapeHtml(PRIVACY_UPDATED_ON)}</p>${PRIVACY_SECTIONS.map((section) => `<section><h2>${escapeHtml(section.title)}</h2>${section.paragraphs.map((text) => `<p>${escapeHtml(text)}</p>`).join('')}</section>`).join('')}<p>Privacy contact: <a href="mailto:${escapeHtml(STORE_CONFIG.supportEmail)}">${escapeHtml(STORE_CONFIG.supportEmail)}</a></p>`;
   }
   if (isUtilityPath(path)) metadata = { title: 'ComicCulture', description: 'ComicCulture shopping and order support.' };
   if (!metadata) {

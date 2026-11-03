@@ -808,6 +808,10 @@ export default function Checkout() {
               </Link>
               .
             </p>
+            <p className="text-center text-xs text-muted-foreground">
+              See how we handle your details in our{' '}
+              <Link to="/privacy-policy" className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Privacy policy</Link>.
+            </p>
           </motion.div>
         </form>
       </div>

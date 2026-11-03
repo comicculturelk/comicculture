@@ -3,6 +3,7 @@
 // are unaffected since delivery_fee is snapshotted per-order at checkout
 // time (see src/data/orders.ts / orders.delivery_fee column).
 export const STORE_CONFIG = {
+  supportEmail: 'comicculturelk@gmail.com',
   deliveryFee: 350,
   currency: 'LKR',
   // Published estimates, shared by the product page, FAQ and checkout.

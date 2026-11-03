@@ -15,6 +15,7 @@ export const STATIC_SEO: Record<string, { title: string; description: string }> 
   '/faq': { title: 'Ordering, Sizing & Delivery FAQ | ComicCulture', description: 'Answers to common questions about ComicCulture sizing, payments, delivery in Sri Lanka, and returns.' },
   '/contact': { title: 'Contact ComicCulture | Order & Product Help', description: 'Contact ComicCulture for help with products, sizing, and existing orders in Sri Lanka.' },
   '/delivery': { title: 'Delivery information | ComicCulture', description: 'Delivery fees, dispatch information and pre-order guidance for ComicCulture orders in Sri Lanka.' },
+  '/privacy-policy': { title: 'Privacy policy | ComicCulture', description: 'How ComicCulture handles order details, payment receipts, browser storage and privacy requests.' },
   '/return-policy': { title: 'Return & Exchange Policy | ComicCulture', description: 'Read the ComicCulture return and exchange policy, including sizing exchanges, damaged items, and return delivery charges.' },
   '/terms-and-conditions': { title: 'Terms & Conditions | ComicCulture', description: 'Read the terms and conditions for shopping with ComicCulture in Sri Lanka.' },
 };
