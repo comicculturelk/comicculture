@@ -77,7 +77,7 @@ export default function Hero({ collections, products, loading = false }: HeroPro
           ))}
         </div>
         <div className="min-w-0 md:order-1">
-          <div className="grid min-h-[17rem] items-center sm:min-h-[18rem] lg:min-h-[20rem]">
+          <div className="grid min-h-[14rem] items-start sm:min-h-[18rem] sm:items-center lg:min-h-[20rem]">
             <AnimatePresence initial={false} mode="wait">
               <motion.div
                 key={current?.key ?? 'loading'}
@@ -94,8 +94,8 @@ export default function Hero({ collections, products, loading = false }: HeroPro
             </AnimatePresence>
           </div>
           {slides.length > 1 && <div className="mt-5 flex max-w-xs items-center justify-between gap-4">
-            <p aria-live="off" className="text-xs tabular-nums text-muted">{currentIndex + 1} / {slides.length} · Featured collections</p>
-            <div className="flex gap-2">
+            <p aria-live="off" className="whitespace-nowrap text-xs tabular-nums text-muted">{currentIndex + 1} / {slides.length} · <span className="hidden sm:inline">Featured </span><span className="sm:lowercase">Collections</span></p>
+            <div className="flex shrink-0 gap-2">
               {!reduceMotion && <button type="button" aria-label={rotationPaused ? 'Resume automatic rotation' : 'Pause automatic rotation'} className="icon-button border border-border" onClick={() => setRotationPaused((paused) => !paused)}>
                 {rotationPaused ? <Play aria-hidden="true" className="h-4 w-4" /> : <Pause aria-hidden="true" className="h-4 w-4" />}
               </button>}
