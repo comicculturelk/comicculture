@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface HeroFocusPickerProps {
   hint: string;
+  overlay?: number;
+  previewDevice?: 'desktop' | 'mobile';
+  previewTitle?: string;
   /** Collection cover image URL, or null to show the empty state. */
   image: string | null;
   /** Current stored object-position value, e.g. "50% center", "70% center", or "50% 30%". */
@@ -49,6 +52,9 @@ function parsePercent(value: string): [number, number] {
  */
 export default function HeroFocusPicker({
   hint,
+  overlay,
+  previewDevice,
+  previewTitle,
   image,
   value,
   onChange,
@@ -106,7 +112,10 @@ export default function HeroFocusPicker({
 
   useEffect(() => {
     updateOverflow();
-  }, [updateOverflow, viewportAspect]);
+    const observer = new ResizeObserver(updateOverflow);
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [updateOverflow, viewportAspect, image]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const overflowPx = computeOverflowPx();
@@ -157,7 +166,7 @@ export default function HeroFocusPicker({
         onLostPointerCapture={endDrag}
         aria-hidden="true"
         style={boxStyle}
-        className={`relative touch-none select-none overflow-hidden rounded-lg border border-border ${
+        className={`banner-preview-${previewDevice ?? 'card'} relative touch-none select-none overflow-hidden rounded-lg border border-border ${
           dragging ? 'cursor-grabbing' : overflow.x > 0 || overflow.y > 0 ? 'cursor-grab' : 'cursor-not-allowed'
         } ${boxClassName}`}
       >
@@ -170,6 +179,8 @@ export default function HeroFocusPicker({
           className="h-full w-full object-cover"
           style={{ objectPosition: `${positionX}% ${positionY}%` }}
         />
+        {overlay !== undefined && <div className="banner-shade absolute inset-0 pointer-events-none" style={{ opacity: overlay / 100 }} />}
+        {previewTitle && <div className="banner-text-protection absolute bottom-4 left-4 right-4 rounded-xl p-3 pointer-events-none font-display text-xl text-white [text-shadow:0_2px_4px_black]">{previewTitle}<span className="block font-sans text-xs">Explore the collection →</span></div>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
@@ -179,7 +190,7 @@ export default function HeroFocusPicker({
             min="0"
             max="100"
             value={positionX}
-            disabled={overflow.x <= 0}
+
             aria-label="Horizontal image focus"
             onChange={(event) => onChange(`${event.target.value}% ${positionY}%`)}
             className="w-full accent-primary disabled:opacity-40"
@@ -192,13 +203,14 @@ export default function HeroFocusPicker({
             min="0"
             max="100"
             value={positionY}
-            disabled={overflow.y <= 0}
+
             aria-label="Vertical image focus"
             onChange={(event) => onChange(`${positionX}% ${event.target.value}%`)}
             className="w-full accent-primary disabled:opacity-40"
           />
         </label>
       </div>
+      <button type="button" onClick={() => onChange('50% 50%')} className="self-start text-xs text-primary underline">Reset to center</button>
       <p className="text-[11px] text-muted-foreground">
         {overflow.x > 0 || overflow.y > 0 ? hint : 'This image fills the preview at this ratio, so there is no crop to adjust.'}
       </p>

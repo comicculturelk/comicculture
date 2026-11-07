@@ -33,6 +33,7 @@ export async function fetchCatalog() {
   ]);
   const collections: Collection[] = collectionRows.map((row) => ({ ...row,
     coverImage: row.cover_image, sortOrder: row.sort_order, createdAt: row.created_at,
+    bannerDesktop: null, bannerMobile: null, bannerOverlay: 55, homepageVisible: true, homepageOrder: row.sort_order,
     heroFocusDesktop: null, heroFocusMobile: null, cardFocus: null,
   }));
   const products: Product[] = productRows.map((row) => ({ ...row,

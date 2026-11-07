@@ -80,7 +80,7 @@ export default function Home() {
         jsonLd={[{ id: 'store', data: STORE_SCHEMA }, { id: 'website', data: { '@context': 'https://schema.org', '@type': 'WebSite', name: 'ComicCulture', url: `${SITE_URL}/` } }]}
         image={`${SITE_URL}/images/logo/comicculture-logo.png`}
       />
-      <Hero collections={collections} products={newestFirstProducts} loading={collectionsLoading || productsLoading} />
+      <Hero collections={collections} loading={collectionsLoading} />
       {arrivalsSection}
       <BrandStory />
       {collectionsSection}

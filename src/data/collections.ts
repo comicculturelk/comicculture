@@ -12,6 +12,11 @@ export interface Collection {
   tagline: string | null;
   description: string | null;
   coverImage: string | null;
+  bannerDesktop: string | null;
+  bannerMobile: string | null;
+  bannerOverlay: number;
+  homepageVisible: boolean;
+  homepageOrder: number;
   /** CSS object-position value for the hero image at desktop widths, e.g. "70% center". Null uses the default centered crop. */
   heroFocusDesktop: string | null;
   /** CSS object-position value for the hero image at mobile/tablet widths. Null uses the default centered crop. */
@@ -31,6 +36,11 @@ interface CollectionRow {
   tagline: string | null;
   description: string | null;
   cover_image: string | null;
+  banner_desktop?: string | null;
+  banner_mobile?: string | null;
+  banner_overlay?: number;
+  homepage_visible?: boolean;
+  homepage_order?: number;
   hero_focus_desktop: string | null;
   hero_focus_mobile: string | null;
   card_focus: string | null;
@@ -47,6 +57,11 @@ function mapRowToCollection(row: CollectionRow): Collection {
     tagline: row.tagline,
     description: row.description,
     coverImage: row.cover_image,
+    bannerDesktop: row.banner_desktop ?? null,
+    bannerMobile: row.banner_mobile ?? null,
+    bannerOverlay: row.banner_overlay ?? 55,
+    homepageVisible: row.homepage_visible ?? true,
+    homepageOrder: row.homepage_order ?? row.sort_order,
     heroFocusDesktop: row.hero_focus_desktop,
     heroFocusMobile: row.hero_focus_mobile,
     cardFocus: row.card_focus,
@@ -108,6 +123,11 @@ export interface CollectionInput {
   tagline?: string | null;
   description?: string | null;
   coverImage?: string | null;
+  bannerDesktop?: string | null;
+  bannerMobile?: string | null;
+  bannerOverlay?: number;
+  homepageVisible?: boolean;
+  homepageOrder?: number;
   heroFocusDesktop?: string | null;
   heroFocusMobile?: string | null;
   cardFocus?: string | null;
@@ -116,12 +136,23 @@ export interface CollectionInput {
 }
 
 function mapCollectionInputToRow(input: CollectionInput) {
+  if (!Number.isInteger(input.bannerOverlay ?? 55) || (input.bannerOverlay ?? 55) < 0 || (input.bannerOverlay ?? 55) > 100) {
+    throw new Error('Banner overlay must be between 0 and 100.');
+  }
+  if (!Number.isInteger(input.homepageOrder ?? 0) || (input.homepageOrder ?? 0) < 0 || (input.homepageOrder ?? 0) > 2147483647) {
+    throw new Error('Homepage order must be a non-negative whole number up to 2147483647.');
+  }
   return {
     name: input.name,
     slug: input.slug,
     tagline: input.tagline ?? null,
     description: input.description ?? null,
     cover_image: input.coverImage ?? null,
+    banner_desktop: input.bannerDesktop ?? null,
+    banner_mobile: input.bannerMobile ?? null,
+    banner_overlay: input.bannerOverlay ?? 55,
+    homepage_visible: input.homepageVisible ?? true,
+    homepage_order: input.homepageOrder ?? 0,
     hero_focus_desktop: input.heroFocusDesktop ?? null,
     hero_focus_mobile: input.heroFocusMobile ?? null,
     card_focus: input.cardFocus ?? null,

@@ -204,9 +204,21 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
     collection ? String(collection.sortOrder) : '0'
   );
 
+  const [banner, setBanner] = useState({
+    bannerDesktop: collection?.bannerDesktop ?? null,
+    bannerMobile: collection?.bannerMobile ?? null,
+    heroFocusDesktop: collection?.heroFocusDesktop || '50% 50%',
+    heroFocusMobile: collection?.heroFocusMobile || '50% 50%',
+    bannerOverlay: collection?.bannerOverlay ?? 55,
+    homepageVisible: collection?.homepageVisible ?? true,
+    homepageOrder: collection?.homepageOrder ?? collection?.sortOrder ?? 0,
+  });
+  const [bannerDesktopBusy, setBannerDesktopBusy] = useState(false);
+  const [bannerMobileBusy, setBannerMobileBusy] = useState(false);
+  const bannerBusy = bannerDesktopBusy || bannerMobileBusy;
   const [submitting, setSubmitting] = useState(false);
   const [imagesBusy, setImagesBusy] = useState(false);
-  const { markDirty, confirmDiscard, errorRef } = useAdminForm(submitting || imagesBusy);
+  const { markDirty, confirmDiscard, errorRef } = useAdminForm(submitting || imagesBusy || bannerBusy);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error, errorRef]);
 
@@ -217,7 +229,7 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (imagesBusy || submitting) return;
+    if (imagesBusy || bannerBusy || submitting) return;
     setError(null);
 
     if (!name.trim()) return setError('Name is required.');
@@ -243,8 +255,7 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
         tagline: tagline.trim() || null,
         description: description.trim() || null,
         coverImage: coverImage.trim() || null,
-        heroFocusDesktop: collection?.heroFocusDesktop ?? null,
-        heroFocusMobile: collection?.heroFocusMobile ?? null,
+        ...banner,
         cardFocus: cardFocus.trim() || null,
         status,
         sortOrder: sortOrderValue,
@@ -346,7 +357,7 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
             value={coverImage || null}
             onChange={(url) => { setCoverImage(url ?? ''); markDirty(); }}
             onBusyChange={setImagesBusy}
-            disabled={submitting || imagesBusy}
+            disabled={submitting || imagesBusy || bannerBusy}
           />
         </div>
 
@@ -365,15 +376,33 @@ function CollectionForm({ mode, collection, onSaved, onCancel }: CollectionFormP
         </div>
       </div>
 
+      <fieldset disabled={submitting || imagesBusy || bannerBusy} className="space-y-5 border-t border-border pt-6">
+        <legend className="font-display text-xl">Homepage Banner</legend>
+        <p className="text-sm text-muted-foreground">Choose a landscape desktop image and optional portrait mobile image (JPG, PNG, WebP or AVIF, up to 10 MB). Without a banner, the collection cover is used. Removing or replacing an image never deletes its stored file.</p>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={banner.homepageVisible} onChange={e => setBanner(b => ({ ...b, homepageVisible: e.target.checked }))} />Show on homepage (live collections only)</label>
+        <label className="block text-sm">Homepage slide order<input aria-label="Homepage slide order" type="number" min="0" max="2147483647" step="1" required className={inputClass()} value={banner.homepageOrder} onChange={e => setBanner(b => ({ ...b, homepageOrder: Number(e.target.value) }))} /></label>
+        <label className="block text-sm">Background overlay strength: {banner.bannerOverlay}%<input aria-label="Background overlay strength" type="range" min="0" max="100" value={banner.bannerOverlay} className="block w-full accent-primary" onChange={e => setBanner(b => ({ ...b, bannerOverlay: Number(e.target.value) }))} /></label>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {(['Desktop', 'Mobile'] as const).map(device => {
+            const imageKey = device === 'Desktop' ? 'bannerDesktop' : 'bannerMobile';
+            const focusKey = device === 'Desktop' ? 'heroFocusDesktop' : 'heroFocusMobile';
+            return <div key={device} className="min-w-0 space-y-3">
+              <CollectionCoverUpload label={`${device} banner${device === 'Mobile' ? ' (optional)' : ''}`} aspectClassName={device === 'Desktop' ? 'aspect-[1440/680]' : 'aspect-[390/640]'} slugHint={`${slug || 'collection'}-banner-${device.toLowerCase()}`} value={banner[imageKey]} onChange={url => { setBanner(b => ({ ...b, [imageKey]: url })); markDirty(); }} onBusyChange={device === 'Desktop' ? setBannerDesktopBusy : setBannerMobileBusy} disabled={submitting || imagesBusy || bannerBusy} />
+              <HeroFocusPicker hint="Drag the image or use the sliders. This shows the homepage crop; other screen shapes may crop differently." image={banner[imageKey] || banner.bannerDesktop || coverImage || null} value={banner[focusKey]} onChange={value => { setBanner(b => ({ ...b, [focusKey]: value })); markDirty(); }} aspectClassName={device === 'Desktop' ? 'aspect-[1440/680]' : 'aspect-[390/640]'} overlay={banner.bannerOverlay} previewDevice={device === 'Desktop' ? 'desktop' : 'mobile'} previewTitle={name || 'Collection title'} />
+            </div>;
+          })}
+        </div>
+      </fieldset>
+      {bannerBusy && <p role="status" className="text-sm text-muted-foreground">Uploading banner. Wait before saving or leaving.</p>}
       {imagesBusy && <p role="status" className="text-sm text-muted-foreground">Uploading or optimizing the cover. Please wait before saving or leaving.</p>}
       <div className="flex flex-wrap items-center gap-3 border-t border-border pt-6">
-        <button type="submit" disabled={submitting || imagesBusy} className="btn-primary px-6 py-2.5 text-sm">
+        <button type="submit" disabled={submitting || imagesBusy || bannerBusy} className="btn-primary px-6 py-2.5 text-sm">
           {submitting ? 'Saving...' : mode === 'create' ? 'Create Collection' : 'Save Changes'}
         </button>
         <button
           type="button"
           onClick={() => { if (confirmDiscard()) onCancel(); }}
-          disabled={submitting || imagesBusy}
+          disabled={submitting || imagesBusy || bannerBusy}
           className="rounded-lg border border-border px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           Cancel

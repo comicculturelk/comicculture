@@ -6,6 +6,8 @@ import { formatImageBytes, optimizeExistingImage } from '../../lib/optimizeImage
 interface CollectionCoverUploadProps {
   /** Used to build a readable storage path (typically the collection's slug). */
   slugHint: string;
+  label?: string;
+  aspectClassName?: string;
   value: string | null;
   onChange: (url: string | null) => void;
   disabled?: boolean;
@@ -19,6 +21,8 @@ interface CollectionCoverUploadProps {
  */
 export default function CollectionCoverUpload({
   slugHint,
+  label = 'Cover Image',
+  aspectClassName = 'aspect-[3/4]',
   value,
   onChange,
   disabled,
@@ -40,10 +44,14 @@ export default function CollectionCoverUpload({
     setUploading(true);
 
     try {
+      if (label !== 'Cover Image' && (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type) || file.size > 10 * 1024 * 1024)) {
+        throw new Error('Choose a JPG, PNG, WebP or AVIF image up to 10 MB.');
+      }
       // Keep the previous object intact until the collection form saves.
       // Cancelling the form must never leave its saved URL broken.
       const newUrl = await uploadCollectionCoverImage(slugHint, file);
       onChange(newUrl);
+      setNotice('Image uploaded. Save the collection to apply it.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload image');
     } finally {
@@ -84,14 +92,14 @@ export default function CollectionCoverUpload({
 
   return (
     <div className="space-y-3">
-      <label className="text-xs uppercase tracking-wide text-muted">Cover Image</label>
+      <label className="text-xs uppercase tracking-wide text-muted">{label}</label>
       <p className="-mt-2 text-xs text-muted-foreground">
         JPEG and PNG covers are resized to 1600px and compressed to WebP before upload.
       </p>
 
       {value ? (
         <div className="group relative w-full max-w-xs overflow-hidden rounded-xl border border-border bg-background">
-          <img src={value} alt="Collection cover" className="aspect-[3/4] w-full object-cover" />
+          <img src={value} alt={label} className={`${aspectClassName} w-full object-cover`} />
 
           <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-background/90 p-2 backdrop-blur-sm opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
             <button
@@ -160,7 +168,7 @@ export default function CollectionCoverUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept={label === 'Cover Image' ? 'image/*' : 'image/jpeg,image/png,image/webp,image/avif'}
         hidden
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
