@@ -4,7 +4,6 @@ interface HeroFocusPickerProps {
   hint: string;
   overlay?: number;
   previewDevice?: 'desktop' | 'mobile';
-  previewTitle?: string;
   /** Collection cover image URL, or null to show the empty state. */
   image: string | null;
   /** Current stored object-position value, e.g. "50% center", "70% center", or "50% 30%". */
@@ -54,7 +53,6 @@ export default function HeroFocusPicker({
   hint,
   overlay,
   previewDevice,
-  previewTitle,
   image,
   value,
   onChange,
@@ -180,7 +178,7 @@ export default function HeroFocusPicker({
           style={{ objectPosition: `${positionX}% ${positionY}%` }}
         />
         {overlay !== undefined && <div className="banner-shade absolute inset-0 pointer-events-none" style={{ opacity: overlay / 100 }} />}
-        {previewTitle && <div className="banner-text-protection absolute bottom-4 left-4 right-4 rounded-xl p-3 pointer-events-none font-display text-xl text-white [text-shadow:0_2px_4px_black]">{previewTitle}<span className="block font-sans text-xs">Explore the collection →</span></div>}
+        {previewDevice && <span aria-hidden="true" className="btn-primary banner-preview-cta pointer-events-none absolute">Explore the collection →</span>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
