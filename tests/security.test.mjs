@@ -59,6 +59,24 @@ test('checkout gateway fails closed and gates writes before the order RPC',async
     assert.equal(forwarded.p_request_id,id);
     assert.ok(!calls.filter(call=>call.url.includes('consume_checkout_attempt')).some(call=>call.body.includes('192.0.2.1')));
   });
+  await t.test('only recognized pricing conflicts become actionable checkout errors', async () => {
+    for (const [dbCode, code, status] of [
+      ['CC001', 'delivery_fee_changed', 409],
+      ['CC002', 'order_total_changed', 409],
+      ['23514', undefined, 400],
+    ]) {
+      const verify = createCheckoutHandler(config, async url => {
+        if (url.includes('consume_checkout_attempt')) return Response.json(true);
+        if (url.includes('siteverify')) return Response.json({success:true, action:'checkout', hostname:'comicculture.lk'});
+        return Response.json({code: dbCode, message: 'Private database details'}, {status: 400});
+      });
+      const result = await verify(request());
+      assert.equal(result.status, status);
+      const body = await result.json();
+      assert.equal(body.code, code);
+      assert.doesNotMatch(body.error, /Private database details/);
+    }
+  });
   await t.test('oversized actual bodies and invalid JSON are rejected',async()=>{
     assert.equal((await handler(new Request(`${origin}/checkout`,{method:'POST',headers:{origin},body:'x'.repeat(65537)}))).status,413);
     assert.equal((await handler(new Request(`${origin}/checkout`,{method:'POST',headers:{origin},body:'{'}))).status,400);
@@ -132,6 +150,7 @@ test('security migrations preserve checkout transactions and enforce role bounda
   await db.exec(promo.slice(promo.indexOf('create or replace function public.preview_promo_code'),promo.lastIndexOf('commit;')));
   const notification=read('../supabase/migrations/20261011030000_secure_order_notifications.sql');
   await db.exec(notification.slice(notification.indexOf('create function public.create_order_with_notification_token'),notification.indexOf('create function public.claim_order_notification')));
+  await db.exec(notification.split(/\r?\n/).filter(line => line.startsWith('revoke all on function public.create_order(')).join('\n'));
   // Only required so the migration can revoke the historical tracking grant.
   await db.exec(`CREATE FUNCTION public.get_order_tracking(text,text,text) RETURNS json LANGUAGE sql AS $$ SELECT NULL::json; $$;`);
   await db.exec(read('../supabase/migrations/20261026114608_security_checkout_boundary.sql'));
@@ -144,7 +163,7 @@ test('security migrations preserve checkout transactions and enforce role bounda
   await t.test('public users cannot call the old checkout, tracking, promo, or new write gateway RPCs',async()=>{
     await login('anon');
     await assert.rejects(submit(),/permission denied/);
-    for(const name of ['submit_checkout','create_order_with_notification_token','get_order_tracking','preview_promo_code']){
+    for(const name of ['submit_checkout','create_order','create_order_with_notification_token','get_order_tracking','preview_promo_code']){
       await db.exec('RESET ROLE');
       const result=await db.query("SELECT has_function_privilege('anon',oid,'EXECUTE') AS allowed FROM pg_proc WHERE proname=$1",[name]);
       assert.ok(result.rows.every(row=>!row.allowed));
@@ -195,5 +214,89 @@ test('security migrations preserve checkout transactions and enforce role bounda
     await db.exec('RESET ROLE');
     assert.equal((await db.query("SELECT has_table_privilege('anon','orders','TRUNCATE') AS allowed")).rows[0].allowed,false);
     assert.equal((await db.query("SELECT count(*)::int AS count FROM pg_policies WHERE policyname='Customers can upload payment receipts'")).rows[0].count,0);
+  });
+  await t.test('delivery settings preserve snapshots and enforce the current quote for both payment methods', async () => {
+    const owner = '00000000-0000-0000-0000-000000000001';
+    const admin = '00000000-0000-0000-0000-000000000002';
+    const staff = '00000000-0000-0000-0000-000000000003';
+    const inactive = '00000000-0000-0000-0000-000000000004';
+    await db.exec('RESET ROLE');
+    await db.exec(`
+      CREATE TABLE auth.users(id uuid PRIMARY KEY, email_confirmed_at timestamptz);
+      INSERT INTO auth.users VALUES ('${owner}', now()), ('${admin}', now()), ('${staff}', now()), ('${inactive}', now());
+      INSERT INTO store_admins(user_id, is_active, role)
+      VALUES ('${admin}', true, 'admin'), ('${staff}', true, 'staff'), ('${inactive}', false, 'admin');
+    `);
+    const permissions = read('../supabase/migrations/20261028060247_multi_user_admin_onboarding.sql');
+    await db.exec(permissions.slice(permissions.indexOf('CREATE OR REPLACE FUNCTION public.get_store_admin_role'), permissions.indexOf('CREATE OR REPLACE FUNCTION public.staff_inventory')));
+    const audit = read('../supabase/migrations/20261011163006_admin_workflow_audit.sql');
+    await db.exec(audit.slice(audit.indexOf('CREATE OR REPLACE FUNCTION public.log_admin_record_change'), audit.indexOf('CREATE TRIGGER admin_audit_products')));
+    const historicalOrders = () => db.query('SELECT id, subtotal, delivery_fee, total FROM orders ORDER BY id').then(result => result.rows);
+    const historical = await historicalOrders();
+    await db.exec(read('../supabase/migrations/20261112113607_centralize_delivery_fee.sql'));
+
+    const readFee = () => db.query('SELECT delivery_fee FROM delivery_settings').then(result => Number(result.rows[0].delivery_fee));
+    const saveFee = value => db.query('UPDATE delivery_settings SET delivery_fee = $1 RETURNING delivery_fee', [value]);
+    await login('anon');
+    assert.equal(await readFee(), 350);
+    await assert.rejects(saveFee(0), /permission denied/);
+    for (const claims of [{sub:owner,aal:'aal1'}, {sub:staff,aal:'aal2'}, {sub:inactive,aal:'aal2'}, {sub:crypto.randomUUID(),aal:'aal2'}]) {
+      await login('authenticated', claims);
+      assert.equal((await saveFee(0)).rows.length, 0);
+    }
+    await login('authenticated', {sub:admin,aal:'aal2'});
+    for (const invalid of [-1, 0.001, 100000000, 'NaN', 'Infinity', '-Infinity', null]) {
+      await assert.rejects(saveFee(invalid), /constraint/);
+    }
+    assert.equal((await saveFee(475.25)).rows.length, 1);
+    await assert.rejects(db.exec('DELETE FROM delivery_settings'), /permission denied/);
+    await assert.rejects(db.exec('UPDATE delivery_settings SET id = 2'), /permission denied/);
+    await login('anon');
+    assert.equal(await readFee(), 475.25);
+
+    await login('service_role');
+    const initialStock = await stock();
+    const beforeChangeRetry = (await submit({...payload,total:0,expectedDeliveryFee:475.25,expectedTotal:575.25},id)).rows[0].result;
+    assert.ok(historical.some(order => order.id === beforeChangeRetry.order_id));
+    assert.equal(Number(beforeChangeRetry.total),450);
+    const codId = crypto.randomUUID();
+    await assert.rejects(submit(payload, codId), {code:'CC001'});
+    await assert.rejects(submit({...payload,expectedDeliveryFee:0,expectedTotal:100}, codId), {code:'CC001'});
+    await assert.rejects(submit({...payload,expectedDeliveryFee:475.25,expectedTotal:0}, codId), {code:'CC002'});
+    await assert.rejects(submit({...payload,expectedDeliveryFee:'475.25',expectedTotal:575.25}, codId), /Invalid checkout quote/);
+    assert.equal(await stock(), initialStock);
+    assert.equal((await db.query('SELECT * FROM checkout_requests WHERE id=$1',[codId])).rows.length, 0);
+    await login('authenticated', {sub:owner,aal:'aal2'});
+    assert.equal(Number((await saveFee(0)).rows[0].delivery_fee), 0);
+    await login('service_role');
+    const cod = (await submit({...payload,expectedDeliveryFee:0,expectedTotal:100}, codId)).rows[0].result;
+    assert.deepEqual([cod.subtotal,cod.delivery_fee,cod.total].map(Number), [100,0,100]);
+    assert.equal(await stock(), initialStock-1);
+
+    await login('authenticated', {sub:admin,aal:'aal2'});
+    await saveFee(475.25);
+    await db.exec('RESET ROLE');
+    const bankId = crypto.randomUUID();
+    const path = `${bankId}/test.png`;
+    await db.query('INSERT INTO checkout_receipts(path,request_id) VALUES($1,$2)', [path,bankId]);
+    await db.query("INSERT INTO storage.objects VALUES('payment-receipts',$1)", [path]);
+    await db.exec("INSERT INTO promo_codes(code,discount_type,discount_value,minimum_subtotal) VALUES('TEST20','fixed',20,0)");
+    await login('service_role');
+    const bank = {...payload,paymentMethod:'BANK_TRANSFER',receiptPath:path,promoCode:'TEST20'};
+    await assert.rejects(submit({...bank,expectedDeliveryFee:0,expectedTotal:80}, bankId), {code:'CC001'});
+    await assert.rejects(submit({...bank,expectedDeliveryFee:475.25,expectedTotal:575.25}, bankId), {code:'CC002'});
+    await db.exec('RESET ROLE');
+    assert.equal((await db.query("SELECT usage_count FROM promo_codes WHERE code='TEST20'")).rows[0].usage_count, 0);
+    assert.equal((await db.query('SELECT order_id FROM checkout_receipts WHERE path=$1',[path])).rows[0].order_id, null);
+    assert.equal(await stock(), initialStock-1);
+    await login('service_role');
+    const confirmed = (await submit({...bank,expectedDeliveryFee:475.25,expectedTotal:555.25,deliveryFee:0,total:0}, bankId)).rows[0].result;
+    assert.deepEqual([confirmed.subtotal,confirmed.delivery_fee,confirmed.total].map(Number), [100,475.25,555.25]);
+    await db.exec('RESET ROLE');
+    assert.equal((await db.query('SELECT payment_status FROM orders WHERE id=$1',[confirmed.order_id])).rows[0].payment_status, 'awaiting_verification');
+    assert.equal(await stock(), initialStock-2);
+    assert.deepEqual((await historicalOrders()).filter(order => historical.some(prior => prior.id === order.id)), historical);
+    const auditRows = (await db.query("SELECT actor_id, entity_id, after_data FROM admin_activity_log WHERE entity_type='delivery_settings'")).rows;
+    assert.ok(auditRows.some(row => row.actor_id === admin && row.entity_id === '1' && row.after_data.delivery_fee === 475.25));
   });
 });

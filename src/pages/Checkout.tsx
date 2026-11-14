@@ -17,11 +17,13 @@ import {
 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
-import { CHECKOUT_ERROR_MESSAGE, createOrder } from '../data/orders';
+import { CHECKOUT_ERROR_MESSAGE, createOrder, type PaymentMethod } from '../data/orders';
 import { formatPrice, formatSize, getPreorderMessage } from '../data/products';
 import CheckoutSecurity from '../components/CheckoutSecurity';
-import { checkoutRequest, completeCheckout, getCheckoutRequestId, uploadCheckoutReceipt } from '../lib/checkout';
+import { CheckoutPricingError, checkoutRequest, completeCheckout, getCheckoutRequestId, uploadCheckoutReceipt } from '../lib/checkout';
 import { STORE_CONFIG } from '../config/store';
+import { useDeliveryFee } from '../hooks/useDeliveryFee';
+import { orderTotal } from '../lib/pricing';
 
 const RECEIPT_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -59,8 +61,6 @@ const EMPTY_FORM: CheckoutForm = {
 
 type FormErrors = Partial<Record<keyof CheckoutForm, string>>;
 
-type PaymentMethod = 'COD' | 'BANK_TRANSFER';
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9+\-\s]{9,15}$/;
 
@@ -79,7 +79,7 @@ export default function Checkout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
-  const [receiptPath, setReceiptPath] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<{ path: string; total: number } | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [preorderAck, setPreorderAck] = useState(false);
@@ -87,9 +87,15 @@ export default function Checkout() {
   const [securityAttempt, setSecurityAttempt] = useState(0);
   const [requestId] = useState(getCheckoutRequestId);
 
-  const deliveryFee = STORE_CONFIG.deliveryFee;
+  const { fee: deliveryFee, failed: deliveryFeeFailed, refresh: refreshDeliveryFee } = useDeliveryFee(items.length > 0);
   const currentPromo = appliedPromo?.subtotal === totalPrice ? appliedPromo : null;
-  const total = totalPrice + deliveryFee - (currentPromo?.discountAmount ?? 0);
+  const total = deliveryFee === null ? null : orderTotal(totalPrice, deliveryFee, currentPromo?.discountAmount);
+  const deliveryText = deliveryFee === null
+    ? deliveryFeeFailed ? 'Unavailable' : 'Checking…'
+    : deliveryFee === 0 ? 'Free' : formatPrice(deliveryFee);
+  const totalText = total === null ? '—' : formatPrice(total);
+  const receiptPriceChanged = receipt !== null && receipt.total !== total;
+  const receiptPath = receiptPriceChanged ? null : receipt?.path ?? null;
 
   // Cross-reference cart items against loaded products to find which ones
   // are pre-orders, and their delivery timeframe. Cart items themselves
@@ -142,6 +148,10 @@ export default function Checkout() {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file after an error
     if (!file) return;
+    if (total === null) {
+      setReceiptError('Wait for your order total before uploading a receipt.');
+      return;
+    }
     if (!securityToken || receiptUploading || isSubmitting) {
       setReceiptError('Complete the security check before uploading your receipt.');
       return;
@@ -163,13 +173,13 @@ export default function Checkout() {
     }
 
     setReceiptError(null);
-    setReceiptPath(null);
+    setReceipt(null);
     setReceiptFileName(file.name);
     setReceiptUploading(true);
 
     try {
       const uploadedPath = await uploadCheckoutReceipt(file, requestId, securityToken);
-      setReceiptPath(uploadedPath);
+      setReceipt({ path: uploadedPath, total });
     } catch (err) {
       console.error('Receipt upload failed:', err);
       setReceiptError('Failed to upload receipt. Please try again.');
@@ -219,7 +229,7 @@ export default function Checkout() {
       });
       return;
     }
-    if (receiptBlocksSubmit || !securityToken || isSubmitting) return;
+    if (receiptBlocksSubmit || !securityToken || isSubmitting || deliveryFee === null || total === null) return;
     if (preorderBlocksSubmit) return;
     if (promoChecking) return;
 
@@ -237,9 +247,8 @@ export default function Checkout() {
         city: form.city.trim(),
         district: form.district,
         postalCode: form.postalCode,
-        subtotal: totalPrice,
-        deliveryFee,
-        total,
+        expectedDeliveryFee: deliveryFee,
+        expectedTotal: total,
         items,
         paymentMethod,
         receiptPath: receiptPath ?? undefined,
@@ -261,10 +270,24 @@ export default function Checkout() {
           requiresPaymentVerification: paymentMethod === 'BANK_TRANSFER',
         },
       });
-    } catch {
-      // Never render the thrown error's text — createOrder() logs the
-      // technical details; customers only ever see this controlled message.
-      setSubmitError(CHECKOUT_ERROR_MESSAGE);
+    } catch (error) {
+      if (error instanceof CheckoutPricingError) {
+        if (error.code === 'delivery_fee_changed') {
+          refreshDeliveryFee();
+          setSubmitError('The delivery fee changed. Review the updated total before placing your order again.');
+        } else {
+          setAppliedPromo(null);
+          setPromoNote(null);
+          setSubmitError('An item price or discount changed. Review your cart, re-add any items with outdated prices, and check your promo code before trying again.');
+        }
+        if (receiptRequired) {
+          setReceipt(null);
+          setReceiptFileName(null);
+          setReceiptError('The uploaded receipt was cleared. If you already transferred money, contact us before making another payment.');
+        }
+      } else {
+        setSubmitError(CHECKOUT_ERROR_MESSAGE);
+      }
       setIsSubmitting(false);
       setSecurityToken(null);
       setSecurityAttempt(value => value + 1);
@@ -343,13 +366,13 @@ export default function Checkout() {
                   {totalItems} {totalItems === 1 ? 'item' : 'items'}{items.length > 3 && ` · +${items.length - 3} more`}
                 </p>
               </div>
-              <p className="shrink-0 font-display text-lg font-semibold text-foreground">{formatPrice(total)}</p>
+              <p className="shrink-0 font-display text-lg font-semibold text-foreground">{totalText}</p>
             </div>
             <div className="mt-3 space-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
               <div className="flex justify-between"><span>Subtotal</span><span>{formatPrice(totalPrice)}</span></div>
-              <div className="flex justify-between"><span>Delivery</span><span>{formatPrice(deliveryFee)}</span></div>
+              <div className="flex justify-between"><span>Delivery</span><span>{deliveryText}</span></div>
               {currentPromo && <div className="flex justify-between text-green-700"><span>Promo</span><span>−{formatPrice(currentPromo.discountAmount)}</span></div>}
-              <div className="flex justify-between font-semibold text-foreground"><span>Total</span><span>{formatPrice(total)}</span></div>
+              <div className="flex justify-between font-semibold text-foreground"><span>Total</span><span>{totalText}</span></div>
             </div>
           </motion.section>
 
@@ -512,7 +535,7 @@ export default function Checkout() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-primary">{formatPrice(deliveryFee)}</span>
+                  <span className="text-sm font-medium text-primary">{deliveryText}</span>
                   <CheckCircle2 className="h-4 w-4 text-primary" />
                 </div>
               </div>
@@ -610,7 +633,9 @@ export default function Checkout() {
                   <div className="flex items-start gap-3">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                     <p className="text-sm text-muted-foreground">
-                      Transfer the order total, upload your receipt below, then place your order.
+                      {total === null
+                        ? 'Wait for your order total before making a transfer. '
+                        : `Transfer ${totalText}, upload your receipt below, then place your order. `}
                       We'll verify your payment before processing the order.
                     </p>
                   </div>
@@ -640,7 +665,7 @@ export default function Checkout() {
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         onChange={handleReceiptChange}
-                        disabled={!securityToken || receiptUploading || isSubmitting}
+                        disabled={!securityToken || receiptUploading || isSubmitting || total === null}
                         className="sr-only"
                         aria-label="Upload payment receipt"
                       />
@@ -652,10 +677,10 @@ export default function Checkout() {
                         Uploading receipt...
                       </p>
                     )}
-                    {receiptError && (
-                      <p className="mt-2 flex items-center gap-1.5 text-xs text-primary">
+                    {(receiptError || receiptPriceChanged) && (
+                      <p role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-primary">
                         <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                        {receiptError}
+                        {receiptError ?? 'The total changed after upload. If you already transferred money, contact us before making another payment.'}
                       </p>
                     )}
                     {receiptPath && !receiptUploading && (
@@ -752,7 +777,7 @@ export default function Checkout() {
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>Delivery</span>
-                <span>{formatPrice(deliveryFee)}</span>
+                <span>{deliveryText}</span>
               </div>
               {currentPromo && (
                 <div className="flex items-center justify-between text-green-400">
@@ -762,19 +787,25 @@ export default function Checkout() {
               )}
               <div className="flex items-center justify-between border-t border-border pt-2 font-display text-lg text-foreground">
                 <span>Total</span>
-                <span className="text-primary">{formatPrice(total)}</span>
+                <span className="text-primary">{totalText}</span>
               </div>
             </div>
 
             {submitError && (
-              <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm text-primary">
+              <p role="alert" className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm text-primary">
                 {submitError}
               </p>
             )}
 
+            {deliveryFeeFailed && (
+              <div className="space-y-2">
+                <p role="alert" className="text-sm text-primary">Could not load the delivery fee.</p>
+                <button type="button" className="btn-outline" onClick={refreshDeliveryFee}>Retry delivery fee</button>
+              </div>
+            )}
             <button
               type="submit"
-              disabled={isSubmitting || receiptBlocksSubmit || preorderBlocksSubmit || promoChecking || !securityToken}
+              disabled={isSubmitting || receiptBlocksSubmit || preorderBlocksSubmit || promoChecking || !securityToken || total === null}
               className="btn-primary w-full"
             >
               {isSubmitting ? (

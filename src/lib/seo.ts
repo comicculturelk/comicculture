@@ -48,10 +48,12 @@ export const RETURN_POLICY = {
   returnMethod: 'https://schema.org/ReturnByMail', applicableCountry: 'LK', merchantReturnLink: `${SITE_URL}/return-policy`,
 };
 
-function shippingDetails(preorder: boolean) {
+function shippingDetails(preorder: boolean, deliveryFee: number | null) {
   return {
     '@type': 'OfferShippingDetails',
-    shippingRate: { '@type': 'MonetaryAmount', value: STORE_CONFIG.deliveryFee, currency: STORE_CONFIG.currency },
+    ...(deliveryFee === null ? {} : {
+      shippingRate: { '@type': 'MonetaryAmount', value: deliveryFee, currency: STORE_CONFIG.currency },
+    }),
     shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'LK' },
     // Do not describe preorders as having the standard dispatch time.
     ...(!preorder ? { deliveryTime: { '@type': 'ShippingDeliveryTime',
@@ -60,7 +62,7 @@ function shippingDetails(preorder: boolean) {
   };
 }
 
-export function productSchema(product: Product): Record<string, unknown> {
+export function productSchema(product: Product, deliveryFee: number | null = null): Record<string, unknown> {
   const url = `${SITE_URL}/product/${product.slug}`;
   const variants = product.versions.filter((v) => v.isActive).flatMap((version) => version.sizes.map((size) => ({
     '@type': 'Product', '@id': `${url}#${size.id}`, sku: size.sku,
@@ -73,7 +75,7 @@ export function productSchema(product: Product): Record<string, unknown> {
       price: size.price, priceCurrency: STORE_CONFIG.currency,
       availability: size.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       seller: { '@id': `${SITE_URL}/#store` }, hasMerchantReturnPolicy: RETURN_POLICY,
-      shippingDetails: shippingDetails(version.isPreorder) },
+      shippingDetails: shippingDetails(version.isPreorder, deliveryFee) },
   })));
   return { '@context': 'https://schema.org', '@type': 'ProductGroup', '@id': `${url}#group`, url,
     productGroupID: product.productCode, name: product.name, description: productSeo(product).description,

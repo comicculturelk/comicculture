@@ -26,7 +26,7 @@ The NEW badge expires after `NEW_PRODUCT_DAYS` (currently 30) from the existing 
 
 ## Maintain customer information
 
-- Delivery fee and published timing text live in `src/config/store.ts`. The same fee is used in product pages, cart, delivery information and checkout.
+- After the [delivery settings rollout](delivery-settings.md), owners and admins manage the flat fee under **Admin → Settings**. Published delivery timing remains in `src/config/store.ts`.
 - Do not change policy or promise a specific delivery date without confirming fulfilment arrangements. Preorder timing continues to use the selected version's existing settings.
 - Collection names resolve by collection ID so renamed collections do not split storefront filtering. The saved order/SKU data is unchanged.
 - Homepage reviews initially show two real, published reviews. Product reviews match the product name exactly; renaming a product may require updating its review label in Admin.

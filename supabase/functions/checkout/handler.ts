@@ -13,7 +13,7 @@ const LIMITS = { receipt: 6, order: 10, track: 60, promo: 60 } as const;
 type Action = keyof typeof LIMITS;
 
 class RequestError extends Error {
-  constructor(readonly status: number, message: string) { super(message); }
+  constructor(readonly status: number, message: string, readonly code?: string) { super(message); }
 }
 
 // Bound the actual stream; Content-Length is optional and cannot be trusted.
@@ -60,7 +60,14 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
     const response = await fetcher(`${config.supabaseUrl}/rest/v1/rpc/${name}`, {
       method: 'POST', headers: restHeaders, body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
     });
-    if (!response.ok) throw new RequestError(response.status >= 500 ? 503 : 400, 'Unable to process this request. Check your details and try again.');
+    if (!response.ok) {
+      if (name === 'submit_checkout' && response.status === 400) {
+        const error = await response.json().catch(() => null);
+        if (error?.code === 'CC001') throw new RequestError(409, 'Delivery fee changed.', 'delivery_fee_changed');
+        if (error?.code === 'CC002') throw new RequestError(409, 'Order total changed.', 'order_total_changed');
+      }
+      throw new RequestError(response.status >= 500 ? 503 : 400, 'Unable to process this request. Check your details and try again.');
+    }
     return response.json();
   };
   // Only receipts created by this gateway, unclaimed for 14 days, are eligible.
@@ -153,7 +160,7 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
       await cleanAbandonedReceipts().catch(() => undefined);
       return reply({path});
     } catch (error) {
-      return error instanceof RequestError ? reply({error:error.message},error.status) : reply({error:'Unable to process the request. Please try again.'},503);
+      return error instanceof RequestError ? reply({error:error.message,code:error.code},error.status) : reply({error:'Unable to process the request. Please try again.'},503);
     }
   };
 }

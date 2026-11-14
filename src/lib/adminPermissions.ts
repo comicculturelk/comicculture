@@ -9,6 +9,7 @@ export const ADMIN_VIEWS = [
   "reviews",
   "history",
   "team",
+  "settings",
   "account",
 ] as const;
 export type AdminView = (typeof ADMIN_VIEWS)[number];

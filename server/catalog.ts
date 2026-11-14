@@ -14,7 +14,7 @@ type ProductRow = Pick<Product, 'id' | 'name' | 'slug' | 'collection' | 'tagline
 };
 
 /** Public catalog only. Never attach admin sessions or service-role credentials. */
-export async function fetchCatalog() {
+export async function fetchCatalog(includeDeliveryFee = false) {
   const base = process.env.VITE_SUPABASE_URL;
   const key = process.env.VITE_SUPABASE_ANON_KEY;
   if (!base || !key) throw new Error('Public catalog configuration unavailable');
@@ -27,9 +27,10 @@ export async function fetchCatalog() {
     if (!Array.isArray(rows)) throw new Error('Invalid public catalog response');
     return rows as T[];
   };
-  const [productRows, collectionRows] = await Promise.all([
+  const [productRows, collectionRows, deliverySettings] = await Promise.all([
     read<ProductRow>('products', 'id,product_code,name,slug,collection_id,collection,tagline,description,lore,image,images,featured,created_at,versions:product_versions(id,version_name,product_type,material,fit,color,images,is_active,is_preorder,preorder_days,sort_order,sizes:product_version_sizes(id,size,sku,price,stock))'),
     read<CollectionRow>('collections', 'id,name,slug,tagline,description,cover_image,status,sort_order,created_at'),
+    includeDeliveryFee ? read<{ delivery_fee: unknown }>('delivery_settings', 'delivery_fee').catch(() => []) : [],
   ]);
   const collections: Collection[] = collectionRows.map((row) => ({ ...row,
     coverImage: row.cover_image, sortOrder: row.sort_order, createdAt: row.created_at,
@@ -46,7 +47,9 @@ export async function fetchCatalog() {
       sizes: version.sizes.map((size) => ({ ...size, versionId: version.id, createdAt: '' })),
     })).sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder)),
   }));
-  return { products, collections };
+  const fee = deliverySettings[0]?.delivery_fee;
+  const deliveryFee = typeof fee === 'number' && Number.isFinite(fee) && fee >= 0 ? fee : null;
+  return { products, collections, deliveryFee };
 }
 
 export type Catalog = Awaited<ReturnType<typeof fetchCatalog>>;

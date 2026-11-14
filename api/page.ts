@@ -15,7 +15,7 @@ export default async function handler(req: PageRequest, res: PageResponse) {
   try {
     const template = await readFile(join(process.cwd(), 'dist', 'app.html'), 'utf8');
     const needsCatalog = path === '/' || path === '/shop' || /^\/(product|collections)\/[^/]+$/.test(path);
-    const page = buildSeoPage(path, needsCatalog ? await fetchCatalog() : undefined);
+    const page = buildSeoPage(path, needsCatalog ? await fetchCatalog(path.startsWith('/product/')) : undefined);
     res.setHeader('X-Robots-Tag', page.robots);
     res.setHeader('Cache-Control', isUtilityPath(path) || page.status !== 200 ? 'private, no-store' : 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
     res.status(page.status).send(req.method === 'HEAD' ? '' : renderSeoHtml(template, page));

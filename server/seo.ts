@@ -8,7 +8,7 @@ export const serializeJson = (value: unknown) => JSON.stringify(value).replace(/
 export const isUtilityPath = (path: string) => UTILITY_PATHS.includes(path);
 
 /** Same public information for people and crawlers; React takes over after load. */
-export function buildSeoPage(path: string, catalog: Catalog = { products: [], collections: [] }) {
+export function buildSeoPage(path: string, catalog: Catalog = { products: [], collections: [], deliveryFee: null }) {
   let status = 200;
   let robots = isUtilityPath(path) ? 'noindex,follow' : 'index,follow';
   let metadata = STATIC_SEO[path];
@@ -25,7 +25,7 @@ export function buildSeoPage(path: string, catalog: Catalog = { products: [], co
       metadata = productSeo(product);
       image = product.image;
       if (!isIndexableProduct(product)) robots = 'noindex,follow';
-      else schema = [STORE_SCHEMA, productSchema(product), breadcrumbs(product.name, path)];
+      else schema = [STORE_SCHEMA, productSchema(product, catalog.deliveryFee), breadcrumbs(product.name, path)];
       content = `<h1>${escapeHtml(product.name)}</h1><p>${escapeHtml(product.description || product.tagline)}</p><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" width="640" height="640" style="max-width:100%;height:auto"><ul>${product.versions.filter((v) => v.isActive).flatMap((v) => v.sizes.map((s) => `<li>${escapeHtml(v.versionName)} — ${escapeHtml(s.size)}: LKR ${s.price}; ${s.stock > 0 ? 'In stock' : 'Out of stock'}</li>`)).join('')}</ul><a href="/delivery">Delivery information</a> · <a href="/return-policy">Returns and exchanges</a>`;
     }
   } else if (collectionMatch) {

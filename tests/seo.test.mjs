@@ -20,7 +20,7 @@ const product = {
     ] }],
 };
 const collection = { id: 'collection', name: 'Limited Edition', slug: 'limited-edition', status: 'live' };
-const catalog = { products: [product], collections: [collection] };
+const catalog = { products: [product], collections: [collection], deliveryFee: 0 };
 
 test('server product HTML contains specific metadata, readable content, links, and all variant offers', () => {
   const page = buildSeoPage('/product/arc-reactor', catalog);
@@ -30,6 +30,7 @@ test('server product HTML contains specific metadata, readable content, links, a
   assert.match(html, /<h1>Arc Reactor<\/h1>/);
   assert.match(html, /LKR 3490/);
   assert.match(html, /href="\/delivery"/);
+  assert.match(html, /"shippingRate":\{"@type":"MonetaryAmount","value":0,"currency":"LKR"\}/);
   assert.equal((html.match(/<title>/g) || []).length, 1);
   assert.equal((html.match(/rel="canonical"/g) || []).length, 1);
   const schema = productSchema(product);
@@ -40,6 +41,7 @@ test('server product HTML contains specific metadata, readable content, links, a
   assert.equal(schema.hasVariant[1].offers.availability, 'https://schema.org/InStock');
   assert.match(schema.hasVariant[1].offers.url, /\?variant=medium$/);
   assert.equal(schema.hasVariant[1].offers.hasMerchantReturnPolicy.returnMethod, 'https://schema.org/ReturnByMail');
+  assert.equal(schema.hasVariant[1].offers.shippingDetails.shippingRate, undefined);
 });
 
 test('catalog pages link products and collections in initial HTML; no draft or utility indexing', () => {
@@ -114,6 +116,7 @@ test('production handler and sitemap preserve status, cache safety, and public-o
   globalThis.fetch = async (url, options) => {
     assert.equal(new URL(url).origin, 'https://example.invalid');
     assert.equal(options.headers.Authorization, 'Bearer test-public-key');
+    if (new URL(url).pathname.endsWith('/delivery_settings')) return { ok: true, json: async () => [{ delivery_fee: 475.25 }] };
     const row = { ...product, product_code: product.productCode, collection_id: product.collectionId,
       versions: product.versions.map((v) => ({ ...v, version_name: v.versionName, product_type: v.productType,
         is_active: v.isActive, is_preorder: v.isPreorder, sort_order: 0 })) };
@@ -125,6 +128,7 @@ test('production handler and sitemap preserve status, cache safety, and public-o
   assert.equal(valid.code, 200);
   assert.match(valid.body, /<h1>Arc Reactor<\/h1>/);
   assert.match(valid.body, /ProductGroup/);
+  assert.match(valid.body, /"shippingRate":\{"@type":"MonetaryAmount","value":475\.25,"currency":"LKR"\}/);
   assert.match(valid.body, /\/assets\/index-/);
   assert.match(valid.headers['Cache-Control'], /s-maxage=60/);
   const missing = response();

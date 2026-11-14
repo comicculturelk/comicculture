@@ -7,7 +7,8 @@ import { useCart } from '../hooks/useCart';
 import { useProducts } from '../hooks/useProducts';
 import { formatPrice, formatSize, getPreorderMessage } from '../data/products';
 import type { Product, ProductVersion } from '../data/products';
-import { STORE_CONFIG } from '../config/store';
+import { useDeliveryFee } from '../hooks/useDeliveryFee';
+import { orderTotal } from '../lib/pricing';
 
 /**
  * Preorder status now lives on ProductVersion, not Product. A cart line only
@@ -25,6 +26,7 @@ export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalItems, totalPrice, stockMessage } =
     useCart();
   const { products } = useProducts();
+  const { fee, failed } = useDeliveryFee(isOpen && items.length > 0);
   const panelRef = useRef<HTMLDivElement>(null);
   useDialog(isOpen, panelRef, closeCart);
 
@@ -192,8 +194,8 @@ export default function CartDrawer() {
                   </span>
                   <span className="font-display text-2xl text-foreground">{formatPrice(totalPrice)}</span>
                 </div>
-                <div className="mb-2 flex justify-between text-sm text-muted-foreground"><Link to="/delivery" onClick={closeCart} className="underline underline-offset-4">Delivery</Link><span>{formatPrice(STORE_CONFIG.deliveryFee)}</span></div>
-                <div className="mb-4 flex justify-between border-t border-border pt-3 font-semibold"><span>Total before discounts</span><span>{formatPrice(totalPrice + STORE_CONFIG.deliveryFee)}</span></div>
+                <div className="mb-2 flex justify-between text-sm text-muted-foreground"><Link to="/delivery" onClick={closeCart} className="underline underline-offset-4">Delivery</Link><span>{fee === null ? failed ? 'Shown at checkout' : 'Checking…' : fee === 0 ? 'Free' : formatPrice(fee)}</span></div>
+                <div className="mb-4 flex justify-between border-t border-border pt-3 font-semibold"><span>Total before discounts</span><span>{fee === null ? '—' : formatPrice(orderTotal(totalPrice, fee))}</span></div>
                 <Link to="/checkout" onClick={closeCart} className="btn-primary w-full">
                   Proceed to Checkout
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />

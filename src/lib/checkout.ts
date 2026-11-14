@@ -1,4 +1,11 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+
+export class CheckoutPricingError extends Error {
+  constructor(readonly code: 'delivery_fee_changed' | 'order_total_changed') {
+    super('Checkout pricing changed.');
+  }
+}
 
 const REQUEST_KEY = 'comicculture-checkout-request';
 export function getCheckoutRequestId(): string {
@@ -16,6 +23,13 @@ export function completeCheckout(): void {
 
 export async function checkoutRequest<T>(action: 'order' | 'track' | 'promo', input: unknown, security?: { requestId: string; token: string }): Promise<T> {
   const { data, error } = await supabase.functions.invoke('checkout', { body: { action, input, ...security } });
+  if (action === 'order' && error instanceof FunctionsHttpError && error.context.status === 409) {
+    const body: unknown = await error.context.json().catch(() => null);
+    if (body && typeof body === 'object' && 'code' in body &&
+        (body.code === 'delivery_fee_changed' || body.code === 'order_total_changed')) {
+      throw new CheckoutPricingError(body.code);
+    }
+  }
   if (error) throw new Error('Unable to process your request. Please try again.');
   return data as T;
 }

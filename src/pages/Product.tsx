@@ -39,6 +39,7 @@ import { getProductSummary } from '../lib/merchandising';
 import { STORE_CONFIG } from '../config/store';
 import { useDialog } from '../hooks/useDialog';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useDeliveryFee } from '../hooks/useDeliveryFee';
 
 /**
  * Picks the version a freshly-loaded product (or a version switch) should
@@ -59,6 +60,7 @@ export default function Product() {
   const [searchParams] = useSearchParams();
   const variantId = searchParams.get('variant');
   const { product, loading, error } = useProduct(slug);
+  const { fee: deliveryFee } = useDeliveryFee(Boolean(product));
   const { products: allProducts } = useProducts();
   const { addItem, openCart, stockMessage } = useCart();
   const [selectedVersionId, setSelectedVersionId] = useState<string>('');
@@ -252,7 +254,7 @@ export default function Product() {
         ogType="product"
         image={product.image}
         robots={isIndexableProduct(product) ? 'index,follow' : 'noindex,follow'}
-        jsonLd={isIndexableProduct(product) ? [{ id: 'store', data: STORE_SCHEMA }, { id: 'product', data: productSchema(product) }, { id: 'breadcrumb', data: breadcrumbs(product.name, `/product/${product.slug}`) }] : []}
+        jsonLd={isIndexableProduct(product) ? [{ id: 'store', data: STORE_SCHEMA }, { id: 'product', data: productSchema(product, deliveryFee) }, { id: 'breadcrumb', data: breadcrumbs(product.name, `/product/${product.slug}`) }] : []}
       />
       <section className="comic-page product-detail-page relative min-h-screen bg-background pb-28 pt-24 sm:pb-20 lg:pt-28">
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
@@ -572,7 +574,7 @@ export default function Product() {
             <div className="product-trust mt-5 grid grid-cols-1 gap-2 border-y border-border py-4 sm:grid-cols-3">
               <div className="comic-trust-card flex items-center gap-2 px-2 py-2 text-xs font-medium leading-tight text-muted-foreground">
                 <Truck className="h-4 w-4 flex-shrink-0 text-primary" />
-                Delivery · {formatPrice(STORE_CONFIG.deliveryFee)}
+                {deliveryFee === 0 ? 'Free delivery' : `Delivery${deliveryFee === null ? '' : ` · ${formatPrice(deliveryFee)}`}`}
               </div>
               <div className="comic-trust-card flex items-center gap-2 px-2 py-2 text-xs font-medium leading-tight text-muted-foreground">
                 <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
@@ -650,7 +652,7 @@ export default function Product() {
                 onToggle={() => toggleSection('shipping')}
               >
                 <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-                  <p>{STORE_CONFIG.deliveryTiming} Delivery costs {formatPrice(STORE_CONFIG.deliveryFee)}. Pre-orders follow the timeframe shown for the selected style.</p>
+                  <p>{STORE_CONFIG.deliveryTiming} {deliveryFee === null ? 'The delivery fee is shown at checkout.' : deliveryFee === 0 ? 'Delivery is free.' : `Delivery costs ${formatPrice(deliveryFee)}.`} Pre-orders follow the timeframe shown for the selected style.</p>
                   <p>For a size exchange or change-of-mind return, contact us within 3 days of delivery. Exchanges depend on stock, and return delivery charges may apply. Damaged or incorrect items are handled under the full policy.</p>
                   <Link to="/return-policy" className="inline-flex font-medium text-primary underline underline-offset-4 hover:text-primary-hover">Read the return and exchange policy</Link>
                 </div>

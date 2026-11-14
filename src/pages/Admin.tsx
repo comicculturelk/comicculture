@@ -16,6 +16,7 @@ import { ADMIN_LEAVE_EVENT } from '../hooks/useAdminForm';
 import { ADMIN_VIEWS, permittedViews, type AdminView } from '../lib/adminPermissions';
 import AdminPassword from '../components/admin/AdminPassword';
 import AdminAccount from '../components/admin/AdminAccount';
+import AdminDeliverySettings from '../components/admin/AdminDeliverySettings';
 import StaffInventory from '../components/admin/StaffInventory';
 import AdminMfaGate from '../components/admin/AdminMfaGate';
 
@@ -230,6 +231,7 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
         {view === 'collections' && <AdminCollections />}
         {view === 'inventory' && (role === 'staff' ? <StaffInventory /> : <AdminInventory />)}
         {view === 'account' && <AdminAccount />}
+        {view === 'settings' && <AdminDeliverySettings />}
         {view === 'promos' && <AdminPromos />}
         {view === 'reviews' && <AdminReviews />}
         {view === 'dashboard' && <AdminDashboard onViewOrders={() => setView('orders')} />}

@@ -19,7 +19,7 @@ export function seoPlugin(): Plugin {
     try {
       const path = url.pathname.replace(/\/$/, '') || '/';
       const needsCatalog = path === '/' || path === '/shop' || /^\/(product|collections)\/[^/]+$/.test(path);
-      const page = buildSeoPage(path, needsCatalog ? await fetchCatalog() : undefined);
+      const page = buildSeoPage(path, needsCatalog ? await fetchCatalog(path.startsWith('/product/')) : undefined);
       res.statusCode = page.status;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('X-Robots-Tag', page.robots);
