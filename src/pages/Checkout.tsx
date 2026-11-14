@@ -24,16 +24,12 @@ import { CheckoutPricingError, checkoutRequest, completeCheckout, getCheckoutReq
 import { STORE_CONFIG } from '../config/store';
 import { useDeliveryFee } from '../hooks/useDeliveryFee';
 import { orderTotal } from '../lib/pricing';
+import {
+  CHECKOUT_DISTRICTS, CHECKOUT_EMAIL, CHECKOUT_POSTAL_CODE, CONTACT_LIMITS,
+  PHONE_INPUT_LIMIT, compactPhone, normalizeSriLankanPhone,
+} from '../../supabase/functions/_shared/checkoutContact';
 
 const RECEIPT_MAX_BYTES = 5 * 1024 * 1024; // 5MB
-
-const DISTRICTS = [
-  'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle',
-  'Gampaha', 'Hambantota', 'Jaffna', 'Kalutara', 'Kandy', 'Kegalle',
-  'Kilinochchi', 'Kurunegala', 'Mannar', 'Matale', 'Matara', 'Moneragala',
-  'Mullaitivu', 'Nuwara Eliya', 'Polonnaruwa', 'Puttalam', 'Ratnapura',
-  'Trincomalee', 'Vavuniya',
-];
 
 interface CheckoutForm {
   fullName: string;
@@ -61,8 +57,12 @@ const EMPTY_FORM: CheckoutForm = {
 
 type FormErrors = Partial<Record<keyof CheckoutForm, string>>;
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[0-9+\-\s]{9,15}$/;
+type PhoneField = 'phone' | 'mobilePhone';
+const PHONE_ERROR = {
+  phone: 'Enter a Sri Lankan mobile or landline number starting with 0 or +94.',
+  mobilePhone: 'Enter a Sri Lankan mobile number starting with 07 or +947.',
+};
+const PHONE_LENGTH_ERROR = 'Use 10 digits for a local number or +94 followed by 9 digits.';
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -71,6 +71,8 @@ export default function Checkout() {
   const { products } = useProducts();
   const [form, setForm] = useState<CheckoutForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [phoneOverflow, setPhoneOverflow] = useState<Partial<Record<PhoneField, boolean>>>({});
+  const [optionalOpen, setOptionalOpen] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number; subtotal: number } | null>(null);
   const [promoNote, setPromoNote] = useState<string | null>(null);
@@ -122,25 +124,47 @@ export default function Checkout() {
     }
   };
 
+  const handlePhoneChange = (field: PhoneField, value: string) => {
+    const limit = value.trimStart().startsWith('+') ? 12 : 10;
+    const tooLong = value.length > PHONE_INPUT_LIMIT || compactPhone(value).length > limit;
+    setPhoneOverflow((prev) => ({ ...prev, [field]: tooLong }));
+    if (tooLong) {
+      setErrors((prev) => ({ ...prev, [field]: PHONE_LENGTH_ERROR }));
+      return;
+    }
+    handleChange(field, value);
+  };
+
   const validate = (): FormErrors => {
     const next: FormErrors = {};
     if (!form.fullName.trim()) next.fullName = 'Full name is required';
-    if (!form.phone.trim()) {
+    if (phoneOverflow.phone) {
+      next.phone = PHONE_LENGTH_ERROR;
+    } else if (!form.phone.trim()) {
       next.phone = 'Phone number is required';
-    } else if (!PHONE_REGEX.test(form.phone.trim())) {
-      next.phone = 'Enter a valid phone number';
+    } else if (!normalizeSriLankanPhone(form.phone)) {
+      next.phone = PHONE_ERROR.phone;
     }
-    if (form.mobilePhone.trim() && !PHONE_REGEX.test(form.mobilePhone.trim())) {
-      next.mobilePhone = 'Enter a valid mobile number';
+    if (phoneOverflow.mobilePhone) {
+      next.mobilePhone = PHONE_LENGTH_ERROR;
+    } else if (form.mobilePhone.trim() && !normalizeSriLankanPhone(form.mobilePhone, true)) {
+      next.mobilePhone = PHONE_ERROR.mobilePhone;
     }
     if (!form.email.trim()) {
       next.email = 'Email is required';
-    } else if (!EMAIL_REGEX.test(form.email.trim())) {
+    } else if (!CHECKOUT_EMAIL.test(form.email.trim())) {
       next.email = 'Enter a valid email address';
     }
     if (!form.addressLine1.trim()) next.addressLine1 = 'Address is required';
     if (!form.city.trim()) next.city = 'City is required';
     if (!form.district.trim()) next.district = 'District is required';
+    if (form.postalCode.trim() && !CHECKOUT_POSTAL_CODE.test(form.postalCode.trim())) {
+      next.postalCode = 'Enter a five-digit postal code';
+    }
+    for (const [field, limit] of Object.entries(CONTACT_LIMITS)) {
+      const key = field as keyof typeof CONTACT_LIMITS;
+      if (form[key].length > limit) next[key] = `Use at most ${limit} characters`;
+    }
     return next;
   };
 
@@ -222,6 +246,7 @@ export default function Checkout() {
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
+      if (nextErrors.mobilePhone || nextErrors.addressLine2) setOptionalOpen(true);
       requestAnimationFrame(() => {
         const field = checkoutFormRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
         field?.focus();
@@ -232,6 +257,8 @@ export default function Checkout() {
     if (receiptBlocksSubmit || !securityToken || isSubmitting || deliveryFee === null || total === null) return;
     if (preorderBlocksSubmit) return;
     if (promoChecking) return;
+    const phone = normalizeSriLankanPhone(form.phone);
+    if (!phone) return;
 
     setSubmitError(null);
     setIsSubmitting(true);
@@ -239,8 +266,8 @@ export default function Checkout() {
     try {
       const { orderReference, total: authoritativeTotal } = await createOrder({
         fullName: form.fullName.trim(),
-        phone: form.phone.trim(),
-        mobilePhone: form.mobilePhone.trim(),
+        phone,
+        mobilePhone: normalizeSriLankanPhone(form.mobilePhone, true) ?? '',
         email: form.email,
         addressLine1: form.addressLine1.trim(),
         addressLine2: form.addressLine2,
@@ -339,6 +366,7 @@ export default function Checkout() {
         <form
           ref={checkoutFormRef}
           onSubmit={handleSubmit}
+          noValidate
           className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_400px] lg:items-start"
         >
           {/* Mobile-only order overview. The full ORDER SUMMARY (with the
@@ -404,6 +432,7 @@ export default function Checkout() {
                     className={inputClass(!!errors.fullName)}
                     placeholder="Peter Parker"
                     autoComplete="name"
+                    maxLength={CONTACT_LIMITS.fullName}
                     required
                   />
                 </FormField>
@@ -412,10 +441,11 @@ export default function Checkout() {
                   <input
                     type="tel"
                     value={form.phone}
-                    onChange={(e) => handleChange('phone', e.target.value)}
+                    onChange={(e) => handlePhoneChange('phone', e.target.value)}
                     className={inputClass(!!errors.phone)}
                     placeholder="07X XXX XXXX"
                     autoComplete="tel"
+                    inputMode="tel"
                     required
                   />
                 </FormField>
@@ -430,6 +460,7 @@ export default function Checkout() {
                       className={inputClass(!!errors.email)}
                       placeholder="peter@dailybugle.com"
                       autoComplete="email"
+                      maxLength={CONTACT_LIMITS.email}
                     />
                   </FormField>
                 </div>
@@ -443,6 +474,7 @@ export default function Checkout() {
                       className={inputClass(!!errors.addressLine1)}
                       placeholder="House number, street"
                       autoComplete="address-line1"
+                      maxLength={CONTACT_LIMITS.addressLine1}
                       required
                     />
                   </FormField>
@@ -456,6 +488,7 @@ export default function Checkout() {
                     className={inputClass(!!errors.city)}
                     placeholder="Colombo"
                     autoComplete="address-level2"
+                    maxLength={CONTACT_LIMITS.city}
                     required
                   />
                 </FormField>
@@ -470,7 +503,7 @@ export default function Checkout() {
                     <option value="" className="bg-background">
                       Select district
                     </option>
-                    {DISTRICTS.map((d) => (
+                    {CHECKOUT_DISTRICTS.map((d) => (
                       <option key={d} value={d} className="bg-background">
                         {d}
                       </option>
@@ -478,40 +511,43 @@ export default function Checkout() {
                   </select>
                 </FormField>
 
-                <FormField label="Postal Code">
+                <FormField label="Postal Code" error={errors.postalCode}>
                   <input
                     type="text"
                     value={form.postalCode}
                     onChange={(e) => handleChange('postalCode', e.target.value)}
-                    className={inputClass(false)}
+                    className={inputClass(!!errors.postalCode)}
                     placeholder="10100"
                     autoComplete="postal-code"
                     inputMode="numeric"
+                    maxLength={CONTACT_LIMITS.postalCode}
                   />
                 </FormField>
-                <details className="sm:col-span-2" open={!!errors.mobilePhone}>
+                <details className="sm:col-span-2" open={optionalOpen} onToggle={(e) => setOptionalOpen(e.currentTarget.open)}>
                   <summary className="cursor-pointer py-2 text-sm font-medium text-primary">Add apartment or alternate phone (optional)</summary>
                   <div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <FormField label="Mobile Number (Optional)" error={errors.mobilePhone}>
                       <input
                         type="tel"
                         value={form.mobilePhone}
-                        onChange={(e) => handleChange('mobilePhone', e.target.value)}
+                        onChange={(e) => handlePhoneChange('mobilePhone', e.target.value)}
                         className={inputClass(!!errors.mobilePhone)}
                         placeholder="07X XXX XXXX"
-                        autoComplete="tel-national"
+                        autoComplete="section-alternate tel"
+                        inputMode="tel"
                       />
                     </FormField>
 
                     <div className="sm:col-span-2">
-                      <FormField label="Address Line 2">
+                      <FormField label="Address Line 2" error={errors.addressLine2}>
                         <input
                           type="text"
                           value={form.addressLine2}
                           onChange={(e) => handleChange('addressLine2', e.target.value)}
-                          className={inputClass(false)}
+                          className={inputClass(!!errors.addressLine2)}
                           placeholder="Apartment, suite, unit (optional)"
                           autoComplete="address-line2"
+                          maxLength={CONTACT_LIMITS.addressLine2}
                         />
                       </FormField>
                     </div>

@@ -5,15 +5,26 @@ import ts from 'typescript';
 import { PGlite } from '@electric-sql/pglite';
 
 const read = path => readFileSync(new URL(path, import.meta.url),'utf8');
-const handlerSource = read('../supabase/functions/checkout/handler.ts').replace("'image-size'",JSON.stringify(import.meta.resolve('image-size')));
-const emitted = ts.transpileModule(handlerSource,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-const { createCheckoutHandler, receiptExtension } = await import(`data:text/javascript;base64,${Buffer.from(emitted).toString('base64')}`);
+const moduleUrl = source => {
+  const emitted = ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+  return `data:text/javascript;base64,${Buffer.from(emitted).toString('base64')}`;
+};
+const contactUrl = moduleUrl(read('../supabase/functions/_shared/checkoutContact.ts'));
+const handlerSource = read('../supabase/functions/checkout/handler.ts')
+  .replace("'image-size'", JSON.stringify(import.meta.resolve('image-size')))
+  .replace("'../_shared/checkoutContact.ts'", JSON.stringify(contactUrl));
+const { createCheckoutHandler, receiptExtension } = await import(moduleUrl(handlerSource));
 const origin = 'https://comicculture.lk';
 const id = '00000000-0000-0000-0000-000000000099';
 const config = {supabaseUrl:'https://database.example.invalid',serviceKey:'synthetic-secret',turnstileSecret:'synthetic-turnstile-secret',allowedOrigins:[origin]};
+const contact = {
+  fullName: "O’Connor-පෙරේරා", phone: '0771234567', mobilePhone: null,
+  email: 'shopper@example.invalid', addressLine1: "12/3, King's Road",
+  addressLine2: null, city: 'Colombo', district: 'Colombo', postalCode: '00100', paymentMethod: 'COD',
+};
 const request = (patch = {}, headers = {}) => new Request(`${origin}/checkout`,{
   method:'POST',headers:{origin,'Content-Type':'application/json','x-forwarded-for':'192.0.2.1',...headers},
-  body:JSON.stringify({action:'order',requestId:id,token:'synthetic-token',input:{},...patch}),
+  body:JSON.stringify({action:'order',requestId:id,token:'synthetic-token',input:contact,...patch}),
 });
 
 test('checkout gateway fails closed and gates writes before the order RPC',async t => {
@@ -25,6 +36,10 @@ test('checkout gateway fails closed and gates writes before the order RPC',async
     if (url.includes('consume_checkout_attempt')) return Response.json(!limited);
     if (url.includes('siteverify')) return Response.json(verification);
     if (url.includes('submit_checkout')) return Response.json({order_id:id});
+    if (url.includes('get_order_tracking')) {
+      const { p_phone } = JSON.parse(options.body);
+      return Response.json(['011 234 5678', '0771234567'].includes(p_phone) ? {order_reference:'CC-1'} : null);
+    }
     throw new Error('Unexpected network request');
   };
   const handler = createCheckoutHandler(config,fetcher);
@@ -58,6 +73,39 @@ test('checkout gateway fails closed and gates writes before the order RPC',async
     const forwarded=JSON.parse(calls.find(call=>call.url.includes('submit_checkout')).body);
     assert.equal(forwarded.p_request_id,id);
     assert.ok(!calls.filter(call=>call.url.includes('consume_checkout_attempt')).some(call=>call.body.includes('192.0.2.1')));
+  });
+  await t.test('invalid contact inputs never reach the order RPC', async () => {
+    const invalid = [
+      ...[undefined, '', null, 771234567, [], '077123456', '07712345678', '077ABC4567',
+        '07712<script>', '0771234567\n', '07+71234567', '+950771234567',
+        '+9-4771234567', '+940771234567', '0071234567', '7'.repeat(1000)].map(phone => ({phone})),
+      {mobilePhone:'0112345678'}, {mobilePhone:false}, {addressLine1:{}}, {addressLine2:'a'.repeat(301)},
+      {fullName:' '}, {fullName:'name\u0000'}, {city:[]}, {email:'invalid'}, {email:'a'.repeat(255)},
+      {district:'Outside Sri Lanka'}, {postalCode:'01x00'}, {paymentMethod:'OTHER'},
+      {paymentMethod:'BANK_TRANSFER', receiptPath:1}, {promoCode:{}},
+    ];
+    for (const patch of invalid) {
+      calls.length = 0;
+      assert.equal((await handler(request({input:{...contact,...patch}}))).status,400, JSON.stringify(patch));
+      assert.ok(!calls.some(call => call.url.includes('submit_checkout')));
+    }
+  });
+  await t.test('valid local and international contacts remain text and preserve the retry payload', async () => {
+    for (const phone of ['0771234567', '+94771234567', '0112345678', '+94 11-234-5678']) {
+      calls.length = 0;
+      const input = {...contact, phone, mobilePhone:'+94 77-123-4567'};
+      assert.equal((await handler(request({input}))).status,200);
+      const forwarded = JSON.parse(calls.find(call => call.url.includes('submit_checkout')).body);
+      assert.deepEqual(forwarded.p_payload,input);
+    }
+  });
+  await t.test('tracking checks the legacy value first and falls back to the national format', async () => {
+    for (const [phone, expected] of [['011 234 5678',['011 234 5678']], ['+94 77-123-4567',['+94 77-123-4567','0771234567']]]) {
+      calls.length = 0;
+      const response = await handler(request({action:'track',input:{phone,orderReference:'CC-1'}}));
+      assert.deepEqual(await response.json(),{order_reference:'CC-1'});
+      assert.deepEqual(calls.filter(call=>call.url.includes('get_order_tracking')).map(call=>JSON.parse(call.body).p_phone),expected);
+    }
   });
   await t.test('only recognized pricing conflicts become actionable checkout errors', async () => {
     for (const [dbCode, code, status] of [

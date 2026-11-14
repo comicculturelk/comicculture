@@ -1,4 +1,7 @@
 import { imageSize } from 'image-size';
+import {
+  CHECKOUT_DISTRICTS, CHECKOUT_EMAIL, CHECKOUT_POSTAL_CODE, CONTACT_LIMITS, normalizeSriLankanPhone,
+} from '../_shared/checkoutContact.ts';
 
 export interface CheckoutConfig {
   supabaseUrl: string;
@@ -14,6 +17,45 @@ type Action = keyof typeof LIMITS;
 
 class RequestError extends Error {
   constructor(readonly status: number, message: string, readonly code?: string) { super(message); }
+}
+
+function validateOrderContact(input: unknown): void {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new RequestError(400, 'Invalid checkout details.');
+  const details = input as Record<string, unknown>;
+  // Older storefronts send the display value. Honor the existing SQL length
+  // limit while retaining that value in the idempotency hash.
+  const validPhone = (value: unknown, mobileOnly = false) =>
+    typeof value === 'string' && value.trim().length <= 15 && normalizeSriLankanPhone(value, mobileOnly) !== null;
+  if (!validPhone(details.phone)) throw new RequestError(400, 'Enter a valid Sri Lankan phone number.');
+  if (details.mobilePhone != null && details.mobilePhone !== '' && !validPhone(details.mobilePhone, true)) {
+    throw new RequestError(400, 'Enter a valid Sri Lankan mobile number.');
+  }
+
+  for (const [field, limit] of Object.entries(CONTACT_LIMITS)) {
+    const value = details[field];
+    const optional = field === 'addressLine2' || field === 'postalCode';
+    if (optional && value == null) continue;
+    if (typeof value !== 'string' || value.length > limit ||
+        /\p{Cc}/u.test(value) || (!optional && !value.trim())) {
+      throw new RequestError(400, 'Check your name, email, and delivery address.');
+    }
+  }
+  if (!CHECKOUT_EMAIL.test((details.email as string).trim())) throw new RequestError(400, 'Enter a valid email address.');
+  const postalCode = (details.postalCode as string | null | undefined)?.trim();
+  if (postalCode && !CHECKOUT_POSTAL_CODE.test(postalCode)) throw new RequestError(400, 'Enter a five-digit postal code.');
+  if (typeof details.district !== 'string' || !CHECKOUT_DISTRICTS.includes(details.district)) {
+    throw new RequestError(400, 'Select a valid delivery district.');
+  }
+  if (details.paymentMethod !== 'COD' && details.paymentMethod !== 'BANK_TRANSFER') {
+    throw new RequestError(400, 'Select a valid payment method.');
+  }
+  if (details.promoCode != null && (typeof details.promoCode !== 'string' || details.promoCode.length > 80)) {
+    throw new RequestError(400, 'Enter a valid promo code.');
+  }
+  if (details.paymentMethod === 'BANK_TRANSFER' &&
+      (typeof details.receiptPath !== 'string' || !details.receiptPath || details.receiptPath.length > 100)) {
+    throw new RequestError(400, 'Upload your payment receipt.');
+  }
 }
 
 // Bound the actual stream; Content-Length is optional and cannot be trusted.
@@ -104,7 +146,7 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
       try { body = isReceipt ? null : JSON.parse(new TextDecoder().decode(bytes)); }
       catch { throw new RequestError(400,'Invalid request.'); }
       const action: Action = isReceipt ? 'receipt' : body?.action;
-      if (!Object.hasOwn(LIMITS,action)) throw new RequestError(400,'Invalid request.');
+      if (typeof action !== 'string' || !Object.hasOwn(LIMITS,action)) throw new RequestError(400,'Invalid request.');
       // The Supabase gateway supplies the forwarded client address. HMAC avoids storing raw IPs.
       const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
       const key = await crypto.subtle.importKey('raw',new TextEncoder().encode(config.serviceKey),{name:'HMAC',hash:'SHA-256'},false,['sign']);
@@ -120,7 +162,13 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
           if (typeof input.orderReference !== 'string' || input.orderReference.length > 80
               || (input.email != null && (typeof input.email !== 'string' || input.email.length>254))
               || (input.phone != null && (typeof input.phone !== 'string' || input.phone.length>30))) throw new RequestError(400,'Invalid tracking details.');
-          return reply(await rpc('get_order_tracking',{p_order_reference:input.orderReference,p_email:input.email||null,p_phone:input.phone||null}));
+          const lookup = {p_order_reference:input.orderReference,p_email:input.email||null,p_phone:input.phone||null};
+          const order = await rpc('get_order_tracking',lookup);
+          const national = normalizeSriLankanPhone(input.phone);
+          if (order == null && national && national !== input.phone) {
+            return reply(await rpc('get_order_tracking',{...lookup,p_phone:national}));
+          }
+          return reply(order);
         }
         if (typeof input.code !== 'string' || input.code.length>80 || !Number.isFinite(input.subtotal)) throw new RequestError(400,'Invalid promotion.');
         return reply(await rpc('preview_promo_code',{p_code:input.code,p_subtotal:input.subtotal}));
@@ -141,7 +189,11 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
       const globalPermitted = await rpc('consume_checkout_attempt',{p_key:`${action}:global`,p_limit:500});
       if (!globalPermitted) throw new RequestError(429,'Too many attempts. Please try again later.');
 
-      if (action === 'order') return reply(await rpc('submit_checkout',{p_request_id:requestId,p_payload:body.input}));
+      if (action === 'order') {
+        validateOrderContact(body.input);
+        // Keep the submitted payload intact so legacy retries retain their database hash.
+        return reply(await rpc('submit_checkout',{p_request_id:requestId,p_payload:body.input}));
+      }
       const extension = receiptExtension(bytes,request.headers.get('content-type')??'');
       const path = `${requestId}/${crypto.randomUUID()}.${extension}`;
       const upload = await fetcher(`${config.supabaseUrl}/storage/v1/object/payment-receipts/${path}`,{

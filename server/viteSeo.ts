@@ -38,7 +38,12 @@ export function seoPlugin(): Plugin {
       if (options.dir) await rename(resolve(options.dir, 'index.html'), resolve(options.dir, 'app.html'));
     },
     configureServer(server) {
-      server.middlewares.use(middleware(async (url) => server.transformIndexHtml(url, await readFile(resolve('index.html'), 'utf8'))));
+      // This pure module is imported by both the storefront and the checkout Edge Function.
+      const renderPage = middleware(async (url) => server.transformIndexHtml(url, await readFile(resolve('index.html'), 'utf8')));
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split('?')[0] === '/supabase/functions/_shared/checkoutContact.ts') return next();
+        return renderPage(req, res, next);
+      });
     },
     async configurePreviewServer(server) {
       const config: { headers: { source: string; headers: { key: string; value: string }[] }[] } = JSON.parse(await readFile(resolve('vercel.json'), 'utf8'));
