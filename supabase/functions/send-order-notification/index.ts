@@ -202,7 +202,7 @@ function buildEmailHtml(order: OrderRow): string {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${surface};padding:24px 0;">
       <tr>
         <td align="center">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:92%;background-color:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid ${border};">
+          <table role="presentation" width="92%" cellpadding="0" cellspacing="0" style="width:92%;max-width:600px;background-color:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid ${border};">
             <tr>
               <td style="background-color:${primary};padding:24px 32px;">
                 <p style="margin:0;color:#FFFFFF;font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:0.85;">ComicCulture</p>
@@ -217,7 +217,7 @@ function buildEmailHtml(order: OrderRow): string {
                     <td style="color:${muted};font-size:12px;text-transform:uppercase;letter-spacing:1px;text-align:right;">Date &amp; Time</td>
                   </tr>
                   <tr>
-                    <td style="color:${foreground};font-size:16px;font-weight:600;padding-top:2px;">${escapeHtml(order.order_reference)}</td>
+                    <td style="color:${foreground};font-size:16px;font-weight:600;padding-top:2px;word-break:break-all;">${escapeHtml(order.order_reference)}</td>
                     <td style="color:${foreground};font-size:14px;padding-top:2px;text-align:right;">${formatDate(order.created_at)}</td>
                   </tr>
                 </table>
@@ -355,12 +355,12 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${surface};padding:24px 0;">
       <tr>
         <td align="center">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:92%;background-color:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid ${border};">
+          <table role="presentation" width="92%" cellpadding="0" cellspacing="0" style="width:92%;max-width:600px;background-color:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid ${border};">
             <tr>
               <td style="background-color:${primary};padding:36px 32px;text-align:center;">
                 <p style="margin:0;color:#FFFFFF;font-size:12px;letter-spacing:4px;text-transform:uppercase;opacity:0.85;">ComicCulture</p>
                 <h1 style="margin:10px 0 0;color:#FFFFFF;font-size:24px;letter-spacing:0.5px;">${awaitingVerification ? 'Order Received' : 'Order Confirmed'}</h1>
-                <p style="margin:6px 0 0;color:#FFFFFF;font-size:13px;opacity:0.85;">Order ${escapeHtml(order.order_reference)}</p>
+                <p style="margin:6px 0 0;color:#FFFFFF;font-size:13px;opacity:0.85;word-break:break-all;">Order ${escapeHtml(order.order_reference)}</p>
               </td>
             </tr>
 
@@ -383,7 +383,7 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
                   <tr>
                     <td style="padding:18px 20px;text-align:center;">
                       <p style="margin:0;color:${mutedForeground};font-size:10px;letter-spacing:3px;text-transform:uppercase;">Issue No.</p>
-                      <p style="margin:4px 0 0;color:${foreground};font-size:20px;font-weight:700;letter-spacing:1px;font-family:'Courier New',Courier,monospace;">${escapeHtml(order.order_reference)}</p>
+                      <p style="margin:4px 0 0;color:${foreground};font-size:20px;font-weight:700;letter-spacing:1px;font-family:'Courier New',Courier,monospace;word-break:break-all;">${escapeHtml(order.order_reference)}</p>
                       <p style="margin:6px 0 0;color:${mutedForeground};font-size:12px;">Received ${formatDate(order.created_at)}</p>
                     </td>
                   </tr>

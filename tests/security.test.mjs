@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import test from 'node:test';
 import ts from 'typescript';
 import { PGlite } from '@electric-sql/pglite';
@@ -25,6 +25,25 @@ const contact = {
 const request = (patch = {}, headers = {}) => new Request(`${origin}/checkout`,{
   method:'POST',headers:{origin,'Content-Type':'application/json','x-forwarded-for':'192.0.2.1',...headers},
   body:JSON.stringify({action:'order',requestId:id,token:'synthetic-token',input:contact,...patch}),
+});
+
+test('audit reproduction: sequence UPDATE permits resetting the next generated value', async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`
+      CREATE ROLE anon;
+      CREATE SEQUENCE public.audit_reference_seq;
+      GRANT SELECT, USAGE, UPDATE ON SEQUENCE public.audit_reference_seq TO anon;
+      SET ROLE anon;
+    `);
+    await db.query("SELECT setval('public.audit_reference_seq', 42, false)");
+    const { rows } = await db.query("SELECT nextval('public.audit_reference_seq')::int AS next");
+    assert.equal(rows[0].next,42);
+    await db.exec("RESET ROLE; REVOKE ALL ON SEQUENCE public.audit_reference_seq FROM anon; SET ROLE anon;");
+    await assert.rejects(db.query("SELECT setval('public.audit_reference_seq', 42, false)"),/permission denied/);
+  } finally {
+    await db.close();
+  }
 });
 
 test('checkout gateway fails closed and gates writes before the order RPC',async t => {
@@ -107,6 +126,32 @@ test('checkout gateway fails closed and gates writes before the order RPC',async
       assert.deepEqual(calls.filter(call=>call.url.includes('get_order_tracking')).map(call=>JSON.parse(call.body).p_phone),expected);
     }
   });
+  await t.test('legacy tracking shares a private contact budget across references and IPs', async () => {
+    const keys = [];
+    let lookups = 0;
+    const gateway = createCheckoutHandler(config, async (url, options) => {
+      if (url.includes('get_order_tracking')) {
+        lookups++;
+        return Response.json(null);
+      }
+      const {p_key, p_limit} = JSON.parse(options.body);
+      if (!p_key.startsWith('track-contact:')) return Response.json(true);
+      assert.equal(p_limit,12);
+      assert.match(p_key,/^track-contact:[0-9a-f]{64}$/);
+      keys.push(p_key);
+      return Response.json(keys.length === 1);
+    });
+    for (const [i,phone] of ['0771234567','+94 77-123-4567'].entries()) {
+      const response = await gateway(request({action:'track',input:{phone,orderReference:`CC-000000${i}`}}, {'x-forwarded-for':`192.0.2.${i+1}`}));
+      assert.equal(response.status,i === 0 ? 200 : 429);
+    }
+    assert.equal(keys[0],keys[1]);
+    assert.equal(lookups,1);
+    const randomReference = 'CC-ABCDEF1234564ABC8ABCDEF123456789';
+    assert.equal((await gateway(request({action:'track',input:{email:'test@example.invalid',orderReference:randomReference}}))).status,200);
+    assert.equal(keys.length,2);
+    assert.equal((await gateway(request({action:'track',input:{email:'test@example.invalid',phone:'0771234567',orderReference:randomReference}}))).status,400);
+  });
   await t.test('only recognized pricing conflicts become actionable checkout errors', async () => {
     for (const [dbCode, code, status] of [
       ['CC001', 'delivery_fee_changed', 409],
@@ -177,7 +222,7 @@ test('security migrations preserve checkout transactions and enforce role bounda
     CREATE TABLE storage.buckets(id text PRIMARY KEY,file_size_limit bigint,allowed_mime_types text[]);
     INSERT INTO storage.buckets(id) VALUES('product-images');
     CREATE SEQUENCE order_reference_seq;
-    ALTER TABLE orders ADD COLUMN full_name text NOT NULL, ADD COLUMN phone text NOT NULL, ADD COLUMN mobile_phone text,
+    ALTER TABLE orders ADD COLUMN created_at timestamptz DEFAULT now(), ADD COLUMN full_name text NOT NULL, ADD COLUMN phone text NOT NULL, ADD COLUMN mobile_phone text,
       ADD COLUMN email text, ADD COLUMN address_line1 text NOT NULL, ADD COLUMN address_line2 text, ADD COLUMN city text,
       ADD COLUMN district text, ADD COLUMN postal_code text, ADD COLUMN subtotal numeric, ADD COLUMN delivery_fee numeric,
       ADD COLUMN total numeric, ADD COLUMN promo_code text, ADD COLUMN discount_amount numeric DEFAULT 0;
@@ -199,8 +244,8 @@ test('security migrations preserve checkout transactions and enforce role bounda
   const notification=read('../supabase/migrations/20261011030000_secure_order_notifications.sql');
   await db.exec(notification.slice(notification.indexOf('create function public.create_order_with_notification_token'),notification.indexOf('create function public.claim_order_notification')));
   await db.exec(notification.split(/\r?\n/).filter(line => line.startsWith('revoke all on function public.create_order(')).join('\n'));
-  // Only required so the migration can revoke the historical tracking grant.
-  await db.exec(`CREATE FUNCTION public.get_order_tracking(text,text,text) RETURNS json LANGUAGE sql AS $$ SELECT NULL::json; $$;`);
+  const tracking = read('../supabase/migrations/20261011010000_harden_admin_access_and_order_tracking.sql');
+  await db.exec(tracking.slice(tracking.indexOf('create or replace function public.get_order_tracking'), tracking.indexOf('revoke update on public.orders')));
   await db.exec(read('../supabase/migrations/20261026114608_security_checkout_boundary.sql'));
   await db.exec(read('../supabase/migrations/20261026114635_security_admin_and_uploads.sql'));
   await db.exec(read('../supabase/migrations/20261026120954_security_activate_boundary.sql'));
@@ -224,6 +269,23 @@ test('security migrations preserve checkout transactions and enforce role bounda
     const retry=(await submit({...payload,total:0},id)).rows[0].result;
     assert.equal(retry.order_id,result.order_id);assert.equal(await stock(),9);
     await assert.rejects(submit({...payload,fullName:'Different'},id),/already used/);
+  });
+  await t.test('tracking requires the matching contact and excludes private order fields', async () => {
+    await login('service_role');
+    const result = (await submit({...payload,total:0},id)).rows[0].result;
+    const lookup = async (email,phone) =>
+      (await db.query('SELECT public.get_order_tracking($1,$2,$3) AS result',[result.order_reference,email,phone])).rows[0].result;
+    assert.equal(await lookup(null,null),null);
+    assert.equal(await lookup('another@example.invalid','0779999999'),null);
+    const response = await lookup(null,payload.phone);
+    assert.equal(response.order_reference,result.order_reference);
+    assert.deepEqual(await lookup('SHOPPER@EXAMPLE.INVALID',null),response);
+    for (const field of ['full_name','phone','mobile_phone','email','address_line1','address_line2','receipt_url','payment_status','notification_token']) {
+      assert.ok(!Object.hasOwn(response,field),field);
+    }
+    await login('authenticated');
+    await assert.rejects(lookup(null,payload.phone),/permission denied/);
+    await login('service_role');
   });
   await t.test('invalid email, null payment, blank address, excess cart entries, and bad quantity roll back all stock changes',async()=>{
     for(const patch of [{email:null},{email:'invalid'},{paymentMethod:null},{addressLine1:''},{city:null},{items:Array(51).fill(payload.items[0])},{items:[{...payload.items[0],quantity:1.5}]}]){
@@ -282,6 +344,40 @@ test('security migrations preserve checkout transactions and enforce role bounda
     const historicalOrders = () => db.query('SELECT id, subtotal, delivery_fee, total FROM orders ORDER BY id').then(result => result.rows);
     const historical = await historicalOrders();
     await db.exec(read('../supabase/migrations/20261112113607_centralize_delivery_fee.sql'));
+    const productCodes = read('../supabase/migrations/20261011164309_readable_product_skus.sql');
+    const reserveStart = productCodes.indexOf('CREATE OR REPLACE FUNCTION public.reserve_product_code');
+    const reserveGrant = 'GRANT EXECUTE ON FUNCTION public.reserve_product_code() TO authenticated, service_role;';
+    await db.exec(productCodes.slice(reserveStart,productCodes.indexOf(reserveGrant) + reserveGrant.length));
+    const safety = read('../supabase/migrations/20261025124030_admin_audit_safety_fixes.sql');
+    const codeStart = safety.indexOf('CREATE OR REPLACE FUNCTION public.next_product_code');
+    await db.exec(safety.slice(codeStart,safety.indexOf('$$;',codeStart) + 3));
+    await db.exec(`
+      GRANT ALL ON SEQUENCE order_reference_seq, product_code_seq TO anon, authenticated;
+      ALTER TABLE product_versions ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE product_version_sizes ENABLE ROW LEVEL SECURITY;
+      CREATE POLICY "Product versions are viewable by everyone" ON product_versions FOR SELECT USING (true);
+      CREATE POLICY "Product version sizes are viewable by everyone" ON product_version_sizes FOR SELECT USING (true);
+      CREATE POLICY "Store admins manage product versions" ON product_versions FOR ALL TO authenticated USING (public.is_store_admin());
+      CREATE POLICY "Store admins manage product version sizes" ON product_version_sizes FOR ALL TO authenticated USING (public.is_store_admin());
+      INSERT INTO product_version_sizes(version_id,size,sku,price,stock)
+      VALUES ('00000000-0000-0000-0000-000000000021','S','PRIVATE-S',100,0);
+      UPDATE product_versions SET is_active=false WHERE id='00000000-0000-0000-0000-000000000021';
+    `);
+    await db.exec(read('../supabase/migrations/20261114065745_harden_tracking_and_catalog_access.sql'));
+    for (const role of ['anon','authenticated']) {
+      await login(role,{sub:staff,aal:'aal2'});
+      assert.equal((await db.query("SELECT count(*)::int AS n FROM product_versions WHERE NOT is_active")).rows[0].n,0);
+      assert.equal((await db.query("SELECT count(*)::int AS n FROM product_version_sizes WHERE sku='PRIVATE-S'")).rows[0].n,0);
+      assert.equal((await db.query("SELECT count(*)::int AS n FROM product_version_sizes WHERE sku='TEST-M'")).rows[0].n,1);
+      for (const sequence of ['order_reference_seq','product_code_seq']) {
+        await assert.rejects(db.query('SELECT nextval($1::regclass)',[sequence]),/permission denied/);
+        await assert.rejects(db.query('SELECT setval($1::regclass,42)',[sequence]),/permission denied/);
+      }
+    }
+    await login('authenticated',{sub:admin,aal:'aal2'});
+    assert.equal((await db.query("SELECT count(*)::int AS n FROM product_version_sizes WHERE sku='PRIVATE-S'")).rows[0].n,1);
+    assert.match((await db.query('SELECT public.reserve_product_code() AS code')).rows[0].code,/^CC-P[0-9]{6}$/);
+    await db.exec("RESET ROLE; DELETE FROM product_version_sizes WHERE sku='PRIVATE-S'");
 
     const readFee = () => db.query('SELECT delivery_fee FROM delivery_settings').then(result => Number(result.rows[0].delivery_fee));
     const saveFee = value => db.query('UPDATE delivery_settings SET delivery_fee = $1 RETURNING delivery_fee', [value]);
@@ -307,6 +403,7 @@ test('security migrations preserve checkout transactions and enforce role bounda
     const beforeChangeRetry = (await submit({...payload,total:0,expectedDeliveryFee:475.25,expectedTotal:575.25},id)).rows[0].result;
     assert.ok(historical.some(order => order.id === beforeChangeRetry.order_id));
     assert.equal(Number(beforeChangeRetry.total),450);
+    assert.match(beforeChangeRetry.order_reference,/^CC-[0-9]+$/);
     const codId = crypto.randomUUID();
     await assert.rejects(submit(payload, codId), {code:'CC001'});
     await assert.rejects(submit({...payload,expectedDeliveryFee:0,expectedTotal:100}, codId), {code:'CC001'});
@@ -317,7 +414,25 @@ test('security migrations preserve checkout transactions and enforce role bounda
     await login('authenticated', {sub:owner,aal:'aal2'});
     assert.equal(Number((await saveFee(0)).rows[0].delivery_fee), 0);
     await login('service_role');
-    const cod = (await submit({...payload,expectedDeliveryFee:0,expectedTotal:100}, codId)).rows[0].result;
+    const codPayload = {...payload,expectedDeliveryFee:0,expectedTotal:100};
+    const gateway = createCheckoutHandler(config, async (url, options) => {
+      if (url.includes('consume_checkout_attempt')) return Response.json(true);
+      if (url.includes('siteverify')) return Response.json({success:true,action:'checkout',hostname:'comicculture.lk'});
+      assert.ok(url.endsWith('/submit_checkout'));
+      const {p_payload,p_request_id} = JSON.parse(options.body);
+      return Response.json((await submit(p_payload,p_request_id)).rows[0].result);
+    });
+    const response = await gateway(request({requestId:codId,input:codPayload}));
+    assert.equal(response.status,200);
+    const cod = await response.json();
+    if (process.env.COMICCULTURE_REFERENCE_FIXTURE) {
+      writeFileSync(process.env.COMICCULTURE_REFERENCE_FIXTURE, JSON.stringify({current:cod, historical:beforeChangeRetry}));
+    }
+    assert.match(cod.order_reference,/^CC-[0-9A-F]{12}4[0-9A-F]{3}[89AB][0-9A-F]{15}$/);
+    for (const order of [beforeChangeRetry,cod]) {
+      const {rows} = await db.query('SELECT public.get_order_tracking($1,$2,$3) AS result',[order.order_reference,null,payload.phone]);
+      assert.equal(rows[0].result.order_reference,order.order_reference);
+    }
     assert.deepEqual([cod.subtotal,cod.delivery_fee,cod.total].map(Number), [100,0,100]);
     assert.equal(await stock(), initialStock-1);
 

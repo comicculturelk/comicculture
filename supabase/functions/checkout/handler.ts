@@ -13,6 +13,8 @@ export interface CheckoutConfig {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const RECEIPT_LIMIT = 5 * 1024 * 1024;
 const LIMITS = { receipt: 6, order: 10, track: 60, promo: 60 } as const;
+const RANDOM_ORDER_REFERENCE = /^CC-[0-9A-F]{12}4[0-9A-F]{3}[89AB][0-9A-F]{15}$/;
+const LEGACY_TRACK_CONTACT_LIMIT = 12;
 type Action = keyof typeof LIMITS;
 
 class RequestError extends Error {
@@ -150,8 +152,11 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
       // The Supabase gateway supplies the forwarded client address. HMAC avoids storing raw IPs.
       const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
       const key = await crypto.subtle.importKey('raw',new TextEncoder().encode(config.serviceKey),{name:'HMAC',hash:'SHA-256'},false,['sign']);
-      const digest = new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(ip)));
-      const hash = Array.from(digest,byte=>byte.toString(16).padStart(2,'0')).join('');
+      const hashValue = async (value: string) => {
+        const digest = new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(value)));
+        return Array.from(digest,byte=>byte.toString(16).padStart(2,'0')).join('');
+      };
+      const hash = await hashValue(ip);
       const permitted = await rpc('consume_checkout_attempt',{p_key:`${action}:${hash}`,p_limit:LIMITS[action]});
       if (!permitted) throw new RequestError(429,'Too many attempts. Please try again later.');
 
@@ -162,10 +167,23 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
           if (typeof input.orderReference !== 'string' || input.orderReference.length > 80
               || (input.email != null && (typeof input.email !== 'string' || input.email.length>254))
               || (input.phone != null && (typeof input.phone !== 'string' || input.phone.length>30))) throw new RequestError(400,'Invalid tracking details.');
-          const lookup = {p_order_reference:input.orderReference,p_email:input.email||null,p_phone:input.phone||null};
+          const reference = input.orderReference.trim();
+          const email = input.email?.trim() || null;
+          const phone = input.phone?.trim() || null;
+          if (!reference || Boolean(email) === Boolean(phone)) throw new RequestError(400,'Enter an order reference and either email or phone.');
+          const national = normalizeSriLankanPhone(phone);
+          // Legacy references share a contact budget across clients and references.
+          // Hash contacts with a server-held key so the counters contain no raw PII.
+          if (!RANDOM_ORDER_REFERENCE.test(reference)) {
+            const contact = email ? `email:${email.toLowerCase()}` : `phone:${national ?? phone}`;
+            const contactHash = await hashValue(contact);
+            if (!await rpc('consume_checkout_attempt',{p_key:`track-contact:${contactHash}`,p_limit:LEGACY_TRACK_CONTACT_LIMIT})) {
+              throw new RequestError(429,'Too many attempts. Please try again later.');
+            }
+          }
+          const lookup = {p_order_reference:reference,p_email:email,p_phone:phone};
           const order = await rpc('get_order_tracking',lookup);
-          const national = normalizeSriLankanPhone(input.phone);
-          if (order == null && national && national !== input.phone) {
+          if (order == null && national && national !== phone) {
             return reply(await rpc('get_order_tracking',{...lookup,p_phone:national}));
           }
           return reply(order);

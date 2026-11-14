@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
@@ -54,7 +54,9 @@ function setup({ row = order, failRecipient, claim = 'lock', replyTo = 'support@
 }
 
 test('order notifications use saved recipients, configured sender and support reply address', async () => {
-  const s = setup();
+  const fixturePath = process.env.COMICCULTURE_REFERENCE_FIXTURE;
+  const reference = fixturePath ? JSON.parse(readFileSync(fixturePath,'utf8')).current.order_reference : order.order_reference;
+  const s = setup({row:{...order,order_reference:reference}});
   const response = await s.handler(s.request({ orderId, notificationToken: token, email: 'attacker@example.invalid' }));
   assert.equal(response.status, 200);
   assert.equal(s.sent.length, 2);
@@ -67,6 +69,14 @@ test('order notifications use saved recipients, configured sender and support re
   assert.match(s.sent[1].body.html, /&lt;shirt&gt;/);
   assert.doesNotMatch(s.sent[1].body.html, /<script>|<unsafe>/);
   assert.match(s.sent[1].body.html, /Pay in cash when it arrives/);
+  for (const {body} of s.sent) {
+    assert.ok(body.subject.includes(reference));
+    assert.ok(body.html.includes(reference));
+  }
+  assert.match(s.sent[1].body.html, /href="https:\/\/comicculture\.lk\/track-order"/);
+  if (process.env.COMICCULTURE_EMAIL_FIXTURE) {
+    writeFileSync(process.env.COMICCULTURE_EMAIL_FIXTURE, JSON.stringify(s.sent.map(({body})=>body.html)));
+  }
 });
 
 test('bank-transfer confirmation requests verification without claiming dispatch or collected cash', async () => {

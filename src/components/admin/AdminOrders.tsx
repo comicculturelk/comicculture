@@ -347,7 +347,7 @@ export default function AdminOrders() {
 
   if (printOrder) return (
     <main className="mx-auto max-w-xl bg-white p-8 text-black print:max-w-none">
-      <div className="flex items-start justify-between border-b-2 border-black pb-4"><div><p className="text-xs font-bold uppercase tracking-widest">ComicCulture · Packing slip</p><h1 className="mt-2 text-2xl font-black">{printOrder.order_reference}</h1></div><p className="text-right text-sm">{formatDate(printOrder.created_at)}<br />{printOrder.status.toUpperCase()}</p></div>
+      <div className="flex items-start justify-between gap-3 border-b-2 border-black pb-4"><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-widest">ComicCulture · Packing slip</p><h1 className="mt-2 break-all text-2xl font-black">{printOrder.order_reference}</h1></div><p className="shrink-0 text-right text-sm">{formatDate(printOrder.created_at)}<br />{printOrder.status.toUpperCase()}</p></div>
       <section className="mt-6"><h2 className="text-xs font-bold uppercase tracking-widest">Ship to</h2><p className="mt-2 font-bold">{printOrder.full_name}</p><p>{printOrder.phone}{printOrder.mobile_phone ? ` · ${printOrder.mobile_phone}` : ''}</p>{printOrder.email && <p>{printOrder.email}</p>}<p className="mt-2">{printOrder.address_line1}{printOrder.address_line2 ? `, ${printOrder.address_line2}` : ''}<br />{printOrder.city}, {printOrder.district} {printOrder.postal_code ?? ''}</p></section>
       <table className="mt-6 w-full border-collapse text-sm"><thead><tr className="border-b border-black text-left"><th className="py-2">Item</th><th className="py-2">Size / SKU</th><th className="py-2 text-right">Qty</th></tr></thead><tbody>{printOrder.order_items.map((item) => <tr key={item.id} className="border-b border-gray-300"><td className="py-3">{item.name}{item.is_preorder ? ' · PREORDER' : ''}</td><td className="py-3">{item.size}{item.sku ? ` · ${item.sku}` : ''}</td><td className="py-3 text-right">{item.quantity}</td></tr>)}</tbody></table>
       <div className="mt-4 flex justify-between border-t-2 border-black pt-3 font-bold"><span>Order total · {formatPaymentMethod(printOrder.payment_method ?? '')}</span><span>Rs. {printOrder.total}</span></div>
@@ -399,9 +399,9 @@ export default function AdminOrders() {
           return (
             <div key={order.id} className="glass rounded-2xl p-4 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-display text-lg text-foreground tracking-wide">
+                    <p className="break-all font-display text-lg text-foreground tracking-wide">
                       {order.order_reference}
                     </p>
                     {order.order_items.some((item) => item.is_preorder) && (
@@ -655,7 +655,7 @@ export default function AdminOrders() {
       {cancellingOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="presentation">
           <section ref={cancelPanelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" className="glass max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl p-4 sm:p-6">
-            <h2 id="cancel-order-title" className="font-display text-xl text-foreground">Cancel {cancellingOrder.order_reference}?</h2>
+            <h2 id="cancel-order-title" className="break-all font-display text-xl text-foreground">Cancel {cancellingOrder.order_reference}?</h2>
             <p className="text-sm text-muted-foreground">This restores the reserved inventory. Record the reason for the audit history.</p>
             <label className="block text-xs text-muted-foreground">Cancellation reason<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} required minLength={3} rows={3} className="mt-1 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground" /></label>
             {cancellingOrder.payment_status === 'paid' && <>

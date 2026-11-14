@@ -194,10 +194,10 @@ export default function TrackOrder() {
               className="mt-8 rounded-lg border border-border bg-surface p-6 shadow-soft md:p-8"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs uppercase tracking-wide text-muted">Order Reference</p>
                   <div className="flex items-center gap-2">
-                    <p className="font-display text-lg text-foreground tracking-wide">
+                    <p className="break-all font-display text-lg text-foreground tracking-wide">
                       {result.order_reference}
                     </p>
                     {hasPreorderItem && (

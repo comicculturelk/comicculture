@@ -74,7 +74,7 @@ export default function OrderSuccess() {
         {hasOrderDetails && (
           <div className="mt-6 rounded-lg border border-border bg-surface px-6 py-3">
             <p className="text-xs uppercase tracking-wide text-muted">Order Reference</p>
-            <p className="font-display text-lg text-foreground tracking-wide">
+            <p className="break-all font-display text-lg text-foreground tracking-wide">
               {state.orderReference}
             </p>
             {typeof state.total === 'number' && (

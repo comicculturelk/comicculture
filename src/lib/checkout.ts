@@ -23,6 +23,9 @@ export function completeCheckout(): void {
 
 export async function checkoutRequest<T>(action: 'order' | 'track' | 'promo', input: unknown, security?: { requestId: string; token: string }): Promise<T> {
   const { data, error } = await supabase.functions.invoke('checkout', { body: { action, input, ...security } });
+  if (action === 'track' && error instanceof FunctionsHttpError && error.context.status === 429) {
+    throw new Error('Too many tracking attempts. Please try again later.');
+  }
   if (action === 'order' && error instanceof FunctionsHttpError && error.context.status === 409) {
     const body: unknown = await error.context.json().catch(() => null);
     if (body && typeof body === 'object' && 'code' in body &&
