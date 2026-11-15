@@ -31,12 +31,19 @@ const titles: Record<Job['payload']['status'], string> = {
 };
 
 function trackingLink(value: string | null) {
-  if (!value || /[\s\\]/.test(value)) return null;
+  if (!value || !/^https:\/\//i.test(value) || /[\s\\]/.test(value)) return null;
   try {
     const url = new URL(value);
     const publicHost = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/i.test(url.hostname);
     return url.protocol === 'https:' && publicHost && !url.port && !url.username && !url.password ? url.href : null;
   } catch { return null; }
+}
+
+function optionalTrackingText(value: string | null) {
+  const text = value?.trim();
+  return text && !/^(?:[-–—]+|n\/?a|none|null|unknown|pending|tbd|not (?:available|provided|applicable))$/i.test(text)
+    ? text
+    : null;
 }
 
 export function buildStatusEmail(order: Job['payload'], replyTo: string) {
@@ -53,10 +60,12 @@ export function buildStatusEmail(order: Job['payload'], replyTo: string) {
         ? 'Your order was cancelled. No cash-on-delivery payment was collected.'
         : 'Your order was cancelled. If you already transferred money, reply so we can check your payment.',
   }[order.status];
+  const courier = optionalTrackingText(order.courier);
+  const trackingNumber = optionalTrackingText(order.trackingNumber);
   const details = order.status === 'shipped' ? [
-    order.courier ? ['Courier', order.courier] : null,
-    order.trackingNumber ? ['Tracking number', order.trackingNumber] : null,
-  ].filter((entry): entry is string[] => Boolean(entry)) : [];
+    courier ? ['Courier', courier] : null,
+    trackingNumber ? ['Tracking number', trackingNumber] : null,
+  ].filter((entry) => entry !== null) : [];
   const url = order.status === 'shipped' ? trackingLink(order.trackingUrl) : null;
   const storeTracking = 'https://comicculture.lk/track-order';
   const reference = order.reference.replace(/[\r\n]/g, '');

@@ -21,7 +21,7 @@ test('status outbox follows committed orders and preserves admin authorization',
   const roles = read('../supabase/migrations/20261028060247_multi_user_admin_onboarding.sql');
   await db.exec(roles.slice(roles.indexOf('CREATE OR REPLACE FUNCTION public.get_store_admin_role'),roles.indexOf('CREATE OR REPLACE FUNCTION public.staff_inventory')));
   const workflow = read('../supabase/migrations/20261011163006_admin_workflow_audit.sql');
-  await db.exec(workflow.slice(workflow.indexOf('CREATE OR REPLACE FUNCTION public.admin_transition_order'),workflow.indexOf('CREATE OR REPLACE FUNCTION public.admin_save_order_tracking')));
+  await db.exec(workflow.slice(workflow.indexOf('CREATE OR REPLACE FUNCTION public.admin_transition_order'),workflow.indexOf('CREATE OR REPLACE FUNCTION public.admin_dashboard_summary')));
   await db.query("INSERT INTO orders(id,status,email,payment_method,payment_status,order_reference) VALUES($1,'shipped',$2,'COD','pending','CC-123')",[historicalId,email]);
   await db.exec(read('../supabase/migrations/20261115140801_order_status_email_outbox.sql'));
 
@@ -46,6 +46,55 @@ test('status outbox follows committed orders and preserves admin authorization',
     await login();
     return (await db.query('SELECT * FROM admin_order_status_emails($1)',[[id]])).rows;
   };
+  const saveTracking = (id, courier, number, url) =>
+    db.query('SELECT admin_save_order_tracking($1,$2,$3,$4)',[id,courier,number,url]);
+
+  const withoutTracking = (await db.query(
+    "INSERT INTO orders(status,email,payment_method,payment_status,order_reference) VALUES('packed',$1,'COD','pending','583104927619') RETURNING id", [email]
+  )).rows[0].id;
+  await login();
+  await assert.rejects(transition(withoutTracking,'shipped'),{
+    code:'P0001', message:'Save a courier and tracking number before shipping',
+  });
+  assert.equal((await list(withoutTracking)).length,0);
+  await db.exec('RESET ROLE');
+  await db.exec(read('../supabase/migrations/20261115152152_allow_optional_order_courier_tracking.sql'));
+
+  await t.test('shipping without tracking queues a clean email and admins can add and edit details later', async () => {
+    for (const [role,sub,aal] of [['anon',owner,'aal2'],['authenticated',owner,'aal1'],['authenticated',staff,'aal2']]) {
+      await login(role,sub,aal);
+      await assert.rejects(transition(withoutTracking,'shipped'),{code:'42501'});
+    }
+    await login();
+    await transition(withoutTracking,'shipped');
+    await transition(withoutTracking,'shipped');
+    assert.deepEqual((await list(withoutTracking)).map(row=>[row.order_status,row.state]),[['shipped','pending']]);
+
+    await ready();
+    const job = await claim();
+    const { status, courier, trackingNumber, trackingUrl, paymentStatus } = job.payload;
+    assert.deepEqual({status,courier,trackingNumber,trackingUrl,paymentStatus},
+      {status:'shipped',courier:null,trackingNumber:null,trackingUrl:null,paymentStatus:'pending'});
+    const message = buildStatusEmail(job.payload,'support@example.invalid');
+    assert.match(message.subject,/Order shipped/);
+    for (const body of [message.text,message.html]) {
+      assert.doesNotMatch(body,/courier|tracking number/i);
+      assert.match(body,/https:\/\/comicculture\.lk\/track-order/);
+    }
+    await finish(job,'sent');
+
+    await login();
+    await saveTracking(withoutTracking,'Local courier',null,null);
+    await assert.rejects(saveTracking(withoutTracking,'Local courier','QA-456','http://courier.example.invalid/'),/must use HTTPS/);
+    const url = 'https://courier.example.invalid/track/QA-456';
+    await saveTracking(withoutTracking,'Local courier','QA-456',url);
+    assert.deepEqual((await list(withoutTracking)).map(row=>[row.order_status,row.state]),[['shipped','sent']]);
+    await db.exec('RESET ROLE');
+    const saved = await db.query('SELECT status,payment_status,courier_name,tracking_number,tracking_url FROM orders WHERE id=$1',[withoutTracking]);
+    assert.deepEqual(saved.rows,[{ status:'shipped',payment_status:'pending',courier_name:'Local courier',tracking_number:'QA-456',tracking_url:url }]);
+    const audit = await db.query("SELECT event_type,count(*)::int AS count FROM admin_activity_log WHERE entity_id=$1 GROUP BY event_type ORDER BY event_type",[withoutTracking]);
+    assert.deepEqual(audit.rows,[{event_type:'order_status_changed',count:1},{event_type:'order_tracking_updated',count:2}]);
+  });
 
   await t.test('migration queues no historical emails and permissions follow MFA and roles', async () => {
     assert.equal((await list(historicalId)).length,0);
@@ -63,12 +112,20 @@ test('status outbox follows committed orders and preserves admin authorization',
     await transition(id,'confirmed');
     await transition(id,'confirmed');
     assert.deepEqual((await list(id)).map(row=>[row.order_status,row.state,row.reason]),[['confirmed','skipped','covered_by_confirmation']]);
+    const url = 'https://courier.example.invalid/track/QA-123';
+    await saveTracking(id,'Local courier','QA-123',url);
     for (const status of ['packed','shipped','delivered']) {
       await login();
       await transition(id,status);
       await ready();
       const job = await claim();
       assert.equal(job.payload.status,status);
+      if (status === 'shipped') {
+        const message = buildStatusEmail(job.payload,'support@example.invalid');
+        assert.match(message.text,/Courier: Local courier/);
+        assert.match(message.text,/Tracking number: QA-123/);
+        assert.ok(message.html.includes(`href="${url}"`));
+      }
       assert.equal((await db.query('SELECT check_order_status_email_claim($1,$2) AS ok',[job.id,job.lease])).rows[0].ok,true);
       await finish(job,'sent');
     }
@@ -197,6 +254,21 @@ test('worker authenticates, skips stale jobs and reuses the same provider key af
   assert.match(buildStatusEmail({...job.payload,status:'cancelled',paymentMethod:'BANK_TRANSFER'},config.replyTo).text,/If you already transferred money/);
 });
 
+test('shipped emails omit placeholder details and malformed courier links', () => {
+  const order = { email, reference:'583104927618',status:'shipped',paymentMethod:'COD',paymentStatus:'pending' };
+  for (const placeholder of ['', '  ', 'N/A', '—', 'Pending', 'Not provided']) {
+    const message = buildStatusEmail({
+      ...order, courier:placeholder, trackingNumber:placeholder, trackingUrl:'https:courier.example.invalid/track',
+    },'support@example.invalid');
+    assert.doesNotMatch(message.text,/courier|tracking number/i);
+    assert.doesNotMatch(message.html,/courier|tracking number/i);
+  }
+  const message = buildStatusEmail({
+    ...order, courier:' Local courier ', trackingNumber:null, trackingUrl:null,
+  },'support@example.invalid');
+  assert.match(message.text,/Courier: Local courier\n/);
+  assert.doesNotMatch(message.text,/Tracking number|Courier tracking/);
+});
 
 test('operator scheduling uses only Vault references and invokes the secured worker', async t => {
   const db = new PGlite();

@@ -348,7 +348,12 @@ export default function AdminOrders() {
         p_refund_confirmed: cancellation?.refundConfirmed ?? false,
         p_refund_reference: cancellation?.refundReference ?? null,
       });
-      if (updateError) throw updateError;
+      if (updateError) {
+        const message = updateError.code === 'P0001'
+          ? updateError.message
+          : 'Could not update order status.';
+        throw new Error(message);
+      }
       setOrders((prev) => prev.map((o) => (o.id === order.id ? {
         ...o,
         status,
@@ -563,7 +568,7 @@ export default function AdminOrders() {
                   {order.refund_reference && <p className="mt-3 text-xs text-muted-foreground">Refund reference: {order.refund_reference}</p>}
 
                   <div className="mt-4 border-t border-border pt-4">
-                    <p className="mb-3 text-xs uppercase tracking-wide text-muted">Courier tracking</p>
+                    <p className="mb-3 text-xs uppercase tracking-wide text-muted">Courier tracking (optional)</p>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       {([
                         ['courierName', 'Courier / delivery service', order.courier_name ?? ''],
@@ -606,7 +611,6 @@ export default function AdminOrders() {
                   <p className="mt-3 text-xs text-muted-foreground">Order email: {notificationError ? 'Status unavailable. Refresh to retry.' : notificationStatus[order.id] ? `Send confirmed ${formatDate(notificationStatus[order.id]!)}` : 'Send not confirmed. Check the order manually; this does not prove delivery failed.'}</p>
                   <OrderStatusEmails rows={statusEmails[order.id] ?? []} unavailable={statusEmailsUnavailable}
                     retrying={retryingEmail} error={emailRetryErrors[order.id]} onRetry={(id) => void retryStatusEmail(order.id, id)} />
-                  {order.status === 'packed' && (!order.courier_name || !order.tracking_number) && <p className="mt-2 text-xs text-muted-foreground">Save the courier name and tracking number before marking this order shipped.</p>}
                   {order.payment_method === 'BANK_TRANSFER' && (
                     <div className="mt-4 border-t border-border pt-4">
                       <p className="mb-2 text-xs uppercase tracking-wide text-muted">

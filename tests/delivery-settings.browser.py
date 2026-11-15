@@ -165,8 +165,15 @@ def mock_backend(route):
             if details["email"] == "limited@example.invalid":
                 return route.fulfill(status=429, json={"error": "Too many attempts."})
             row = next((row for row in REFERENCES.values() if row["order_reference"] == details["orderReference"]), None)
-            return route.fulfill(json={**row, "status": "pending", "created_at": "2026-11-14T00:00:00Z", "items": []}
-                                 if row and details["email"] == "shopper@example.invalid" else None)
+            if row is None or details["email"] != "shopper@example.invalid":
+                return route.fulfill(json=None)
+            result = {**row, "status": "pending", "created_at": "2026-11-14T00:00:00Z", "items": []}
+            if row is REFERENCES["current"]:
+                result.update(status="shipped", courier_name=None, tracking_number=None, tracking_url=None)
+            elif row is REFERENCES.get("uuid"):
+                result.update(status="shipped", courier_name="QA Courier", tracking_number="QA-123",
+                              tracking_url="https://courier.example.invalid/track/QA-123")
+            return route.fulfill(json=result)
         order_attempts.append(payload)
         assert payload["action"] == "order"
         assert payload["token"] == "synthetic-checkout-token"
@@ -625,6 +632,14 @@ with sync_playwright() as playwright:
                 checkout.get_by_label("Email Address", exact=True).fill("shopper@example.invalid")
                 checkout.get_by_role("button", name="Track Order", exact=True).click()
                 expect(checkout.get_by_text(reference, exact=True)).to_be_visible()
+                if reference == current:
+                    expect(checkout.locator('[aria-current="step"]')).to_have_text("Shipped")
+                    expect(checkout.get_by_text("Delivery tracking", exact=True)).to_have_count(0)
+                elif "uuid" in REFERENCES and reference == uuid_reference:
+                    expect(checkout.locator('[aria-current="step"]')).to_have_text("Shipped")
+                    expect(checkout.get_by_text("Tracking number: QA-123", exact=True)).to_be_visible()
+                    expect(checkout.get_by_role("link", name="Track with the courier")).to_have_attribute(
+                        "href", "https://courier.example.invalid/track/QA-123")
                 assert_layout(checkout)
             checkout.get_by_label("Email Address", exact=True).fill("limited@example.invalid")
             checkout.get_by_role("button", name="Track Order", exact=True).click()
@@ -639,6 +654,8 @@ with sync_playwright() as playwright:
                 expect(admin.get_by_text(other, exact=True)).to_have_count(0)
                 assert_layout(admin)
             admin.get_by_role("button", name="View Details", exact=True).click()
+            expect(admin.get_by_text("Courier tracking (optional)", exact=True)).to_be_visible()
+            expect(admin.get_by_text("Save the courier name and tracking number", exact=False)).to_have_count(0)
             whatsapp = admin.locator("a[href*='wa.me']").first
             expect(whatsapp).to_have_attribute("href", re.compile(re.escape(current)))
             admin.get_by_role("button", name="Print packing slip").click()

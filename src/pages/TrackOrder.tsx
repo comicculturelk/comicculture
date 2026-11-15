@@ -259,7 +259,7 @@ export default function TrackOrder() {
                     const Icon = step.icon;
                     const isComplete = i <= currentStepIndex;
                     return (
-                      <div key={step.key} className="flex flex-1 flex-col items-center text-center">
+                      <div key={step.key} aria-current={i === currentStepIndex ? 'step' : undefined} className="flex flex-1 flex-col items-center text-center">
                         <div className="flex w-full items-center">
                           <div
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
