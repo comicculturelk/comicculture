@@ -152,6 +152,38 @@ test('checkout gateway fails closed and gates writes before the order RPC',async
     assert.equal(keys.length,2);
     assert.equal((await gateway(request({action:'track',input:{email:'test@example.invalid',phone:'0771234567',orderReference:randomReference}}))).status,400);
   });
+  await t.test('numeric tracking uses per-client and separate private contact limits', async () => {
+    const keys = new Map();
+    let lookups = 0;
+    const gateway = createCheckoutHandler(config, async (url, options) => {
+      const body = JSON.parse(options.body);
+      if (url.endsWith('get_order_tracking')) {
+        lookups++;
+        assert.match(body.p_order_reference, /^[0-9]{12}$|^CC-[0-9]+$/);
+        return Response.json(null);
+      }
+      const {p_key, p_limit} = body;
+      assert.match(p_key, /^(track|track-contact|track-numeric-contact):[a-f0-9]{64}$/);
+      assert.equal(p_limit, p_key.startsWith('track-numeric-contact:') ? 20 : p_key.startsWith('track-contact:') ? 12 : 60);
+      const count = (keys.get(p_key) ?? 0) + 1;
+      keys.set(p_key, count);
+      return Response.json(count <= p_limit);
+    });
+    const tryTrack = (orderReference, email, ip) =>
+      gateway(request({action: 'track', input: {email, orderReference}}, {'x-forwarded-for': ip}));
+    for (let i = 0; i < 21; i++) {
+      const res = await tryTrack(String(i).padStart(12, '0'), i % 2 ? ' Shopper@EXAMPLE.invalid ' : 'shopper@example.invalid', `192.0.2.${i+1}`);
+      assert.equal(res.status, i < 20 ? 200 : 429);
+      if (i < 20) assert.equal(await res.json(), null);
+    }
+    assert.equal(lookups, 20);
+    assert.equal((await tryTrack('CC-0000052', 'shopper@example.invalid', '192.0.2.25')).status, 200);
+    assert.equal([...keys.keys()].filter(key => key.startsWith('track-numeric-contact:')).length, 1);
+    for (let i = 0; i < 61; i++) {
+      const res = await tryTrack('012345678901', `person-${i}@example.invalid`, '192.0.2.50');
+      assert.equal(res.status, i < 60 ? 200 : 429);
+    }
+  });
   await t.test('only recognized pricing conflicts become actionable checkout errors', async () => {
     for (const [dbCode, code, status] of [
       ['CC001', 'delivery_fee_changed', 409],
@@ -227,6 +259,7 @@ test('security migrations preserve checkout transactions and enforce role bounda
       ADD COLUMN district text, ADD COLUMN postal_code text, ADD COLUMN subtotal numeric, ADD COLUMN delivery_fee numeric,
       ADD COLUMN total numeric, ADD COLUMN promo_code text, ADD COLUMN discount_amount numeric DEFAULT 0;
     ALTER TABLE orders ALTER COLUMN status SET DEFAULT 'pending';
+    ALTER TABLE orders ADD CONSTRAINT orders_order_reference_key UNIQUE (order_reference);
     ALTER TABLE order_items ADD COLUMN slug text,ADD COLUMN image text,ADD COLUMN sku text,ADD COLUMN price numeric,
       ADD COLUMN is_preorder boolean,ADD COLUMN preorder_days integer;
     ALTER TABLE order_notification_state ALTER COLUMN notification_token SET DEFAULT gen_random_uuid();
@@ -325,7 +358,7 @@ test('security migrations preserve checkout transactions and enforce role bounda
     assert.equal((await db.query("SELECT has_table_privilege('anon','orders','TRUNCATE') AS allowed")).rows[0].allowed,false);
     assert.equal((await db.query("SELECT count(*)::int AS count FROM pg_policies WHERE policyname='Customers can upload payment receipts'")).rows[0].count,0);
   });
-  await t.test('delivery settings preserve snapshots and enforce the current quote for both payment methods', async () => {
+  await t.test('delivery settings preserve snapshots and enforce the current quote for both payment methods', async (delivery) => {
     const owner = '00000000-0000-0000-0000-000000000001';
     const admin = '00000000-0000-0000-0000-000000000002';
     const staff = '00000000-0000-0000-0000-000000000003';
@@ -364,6 +397,64 @@ test('security migrations preserve checkout transactions and enforce role bounda
       UPDATE product_versions SET is_active=false WHERE id='00000000-0000-0000-0000-000000000021';
     `);
     await db.exec(read('../supabase/migrations/20261114065745_harden_tracking_and_catalog_access.sql'));
+    const uuidRequestId = crypto.randomUUID();
+    let legacyUuid;
+    await delivery.test('release order keeps the old dashboard and checkout compatible until numeric activation', async () => {
+      const summaryStart = audit.indexOf('CREATE OR REPLACE FUNCTION public.admin_dashboard_summary()');
+      await db.exec(audit.slice(summaryStart, audit.indexOf('-- Capture future catalog', summaryStart)));
+      await db.exec(`
+        ALTER TABLE products ADD COLUMN created_at timestamptz DEFAULT now();
+        ALTER TABLE product_versions ADD COLUMN created_at timestamptz DEFAULT now();
+        ALTER TABLE product_version_sizes ADD COLUMN created_at timestamptz DEFAULT now();
+      `);
+      const existingFunctions = () => db.query(`
+        SELECT oid::regprocedure::text AS signature, pg_get_functiondef(oid) AS definition, proacl::text AS grants
+        FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+          AND proname IN ('admin_dashboard_summary', 'create_order', 'submit_checkout', 'get_order_tracking')
+        ORDER BY signature
+      `).then(result => result.rows);
+      const storedCheckout = () => Promise.all(['orders', 'order_items', 'checkout_requests', 'order_notification_state', 'inventory_movements', 'product_version_sizes']
+        .map(table => db.query(`SELECT to_jsonb(entry) AS data FROM public.${table} entry ORDER BY to_jsonb(entry)::text`)
+          .then(result => result.rows)));
+      const before = await existingFunctions();
+      const originalRows = await storedCheckout();
+      const summary = async () => (await db.query('SELECT public.admin_dashboard_summary() AS result')).rows[0].result;
+      const analytics = async () => (await db.query(`
+        SELECT public.admin_dashboard_analytics(p_period => '30d', p_low_stock_threshold => 3) AS result
+      `)).rows[0].result;
+      await login('authenticated', {sub:owner,aal:'aal2'});
+      const originalSummary = await summary();
+      await db.exec('RESET ROLE');
+
+      await db.exec(read('../supabase/migrations/20261115075632_admin_performance_dashboard.sql'));
+      assert.deepEqual(await existingFunctions(), before);
+      assert.deepEqual(await storedCheckout(), originalRows);
+      await login('authenticated', {sub:owner,aal:'aal2'});
+      assert.deepEqual(await summary(), originalSummary);
+      assert.equal((await analytics()).current.placed, originalRows[0].length);
+      await login('authenticated', {sub:owner,aal:'aal1'});
+      await assert.rejects(analytics(), {code:'42501'});
+
+      await login('service_role');
+      legacyUuid = (await submit(payload, uuidRequestId)).rows[0].result;
+      assert.match(legacyUuid.order_reference,/^CC-[0-9A-F]{12}4[0-9A-F]{3}[89AB][0-9A-F]{15}$/);
+      const lookup = await db.query('SELECT public.get_order_tracking($1, NULL, $2) AS result', [legacyUuid.order_reference, payload.phone]);
+      assert.equal(lookup.rows[0].result.order_reference, legacyUuid.order_reference);
+      await db.exec('RESET ROLE');
+      const beforeActivation = await storedCheckout();
+      await db.exec(read('../supabase/migrations/20261115075636_numeric_order_references.sql'));
+      assert.deepEqual(await storedCheckout(), beforeActivation);
+      await login('authenticated', {sub:owner,aal:'aal2'});
+      assert.equal((await analytics()).current.placed, beforeActivation[0].length);
+      await db.exec('RESET ROLE');
+    });
+    assert.equal((await db.query(`
+      SELECT bool_and(reference ~ '^[0-9]{12}$') AS valid
+      FROM (SELECT generate_numeric_order_reference() AS reference FROM generate_series(1, 512)) draws
+    `)).rows[0].valid, true);
+    await login('service_role');
+    assert.deepEqual((await submit(payload, uuidRequestId)).rows[0].result, legacyUuid);
+    await assert.rejects(db.query('SELECT generate_numeric_order_reference()'), /permission denied/);
     for (const role of ['anon','authenticated']) {
       await login(role,{sub:staff,aal:'aal2'});
       assert.equal((await db.query("SELECT count(*)::int AS n FROM product_versions WHERE NOT is_active")).rows[0].n,0);
@@ -426,12 +517,17 @@ test('security migrations preserve checkout transactions and enforce role bounda
     assert.equal(response.status,200);
     const cod = await response.json();
     if (process.env.COMICCULTURE_REFERENCE_FIXTURE) {
-      writeFileSync(process.env.COMICCULTURE_REFERENCE_FIXTURE, JSON.stringify({current:cod, historical:beforeChangeRetry}));
+      writeFileSync(process.env.COMICCULTURE_REFERENCE_FIXTURE, JSON.stringify({current:cod, historical:beforeChangeRetry, uuid:legacyUuid}));
     }
-    assert.match(cod.order_reference,/^CC-[0-9A-F]{12}4[0-9A-F]{3}[89AB][0-9A-F]{15}$/);
-    for (const order of [beforeChangeRetry,cod]) {
+    assert.match(cod.order_reference,/^[0-9]{12}$/);
+    assert.deepEqual((await submit(codPayload, codId)).rows[0].result, cod);
+    for (const order of [beforeChangeRetry,legacyUuid,cod]) {
       const {rows} = await db.query('SELECT public.get_order_tracking($1,$2,$3) AS result',[order.order_reference,null,payload.phone]);
       assert.equal(rows[0].result.order_reference,order.order_reference);
+      for (const reference of [order.order_reference, 'unassigned']) {
+        const miss = await db.query('SELECT get_order_tracking($1,$2,NULL) AS result', [reference, 'wrong@example.invalid']);
+        assert.equal(miss.rows[0].result, null);
+      }
     }
     assert.deepEqual([cod.subtotal,cod.delivery_fee,cod.total].map(Number), [100,0,100]);
     assert.equal(await stock(), initialStock-1);
@@ -461,5 +557,34 @@ test('security migrations preserve checkout transactions and enforce role bounda
     assert.deepEqual((await historicalOrders()).filter(order => historical.some(prior => prior.id === order.id)), historical);
     const auditRows = (await db.query("SELECT actor_id, entity_id, after_data FROM admin_activity_log WHERE entity_type='delivery_settings'")).rows;
     assert.ok(auditRows.some(row => row.actor_id === admin && row.entity_id === '1' && row.after_data.delivery_fee === 475.25));
+
+    const numericAllocator = (await db.query("SELECT pg_get_functiondef('public.generate_numeric_order_reference()'::regprocedure) AS definition")).rows[0].definition;
+    await db.exec(`
+      CREATE SEQUENCE public.test_reference_draw;
+      CREATE OR REPLACE FUNCTION public.generate_numeric_order_reference() RETURNS text LANGUAGE sql VOLATILE AS $$
+        SELECT CASE WHEN nextval('public.test_reference_draw') = 2 THEN '000000000007' ELSE '${cod.order_reference}' END
+      $$;
+    `);
+    const movements = async () => (await db.query('SELECT count(*)::int AS count FROM inventory_movements')).rows[0].count;
+    const beforeCollisionStock = await stock();
+    const beforeCollisionMovements = await movements();
+    await login('service_role');
+    const retried = (await submit({...payload,expectedDeliveryFee:475.25,expectedTotal:575.25})).rows[0].result;
+    assert.equal(retried.order_reference, '000000000007');
+    assert.equal(await stock(), beforeCollisionStock - 1);
+    await db.exec('RESET ROLE');
+    assert.equal(await movements(), beforeCollisionMovements + 1);
+    assert.equal((await db.query("SELECT reason FROM inventory_movements WHERE reason='000000000007'")).rows.length, 1);
+    assert.equal(Number((await db.query('SELECT last_value FROM test_reference_draw')).rows[0].last_value), 2);
+    await login('service_role');
+    const exhausted = crypto.randomUUID();
+    await assert.rejects(submit({...payload,expectedDeliveryFee:475.25,expectedTotal:575.25}, exhausted), {code:'55000'});
+    assert.equal(await stock(), beforeCollisionStock - 1);
+    assert.equal((await db.query('SELECT * FROM checkout_requests WHERE id=$1',[exhausted])).rows.length, 0);
+    await db.exec('RESET ROLE');
+    assert.equal(await movements(), beforeCollisionMovements + 1);
+    assert.equal(Number((await db.query('SELECT last_value FROM test_reference_draw')).rows[0].last_value), 10);
+    await db.exec(numericAllocator);
+
   });
 });

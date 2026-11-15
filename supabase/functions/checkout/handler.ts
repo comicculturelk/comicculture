@@ -13,8 +13,10 @@ export interface CheckoutConfig {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const RECEIPT_LIMIT = 5 * 1024 * 1024;
 const LIMITS = { receipt: 6, order: 10, track: 60, promo: 60 } as const;
-const RANDOM_ORDER_REFERENCE = /^CC-[0-9A-F]{12}4[0-9A-F]{3}[89AB][0-9A-F]{15}$/;
+const NUMERIC_ORDER_REFERENCE = /^[0-9]{12}$/;
+const UUID_ORDER_REFERENCE = /^CC-[0-9A-F]{12}4[0-9A-F]{3}[89AB][0-9A-F]{15}$/;
 const LEGACY_TRACK_CONTACT_LIMIT = 12;
+const NUMERIC_TRACK_CONTACT_LIMIT = 20;
 type Action = keyof typeof LIMITS;
 
 class RequestError extends Error {
@@ -172,12 +174,15 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
           const phone = input.phone?.trim() || null;
           if (!reference || Boolean(email) === Boolean(phone)) throw new RequestError(400,'Enter an order reference and either email or phone.');
           const national = normalizeSriLankanPhone(phone);
-          // Legacy references share a contact budget across clients and references.
-          // Hash contacts with a server-held key so the counters contain no raw PII.
-          if (!RANDOM_ORDER_REFERENCE.test(reference)) {
+          // Numeric and legacy guesses each share a per-contact budget across
+          // clients. Separate buckets isolate the two formats from exhaustion.
+          if (!UUID_ORDER_REFERENCE.test(reference)) {
+            const numeric = NUMERIC_ORDER_REFERENCE.test(reference);
             const contact = email ? `email:${email.toLowerCase()}` : `phone:${national ?? phone}`;
             const contactHash = await hashValue(contact);
-            if (!await rpc('consume_checkout_attempt',{p_key:`track-contact:${contactHash}`,p_limit:LEGACY_TRACK_CONTACT_LIMIT})) {
+            const prefix = numeric ? 'track-numeric-contact' : 'track-contact';
+            const limit = numeric ? NUMERIC_TRACK_CONTACT_LIMIT : LEGACY_TRACK_CONTACT_LIMIT;
+            if (!await rpc('consume_checkout_attempt', {p_key: `${prefix}:${contactHash}`, p_limit: limit})) {
               throw new RequestError(429,'Too many attempts. Please try again later.');
             }
           }

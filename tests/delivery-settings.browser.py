@@ -13,6 +13,9 @@ BASE_URL = "http://127.0.0.1:5187"
 BACKEND_HOST = "delivery-test.supabase.co"
 REFERENCE_FIXTURE = os.environ.get("COMICCULTURE_REFERENCE_FIXTURE")
 REFERENCES = json.loads(Path(REFERENCE_FIXTURE).read_text()) if REFERENCE_FIXTURE else None
+DASHBOARD_FIXTURE = os.environ.get("COMICCULTURE_DASHBOARD_FIXTURE")
+DASHBOARD = json.loads(Path(DASHBOARD_FIXTURE).read_text()) if DASHBOARD_FIXTURE else None
+DASHBOARD_SCREENSHOTS = os.environ.get("COMICCULTURE_DASHBOARD_SCREENSHOTS")
 CART = [{
     "versionSizeId": "00000000-0000-0000-0000-000000000030",
     "productId": "test-product",
@@ -45,6 +48,8 @@ admin_role = "admin"
 writes = []
 order_attempts = []
 unexpected = []
+dashboard_requests = []
+dashboard_state = "normal"
 
 
 def mock_backend(route):
@@ -72,6 +77,28 @@ def mock_backend(route):
         route.fulfill(json=user)
     elif path == "/rest/v1/rpc/get_store_admin_role":
         route.fulfill(json=admin_role)
+    elif DASHBOARD and path == "/rest/v1/rpc/admin_dashboard_analytics":
+        request_data = req.post_data_json
+        assert req.headers.get("authorization") == f"Bearer {token}"
+        assert request_data["p_low_stock_threshold"] == 3
+        period = request_data["p_period"]
+        dashboard_requests.append(period)
+        if dashboard_state == "error":
+            return route.fulfill(status=500, json={"message": "Synthetic error"})
+        result = DASHBOARD[period]
+        if dashboard_state == "empty":
+            result = {**result, **{key: [] for key in ("recent", "bestsellers", "sizes", "editions", "quiet")},
+                      "orders": {}, "payments": {}, "bank_review": 0,
+                      "current": {**dict.fromkeys(result["current"], 0), "aov": None},
+                      "trend": [{**point, "revenue": 0, "placed": 0} for point in result["trend"]],
+                      "stock": {"threshold": 3, "products": 0, "low": 0, "out": 0, "alerts": []}}
+        route.fulfill(json=result)
+    elif REFERENCES and path == "/rest/v1/inventory_movements":
+        route.fulfill(json=[{
+            "id": row["order_id"], "product_id": "test-product", "product_name": "Test product",
+            "size": "M", "change_type": "sale", "quantity_change": -1, "resulting_stock": 7,
+            "reason": row["order_reference"], "created_at": "2026-11-14T00:00:00Z",
+        } for row in REFERENCES.values()])
     elif REFERENCES and path == "/rest/v1/orders":
         query = parse_qs(url.query).get("or", [""])[0]
         orders = [{
@@ -186,6 +213,95 @@ def check_phone_inputs(page, place_order):
     expect(mobile).to_be_focused()
     assert len(order_attempts) == attempts
     mobile.fill("")
+
+
+def check_dashboard(browser):
+    global dashboard_state
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, timezone_id="America/New_York")
+    setup(context)
+    context.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
+    page = context.new_page()
+    page_errors = []
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    dashboard_url = f"{BASE_URL}/admin?section=dashboard"
+    page.goto(dashboard_url)
+    metrics = page.get_by_role("region", name="Key metrics")
+    expect(metrics).to_be_visible()
+    period_buttons = page.get_by_role("group", name="Reporting period")
+
+    def verify_period(label, key):
+        button = period_buttons.get_by_role("button", name=label, exact=True)
+        button.click()
+        expect(button).to_have_attribute("aria-pressed", "true")
+        expected = DASHBOARD[key]["current"]["revenue"]
+        expect(metrics.get_by_text(f"Rs. {expected:,}", exact=True).first).to_be_visible()
+        assert dashboard_requests[-1] == key
+        assert_layout(page)
+
+    expect(period_buttons.get_by_role("button", name="Last 30 days")).to_have_attribute("aria-pressed", "true")
+    expect(page.get_by_text(re.compile("Asia/Colombo"))).to_be_visible()
+    expect(page.get_by_text("No previous baseline", exact=True)).to_have_count(0)
+    assert dashboard_requests[-1] == "30d"
+    for label, key in (("Today", "today"), ("Last 7 days", "7d"), ("Last 90 days", "90d"), ("All time", "all"), ("Last 30 days", "30d")):
+        verify_period(label, key)
+    expect(page.get_by_text(re.compile("at the same cutoff"))).to_be_visible()
+
+    chart = page.get_by_role("group", name="Chart measure")
+    chart.get_by_role("button", name="Orders").click()
+    # The chart has a single tab stop and arrow keys move focus between periods.
+    focusable_bar = page.locator("button[tabindex='0'][aria-label*=', ']")
+    expect(focusable_bar).to_have_count(1)
+    label = focusable_bar.get_attribute("aria-label")
+    focusable_bar.press("Home")
+    assert focusable_bar.get_attribute("aria-label") != label
+    chart.get_by_role("button", name="Revenue").click()
+    page.get_by_role("button", name="Show top 10").click()
+    expect(page.get_by_role("button", name="Show top 5")).to_be_visible()
+    page.get_by_role("button", name="Show top 5").click()
+    page.get_by_text("Payment status breakdown").click()
+    expect(page.get_by_text("Awaiting Verification", exact=True)).to_be_visible()
+    page.get_by_text("Payment status breakdown").click()
+
+    demand = page.get_by_role("group", name="Demand detail")
+    demand.get_by_role("button", name="Edition sizes").click()
+    expect(page.get_by_text("Cotton · L", exact=True).first).to_be_visible()
+    categories = page.get_by_role("group", name="Demand category")
+    categories.get_by_role("button", name=re.compile("New listings")).click()
+    expect(page.get_by_text("Midnight Archive", exact=True)).to_be_visible()
+    demand.get_by_role("button", name="Designs").click()
+    categories.get_by_role("button", name=re.compile("Zero orders")).click()
+    expect(page.get_by_text("Spider-Verse", exact=True)).to_be_visible()
+
+    for width in (390, 768, 1440):
+        page.set_viewport_size({"width": width, "height": 960})
+        assert_layout(page)
+        if DASHBOARD_SCREENSHOTS:
+            target = Path(DASHBOARD_SCREENSHOTS)
+            target.mkdir(parents=True, exist_ok=True)
+            page.evaluate("document.fonts.ready")
+            page.evaluate("document.activeElement.blur(); window.scrollTo(0,0);")
+            page.screenshot(path=target / f"dashboard-{width}.png", full_page=True, animations="disabled")
+
+    dashboard_state = "error"
+    page.get_by_role("button", name="Refresh", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text("last successful results")
+    expect(metrics).to_be_visible()
+    period_buttons.get_by_role("button", name="Today", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text("Could not load dashboard data")
+    expect(metrics).to_have_count(0)
+    dashboard_state = "empty"
+    page.get_by_role("button", name="Retry", exact=True).click()
+    expect(page.get_by_text("No orders placed in this period.")).to_be_visible()
+    expect(page.get_by_text("No eligible item sales in this period.")).to_be_visible()
+    expect(page.get_by_text("No sizes need restocking.")).to_be_visible()
+    dashboard_state = "normal"
+    page.get_by_role("button", name="Manage inventory").first.click()
+    expect(page).to_have_url(re.compile("section=inventory$"))
+    page.goto(dashboard_url)
+    page.get_by_role("button", name="Manage orders").click()
+    expect(page).to_have_url(re.compile("section=orders$"))
+    assert not page_errors, page_errors
+    context.close()
 
 
 with sync_playwright() as playwright:
@@ -308,6 +424,7 @@ with sync_playwright() as playwright:
     if REFERENCES:
         current = REFERENCES["current"]["order_reference"]
         historical = REFERENCES["historical"]["order_reference"]
+        uuid_reference = REFERENCES.get("uuid", REFERENCES["historical"])["order_reference"]
         admin_role = "admin"
         admin.add_init_script("window.print = () => {};")
         for width in (390, 1440):
@@ -318,7 +435,7 @@ with sync_playwright() as playwright:
             checkout.get_by_role("link", name="Track Your Order", exact=True).click()
             ref = checkout.get_by_label("Order reference", exact=True)
             expect(ref).to_have_value(current)
-            for reference in (historical, current):
+            for reference in dict.fromkeys((historical, uuid_reference, current)):
                 ref.fill(reference)
                 checkout.get_by_label("Email Address", exact=True).fill("shopper@example.invalid")
                 checkout.get_by_role("button", name="Track Order", exact=True).click()
@@ -331,17 +448,23 @@ with sync_playwright() as playwright:
             admin.goto(f"{BASE_URL}/admin?section=orders")
             admin.get_by_text("Search and payment/date filters", exact=False).click()
             search = admin.get_by_placeholder("Order, customer, phone, email, tracking")
-            for reference, other in ((historical, current), (current, historical)):
+            for reference, other in ((historical, current), (uuid_reference, current), (current, historical)):
                 search.fill(reference)
                 expect(admin.get_by_text(reference, exact=True)).to_be_visible()
                 expect(admin.get_by_text(other, exact=True)).to_have_count(0)
                 assert_layout(admin)
+            admin.get_by_role("button", name="View Details", exact=True).click()
+            whatsapp = admin.locator("a[href*='wa.me']").first
+            expect(whatsapp).to_have_attribute("href", re.compile(re.escape(current)))
             admin.get_by_role("button", name="Print packing slip").click()
             expect(admin.get_by_role("heading", name=current, exact=True)).to_be_visible()
             assert_layout(admin)
             admin.emulate_media(media="print")
             assert_layout(admin)
             admin.emulate_media(media="screen")
+        admin.goto(f"{BASE_URL}/admin?section=history")
+        for reference in dict.fromkeys((historical, uuid_reference, current)):
+            expect(admin.get_by_text(re.compile(re.escape(reference))).first).to_be_visible()
         email_fixture = json.loads(Path(os.environ["COMICCULTURE_EMAIL_FIXTURE"]).read_text())
         email_page = shopper_context.new_page()
         email_page.route("**/*", lambda route: route.abort())
@@ -352,7 +475,12 @@ with sync_playwright() as playwright:
                 expect(email_page.get_by_text(re.compile(re.escape(current))).first).to_be_visible()
                 assert_layout(email_page)
         assert email_page.locator('a[href="https://comicculture.lk/track-order"]').count() == 1
+    if DASHBOARD:
+        check_dashboard(browser)
+        print("PASS: dashboard periods, comparison, chart keyboard controls, demand filters, navigation, refresh/error/empty states, and 390/768/1440px layouts.")
     assert not unexpected, unexpected
+    if REFERENCES:
+        print("PASS: reference confirmation, tracking, admin search, history, WhatsApp, packing slips and email HTML.")
     browser.close()
 
 print("PASS: desktop/mobile settings and checkout, phone typing/paste/format validation, COD quote confirmation, and Bank Transfer receipt reset (mocked backend).")

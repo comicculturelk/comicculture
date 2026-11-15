@@ -193,8 +193,8 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <div>
-            <p className="admin-eyebrow">ComicCulture · Store admin</p>
-              <h1 className="break-words font-display text-2xl text-foreground tracking-tight sm:text-3xl">Store dashboard</h1>
+              <p className="admin-eyebrow">{view === 'dashboard' ? 'ComicCulture · Back office' : 'ComicCulture · Store admin'}</p>
+              <h1 className="break-words font-display text-2xl text-foreground tracking-tight sm:text-3xl">{view === 'dashboard' ? 'Store admin' : 'Store dashboard'}</h1>
             </div>
             <label className="block md:hidden">
               <span className="sr-only">Admin section</span>
@@ -234,7 +234,7 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
         {view === 'settings' && <AdminDeliverySettings />}
         {view === 'promos' && <AdminPromos />}
         {view === 'reviews' && <AdminReviews />}
-        {view === 'dashboard' && <AdminDashboard onViewOrders={() => setView('orders')} />}
+        {view === 'dashboard' && <AdminDashboard onOrders={() => setView('orders')} onInventory={() => setView('inventory')} />}
         {view === 'history' && <AdminHistory />}
         {view === 'team' && role === 'owner' && <AdminTeam />}
       </div>

@@ -7,12 +7,10 @@ import {
 } from 'lucide-react';
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { getSignedUrl } from '../../lib/storage';
-import { formatDate } from '../../lib/admin';
+import { formatDate, formatPaymentStatus, ORDER_STATUSES, PAYMENT_STATUSES } from '../../lib/admin';
 import { useDialog } from '../../hooks/useDialog';
 import StatusBadge from './StatusBadge';
 
-const STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
-const PAYMENT_STATUSES = ['pending', 'awaiting_payment', 'awaiting_verification', 'paid', 'failed', 'refunded'] as const;
 const PAGE_SIZE = 25;
 const NEXT_STATUSES: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
@@ -42,13 +40,6 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
   failed: 'border-red-500/40 bg-red-500/20 text-red-400',
   refunded: 'border-purple-500/40 bg-purple-500/20 text-purple-400',
 };
-
-function formatPaymentStatus(status: string): string {
-  return status
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
 
 function formatPaymentMethod(method: string): string {
   return method === 'BANK_TRANSFER' ? 'Bank Transfer' : method === 'COD' ? 'Cash on Delivery' : method;
@@ -121,7 +112,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | (typeof STATUSES)[number]>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | (typeof ORDER_STATUSES)[number]>('all');
   const [paymentFilter, setPaymentFilter] = useState<'all' | (typeof PAYMENT_STATUSES)[number]>('all');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -381,7 +372,7 @@ export default function AdminOrders() {
       </div>
       </details>
       <div className="admin-filter-row mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter orders by status">
-        {(['all', ...STATUSES] as const).map((s) => (
+        {(['all', ...ORDER_STATUSES] as const).map((s) => (
           <button key={s} type="button" onClick={() => { setPage(0); setStatusFilter(s); }} className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize ${statusFilter === s ? 'border-primary bg-primary/20 text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}>{s}</button>
         ))}
         <button type="button" onClick={() => setRefreshKey((value) => value + 1)} className="btn-outline ml-auto text-xs">Refresh</button>

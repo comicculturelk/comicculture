@@ -1,5 +1,15 @@
 export const LOW_STOCK_THRESHOLD = 3;
 
+export const ORDER_STATUSES = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
+export const PAYMENT_STATUSES = ['pending', 'awaiting_payment', 'awaiting_verification', 'paid', 'failed', 'refunded'] as const;
+
+export function formatPaymentStatus(status: string): string {
+  return status
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',

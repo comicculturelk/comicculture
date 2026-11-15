@@ -121,10 +121,18 @@ export default function TrackOrder() {
             type="text"
             value={orderReference}
             onChange={(e) => setOrderReference(e.target.value)}
-            placeholder="e.g. CC-10234"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={80}
+            aria-describedby="order-reference-help"
+            placeholder="e.g. 583104927618"
             className="mt-2 w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             required
           />
+
+          <p id="order-reference-help" className="mt-2 text-xs text-muted-foreground">
+            Enter the reference exactly as it appears on your confirmation, including CC- on older orders.
+          </p>
 
           <div className="mt-6 flex gap-2">
             <button
