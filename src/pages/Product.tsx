@@ -15,6 +15,7 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
+import { trackConversion } from '../lib/conversion';
 import { useProduct } from '../hooks/useProduct';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
@@ -77,6 +78,10 @@ export default function Product() {
   const purchaseCtaRef = useRef<HTMLButtonElement>(null);
   const sizeOptionsRef = useRef<HTMLDivElement>(null);
   const [showStickyBuy, setShowStickyBuy] = useState(false);
+  const viewedProduct = loading ? undefined : product?.id;
+  useEffect(() => {
+    if (viewedProduct) trackConversion('view', viewedProduct);
+  }, [viewedProduct]);
 
   // Reset per-product UI state whenever the loaded product changes: land on
   // the default version, no selected size, and its own image (falling back

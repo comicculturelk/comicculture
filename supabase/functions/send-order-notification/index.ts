@@ -19,6 +19,7 @@
 //   RESEND_REPLY_TO_EMAIL   - optional monitored customer support address
 
 import { createClient } from 'npm:@supabase/supabase-js@2.108.2';
+import { escapeHtml, sendViaResend } from '../_shared/resend.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -63,15 +64,6 @@ function jsonResponse(body: Record<string, unknown>, status: number): Response {
   });
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('en-LK', {
     dateStyle: 'medium',
@@ -111,52 +103,6 @@ function preorderNoticeText(items: OrderItemRow[]): string {
     }
   }
   return 'Your order contains pre-order items. Delivery times are shown for each item above.';
-}
-
-interface ResendSendParams {
-  to: string[];
-  subject: string;
-  html: string;
-  replyTo?: string;
-}
-
-/**
- * Sends one email via Resend. Never throws — callers get back a result
- * object so a failure on one email (e.g. the customer confirmation) can
- * never block or affect the other (e.g. the admin notification).
- */
-async function sendViaResend(
-  params: ResendSendParams,
-  resendApiKey: string,
-  fromEmail: string,
-  idempotencyKey: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-      },
-      signal: AbortSignal.timeout(10000),
-      body: JSON.stringify({
-        from: fromEmail,
-        to: params.to,
-        reply_to: params.replyTo || undefined,
-        subject: params.subject,
-        html: params.html,
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      return { ok: false, error: `Resend API error ${res.status}: ${errText}` };
-    }
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
 }
 
 // Table-based layout with inline styles throughout — required for
@@ -300,7 +246,7 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
   // yet, so this never breaks a deploy that hasn't added it.
   const siteUrl = (Deno.env.get('SITE_URL') || 'https://comicculture.lk').replace(/\/$/, '');
   const trackOrderUrl = `${siteUrl}/track-order`;
-  const awaitingVerification = order.payment_method === 'BANK_TRANSFER' && order.payment_status !== 'paid';
+  const bankTransfer = order.payment_method === 'BANK_TRANSFER';
 
   const itemsRows = order.order_items
     .map((item) => {
@@ -359,7 +305,7 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
             <tr>
               <td style="background-color:${primary};padding:36px 32px;text-align:center;">
                 <p style="margin:0;color:#FFFFFF;font-size:12px;letter-spacing:4px;text-transform:uppercase;opacity:0.85;">ComicCulture</p>
-                <h1 style="margin:10px 0 0;color:#FFFFFF;font-size:24px;letter-spacing:0.5px;">${awaitingVerification ? 'Order Received' : 'Order Confirmed'}</h1>
+                <h1 style="margin:10px 0 0;color:#FFFFFF;font-size:24px;letter-spacing:0.5px;">${bankTransfer ? 'Order Received' : 'Order Confirmed'}</h1>
                 <p style="margin:6px 0 0;color:#FFFFFF;font-size:13px;opacity:0.85;word-break:break-all;">Order ${escapeHtml(order.order_reference)}</p>
               </td>
             </tr>
@@ -368,11 +314,9 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
               <td style="padding:32px 32px 0;">
                 <p style="margin:0;color:${foreground};font-size:15px;line-height:1.6;">Hi ${firstName},</p>
                 <p style="margin:10px 0 0;color:${muted};font-size:14px;line-height:1.6;">
-                  ${awaitingVerification
-                    ? 'Thank you for your order. Payment verification required: we will review your bank-transfer receipt before preparing your order. You can check its status using the tracking link below.'
-                    : order.payment_method === 'COD'
-                      ? 'Thank you for your order. Your order has been received. Pay in cash when it arrives; no online payment has been collected.'
-                      : 'Thank you for your order. Your payment has been verified. You can check your order status using the tracking link below.'}
+                  ${bankTransfer
+                    ? 'Thank you for your order. We received your bank-transfer receipt. Payment verification is handled separately, and the tracking page shows your current order status.'
+                    : 'Thank you for your order. Your order has been received. Pay in cash when it arrives; no online payment has been collected.'}
                 </p>
               </td>
             </tr>
@@ -467,7 +411,7 @@ function buildCustomerConfirmationHtml(order: OrderRow): string {
                     <td style="padding:16px 20px;">
                       <p style="margin:0 0 4px;color:${foreground};font-size:13px;font-weight:600;">Shipping &amp; Fulfillment</p>
                       <p style="margin:0;color:${muted};font-size:13px;line-height:1.6;">
-                        ${awaitingVerification
+                        ${bankTransfer
                           ? 'Preparation begins after payment verification. Check your order status for updates.'
                           : 'Check your order status for delivery updates.'}
                       </p>
@@ -602,7 +546,7 @@ Deno.serve(async (req: Request) => {
       const customerResult = await sendViaResend(
         {
           to: [typedOrder.email],
-          subject: `ComicCulture Order ${typedOrder.payment_method === 'BANK_TRANSFER' && typedOrder.payment_status !== 'paid' ? 'Received' : 'Confirmed'} — ${typedOrder.order_reference}`,
+          subject: `ComicCulture Order ${typedOrder.payment_method === 'BANK_TRANSFER' ? 'Received' : 'Confirmed'} — ${typedOrder.order_reference}`,
           html: buildCustomerConfirmationHtml(typedOrder),
           replyTo: Deno.env.get('RESEND_REPLY_TO_EMAIL') || adminEmails[0],
         },

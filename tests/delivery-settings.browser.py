@@ -16,6 +16,18 @@ REFERENCES = json.loads(Path(REFERENCE_FIXTURE).read_text()) if REFERENCE_FIXTUR
 DASHBOARD_FIXTURE = os.environ.get("COMICCULTURE_DASHBOARD_FIXTURE")
 DASHBOARD = json.loads(Path(DASHBOARD_FIXTURE).read_text()) if DASHBOARD_FIXTURE else None
 DASHBOARD_SCREENSHOTS = os.environ.get("COMICCULTURE_DASHBOARD_SCREENSHOTS")
+CONVERSION_FIXTURE = os.environ.get("COMICCULTURE_CONVERSION_FIXTURE")
+CONVERSION = json.loads(Path(CONVERSION_FIXTURE).read_text()) if CONVERSION_FIXTURE else None
+FEATURE_SCREENSHOTS = os.environ.get("COMICCULTURE_FEATURE_SCREENSHOTS")
+PRODUCT = {
+    "id": "test-product", "slug": "test-product", "name": "Conversion test design", "product_code": "QA-DESIGN",
+    "collection": "", "collection_id": None, "tagline": "Synthetic fixture", "description": "A test design.", "lore": "",
+    "image": "", "images": [], "featured": True, "created_at": "2026-11-14T00:00:00Z",
+    "versions": [{"id": "qa-version", "product_id": "test-product", "version_name": "Cotton",
+                  "product_type": "oversized_tshirt", "images": [], "is_preorder": False, "is_active": True,
+                  "sort_order": 0, "sizes": [{"id": "00000000-0000-0000-0000-000000000030", "version_id": "qa-version",
+                                               "size": "M", "sku": "QA-M", "price": 1000, "stock": 10}]}],
+}
 CART = [{
     "versionSizeId": "00000000-0000-0000-0000-000000000030",
     "productId": "test-product",
@@ -50,6 +62,10 @@ order_attempts = []
 unexpected = []
 dashboard_requests = []
 dashboard_state = "normal"
+analytics_events = []
+analytics_down = False
+conversion_report_down = False
+notifications_retried = []
 
 
 def mock_backend(route):
@@ -77,6 +93,32 @@ def mock_backend(route):
         route.fulfill(json=user)
     elif path == "/rest/v1/rpc/get_store_admin_role":
         route.fulfill(json=admin_role)
+    elif CONVERSION and path == "/rest/v1/products":
+        route.fulfill(json=[PRODUCT])
+    elif CONVERSION and path == "/rest/v1/rpc/admin_checkout_conversion":
+        if conversion_report_down:
+            return route.fulfill(status=500, json={"message": "Synthetic report outage"})
+        route.fulfill(json=CONVERSION[req.post_data_json["p_period"]])
+    elif CONVERSION and REFERENCES and path == "/rest/v1/rpc/admin_order_status_emails":
+        order_id = REFERENCES["current"]["order_id"]
+        second_id = REFERENCES["historical"]["order_id"]
+        rows = [
+            {"id": "sent-qa", "order_id": order_id, "order_status": "shipped", "state": "sent",
+             "reason": None, "sent_at": "2026-11-14T00:00:00Z", "retryable": False},
+            {"id": "skipped-qa", "order_id": order_id, "order_status": "confirmed", "state": "skipped",
+             "reason": "covered_by_confirmation", "sent_at": None, "retryable": False},
+            {"id": "pending-qa", "order_id": second_id, "order_status": "packed", "state": "pending",
+             "reason": None, "sent_at": None, "retryable": False},
+            {"id": "failed-qa", "order_id": order_id, "order_status": "delivered",
+             "state": "pending" if notifications_retried else "failed",
+             "reason": None if notifications_retried else "retry_exhausted", "sent_at": None,
+             "retryable": not notifications_retried},
+        ]
+        route.fulfill(json=[row for row in rows if row["order_id"] in req.post_data_json["p_order_ids"]])
+    elif CONVERSION and path == "/rest/v1/rpc/admin_retry_order_status_email":
+        assert req.headers.get("authorization") == f"Bearer {token}"
+        notifications_retried.append(req.post_data_json["p_id"])
+        route.fulfill(status=204)
     elif DASHBOARD and path == "/rest/v1/rpc/admin_dashboard_analytics":
         request_data = req.post_data_json
         assert req.headers.get("authorization") == f"Bearer {token}"
@@ -102,7 +144,8 @@ def mock_backend(route):
     elif REFERENCES and path == "/rest/v1/orders":
         query = parse_qs(url.query).get("or", [""])[0]
         orders = [{
-            **row, "id": row["order_id"], "status": "pending", "created_at": "2026-11-14T00:00:00Z",
+            **row, "id": row["order_id"], "status": ("delivered" if row == REFERENCES["current"] else "packed") if CONVERSION else "pending",
+            "created_at": "2026-11-14T00:00:00Z",
             "payment_method": "COD", "payment_status": "pending", "full_name": "Synthetic customer",
             "phone": "0771234567", "address_line1": "Synthetic address", "city": "Colombo",
             "district": "Colombo", "order_items": [],
@@ -112,6 +155,11 @@ def mock_backend(route):
         route.fulfill(json={"path": f"{req.headers['x-checkout-id']}/receipt.png"})
     elif path == "/functions/v1/checkout":
         payload = req.post_data_json
+        if CONVERSION and payload["action"] == "analytics":
+            analytics_events.append(payload["input"])
+            if analytics_down:
+                return route.fulfill(status=503, json={"message": "Synthetic analytics outage"})
+            return route.fulfill(status=204)
         if REFERENCES and payload["action"] == "track":
             details = payload["input"]
             if details["email"] == "limited@example.invalid":
@@ -304,6 +352,143 @@ def check_dashboard(browser):
     context.close()
 
 
+def check_checkout_conversion(browser):
+    global admin_role, analytics_down, conversion_report_down
+    admin_role = "admin"
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, timezone_id="America/New_York")
+    setup(context)
+    context.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
+    page = context.new_page()
+    page.goto(f"{BASE_URL}/admin?section=conversion")
+    funnel = page.get_by_role("heading", name="Conversion funnel")
+    expect(funnel).to_be_visible()
+    expect(page.get_by_role("heading", name="Checkout conversion", exact=True)).to_be_visible()
+    expect(page.get_by_text("Attributed orders", exact=True)).to_be_visible()
+    expect(page.get_by_text("Mobile-size", exact=True)).to_be_visible()
+    expect(page.get_by_text("Desktop-size", exact=True)).to_be_visible()
+    period = page.get_by_role("group", name="Conversion period")
+    for label in ("Today", "Last 7 days", "Last 90 days", "All retained", "Last 30 days"):
+        period.get_by_role("button", name=label, exact=True).click()
+        expect(period.get_by_role("button", name=label, exact=True)).to_have_attribute("aria-pressed", "true")
+        expect(page.get_by_text(re.compile(r"Asia/Colombo"))).to_be_visible()
+
+    saved = CONVERSION["today"]
+    CONVERSION["today"] = {**saved, "viewed": 0, "added": 0, "started": 0, "purchased": 0, "products": []}
+    period.get_by_role("button", name="Today", exact=True).click()
+    expect(page.get_by_text("No tracked product views", exact=True)).to_be_visible()
+    CONVERSION["today"] = saved
+    conversion_report_down = True
+    page.get_by_role("button", name="Refresh", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text("Could not load")
+    conversion_report_down = False
+    page.get_by_role("button", name="Try again").click()
+    expect(funnel).to_be_visible()
+    period.get_by_role("button", name="Last 30 days", exact=True).click()
+    expect(funnel).to_be_visible()
+    output = Path(FEATURE_SCREENSHOTS) if FEATURE_SCREENSHOTS else None
+    if output:
+        output.mkdir(parents=True, exist_ok=True)
+    for width in (390, 768, 1440):
+        page.set_viewport_size({"width": width, "height": 960})
+        assert_layout(page)
+        if output:
+            page.evaluate("document.fonts.ready")
+            page.screenshot(path=output / f"conversion-{width}.png", full_page=True, animations="disabled")
+
+    if REFERENCES:
+        page.goto(f"{BASE_URL}/admin?section=orders")
+        page.get_by_text("Search and payment/date filters", exact=False).click()
+        search = page.get_by_placeholder("Order, customer, phone, email, tracking")
+        search.fill(REFERENCES["historical"]["order_reference"])
+        expect(page.get_by_text(REFERENCES["current"]["order_reference"], exact=True)).to_have_count(0)
+        expect(page.get_by_role("button", name="View Details", exact=True)).to_have_count(1)
+        page.get_by_role("button", name="View Details", exact=True).click()
+        emails = page.get_by_role("region", name="Customer status emails")
+        expect(emails.get_by_text("Pending", exact=True)).to_be_visible()
+        for width in (390, 1440):
+            page.set_viewport_size({"width": width, "height": 960})
+            if output:
+                emails.screenshot(path=output / f"status-email-pending-{width}.png", animations="disabled")
+        search.fill(REFERENCES["current"]["order_reference"])
+        expect(page.get_by_text(REFERENCES["current"]["order_reference"], exact=True)).to_be_visible()
+        expect(page.get_by_text(REFERENCES["historical"]["order_reference"], exact=True)).to_have_count(0)
+        expect(page.get_by_role("button", name="View Details", exact=True)).to_have_count(1)
+        page.get_by_role("button", name="View Details", exact=True).click()
+        emails = page.get_by_role("region", name="Customer status emails")
+        for state in ("Sent", "Failed", "Skipped"):
+            expect(emails.get_by_text(state, exact=True)).to_be_visible()
+        for width in (390, 768, 1440):
+            page.set_viewport_size({"width": width, "height": 960})
+            assert_layout(page)
+            if output:
+                emails.screenshot(path=output / f"status-emails-{width}.png", animations="disabled")
+        emails.get_by_role("button", name="Retry delivered email").click()
+        expect(emails.get_by_role("button", name="Retry delivered email")).to_have_count(0)
+        assert notifications_retried == ["failed-qa"]
+
+    admin_role = "staff"
+    page.goto(f"{BASE_URL}/admin?section=conversion")
+    expect(page.get_by_role("button", name="conversion", exact=True)).to_have_count(0)
+    expect(page.get_by_role("heading", name="Checkout conversion", exact=True)).to_have_count(0)
+    context.close()
+    admin_role = "admin"
+
+    shopper = browser.new_context(viewport={"width": 390, "height": 900})
+    setup(shopper)
+    page = shopper.new_page()
+
+    def open_design():
+        page.get_by_role("link", name=re.compile("Back to shop")).click()
+        page.locator('a[href="/product/test-product"]').first.click()
+        expect(page.get_by_role("heading", name="Conversion test design", exact=True)).to_be_visible()
+
+    page.goto(f"{BASE_URL}/privacy-policy")
+    choice = page.get_by_label("Allow checkout analytics")
+    expect(choice).not_to_be_checked()
+    open_design()
+    assert not analytics_events
+    page.goto(f"{BASE_URL}/privacy-policy")
+    choice.check()
+    open_design()
+    page.get_by_role("button", name="M", exact=True).click()
+    page.get_by_role("button", name="Add to Cart", exact=True).click()
+    page.get_by_role("dialog", name="Your cart").get_by_role("link", name="Proceed to Checkout").click()
+    expect(page.get_by_role("heading", name="Checkout", exact=True)).to_be_visible()
+    expect(page.get_by_text("Payment method", exact=True)).to_be_visible()
+    # A real opt-in journey produces all three browser stages. The order is
+    # attributed by the server wrapper, never by a browser purchase event.
+    page.wait_for_function(
+        "() => JSON.parse(localStorage.getItem('comicculture-conversion-session') || 'null')?.id",
+    )
+    fill_checkout(page)
+    expect(page.get_by_role("button", name="Place Order", exact=True)).to_be_enabled()
+    assert [event["stage"] for event in analytics_events] == ["view", "cart", "checkout"]
+    visit = analytics_events[0]["sessionId"]
+    assert all(event["sessionId"] == visit and event["device"] == "mobile" for event in analytics_events)
+    assert set(analytics_events[0]) == {"stage", "device", "productId", "sessionId"}
+    assert analytics_events[0]["productId"] == "test-product"
+    page.get_by_role("button", name="Place Order", exact=True).click()
+    expect(page).to_have_url(f"{BASE_URL}/order-success")
+    assert order_attempts[-1]["conversionSession"] == visit
+    assert "conversionSession" not in order_attempts[-1]["input"]
+    assert not any(event["stage"] == "purchase" for event in analytics_events)
+
+    page.goto(f"{BASE_URL}/privacy-policy")
+    choice.uncheck()
+    assert page.evaluate("localStorage.getItem('comicculture-conversion-session')") is None
+    choice.check()
+    analytics_down = True
+    open_design()
+    page.get_by_role("button", name="M", exact=True).click()
+    page.get_by_role("button", name="Add to Cart", exact=True).click()
+    page.get_by_role("dialog", name="Your cart").get_by_role("link", name="Proceed to Checkout").click()
+    fill_checkout(page)
+    page.get_by_role("button", name="Place Order", exact=True).click()
+    expect(page).to_have_url(f"{BASE_URL}/order-success")
+    analytics_down = False
+    shopper.close()
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(channel="msedge")
     admin_context = browser.new_context(viewport={"width": 1440, "height": 900})
@@ -478,6 +663,9 @@ with sync_playwright() as playwright:
     if DASHBOARD:
         check_dashboard(browser)
         print("PASS: dashboard periods, comparison, chart keyboard controls, demand filters, navigation, refresh/error/empty states, and 390/768/1440px layouts.")
+    if CONVERSION:
+        check_checkout_conversion(browser)
+        print("PASS: conversion filters, empty/error states, 390/768/1440px layouts, opt-in shopper events, checkout during analytics failure, and status email retry.")
     assert not unexpected, unexpected
     if REFERENCES:
         print("PASS: reference confirmation, tracking, admin search, history, WhatsApp, packing slips and email HTML.")

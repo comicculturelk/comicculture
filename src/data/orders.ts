@@ -1,4 +1,5 @@
 import { checkoutRequest } from '../lib/checkout';
+import { getConversionSession } from '../lib/conversion';
 import type { CartItem } from '../context/CartContext';
 import { notifyAdminOfNewOrder } from './notifications';
 
@@ -73,7 +74,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       quantity: item.quantity,
     })),
     promoCode: input.promoCode?.trim() || null,
-  }, { requestId: input.requestId, token: input.token });
+  }, { requestId: input.requestId, token: input.token, conversionSession: getConversionSession() });
   if (!result) {
     console.error('Order creation returned no result.');
     throw new Error(CHECKOUT_ERROR_MESSAGE);

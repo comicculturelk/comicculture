@@ -95,4 +95,23 @@ test('parallel PostgreSQL checkouts retry a simultaneous unique-key collision', 
   assert.equal((await query("SELECT string_agg(stock::text, ',' ORDER BY id) AS value FROM product_version_sizes")).rows[0].value, '3,3');
   assert.equal((await query('SELECT count(*) FROM inventory_movements m JOIN orders o ON m.reason = o.order_reference')).rows[0].count, '2');
   assert.equal((await query('SELECT count(*) FROM order_items')).rows[0].count, '2');
+
+  await t.test('two worker connections claim different ready notifications using SKIP LOCKED', async () => {
+    await query(read('../supabase/migrations/20261115140801_order_status_email_outbox.sql'));
+    assert.equal((await query('SELECT count(*) FROM order_status_email_outbox')).rows[0].count, '0');
+    await query("UPDATE orders SET status='packed'; UPDATE order_status_email_outbox SET available_at=now()");
+    await first.query('BEGIN; SET LOCAL ROLE service_role');
+    try {
+      const claim = "SELECT public.claim_order_status_email() AS job";
+      const a = (await first.query(claim)).rows[0].job;
+      await second.query('SET ROLE service_role');
+      const b = (await second.query(claim)).rows[0].job;
+      assert.ok(a.lease && b.lease);
+      assert.notEqual(a.id, b.id);
+      assert.equal((await second.query(claim)).rows[0].job, null);
+    } finally {
+      await first.query('COMMIT');
+      await second.query('RESET ROLE');
+    }
+  });
 });

@@ -21,7 +21,7 @@ export function completeCheckout(): void {
   try { sessionStorage.removeItem(REQUEST_KEY); } catch { /* Storage may be disabled. */ }
 }
 
-export async function checkoutRequest<T>(action: 'order' | 'track' | 'promo', input: unknown, security?: { requestId: string; token: string }): Promise<T> {
+export async function checkoutRequest<T>(action: 'order' | 'track' | 'promo', input: unknown, security?: { requestId: string; token: string; conversionSession?: string }): Promise<T> {
   const { data, error } = await supabase.functions.invoke('checkout', { body: { action, input, ...security } });
   if (action === 'track' && error instanceof FunctionsHttpError && error.context.status === 429) {
     throw new Error('Too many tracking attempts. Please try again later.');

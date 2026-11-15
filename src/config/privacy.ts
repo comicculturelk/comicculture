@@ -1,5 +1,5 @@
 // Shared by the React page and server-rendered page so the notice stays consistent.
-export const PRIVACY_UPDATED_ON = '3 November 2026';
+export const PRIVACY_UPDATED_ON = '15 November 2026';
 
 export const PRIVACY_SECTIONS = [
   {
@@ -17,7 +17,7 @@ export const PRIVACY_SECTIONS = [
   },
   {
     title: 'How we use your information',
-    paragraphs: ['We use order and contact details to fulfil purchases, verify bank transfers, arrange delivery, send order confirmations, provide tracking, handle enquiries, and manage returns or exchanges. We use technical information to operate the website, troubleshoot problems and protect checkout against fraud or automated abuse. We also keep transaction records for reconciliation, disputes and applicable recordkeeping obligations. Placing an order does not subscribe you to marketing messages.'],
+    paragraphs: ['We use order and contact details to fulfil purchases, verify bank transfers, arrange delivery, send order confirmations and status updates, provide tracking, handle enquiries, and manage returns or exchanges. We use technical information to operate the website, troubleshoot problems and protect checkout against fraud or automated abuse. We also keep transaction records for reconciliation, disputes and applicable recordkeeping obligations. Placing an order does not subscribe you to marketing messages.'],
   },
   {
     title: 'Who receives information',
@@ -31,7 +31,9 @@ export const PRIVACY_SECTIONS = [
     title: 'Browser storage and security tools',
     paragraphs: [
       'The cart is saved in local storage on your browser so it can remain available when you return on the same browser. Clearing site data removes that saved cart. Staff sign-in also uses browser storage for authentication sessions. Guest checkout does not require a customer account.',
-      'Cloudflare Turnstile and our infrastructure providers may use storage or cookies needed for security and service operation. The storefront does not currently include advertising pixels or a marketing analytics integration. If we introduce new tracking purposes, we will update this notice and provide choices where required.',
+      'Cloudflare Turnstile and our infrastructure providers may use storage or cookies needed for security and service operation. We do not use advertising pixels.',
+      'Optional checkout analytics is off until you turn it on in the preference above. We use a random browser session ID lasting up to 24 hours, a broad screen-size category and product identifiers to count product views, cart additions, checkout starts and successful order placements. We use this to improve checkout. The analytics records exclude names, contact details, addresses, bank details, receipt information and form contents.',
+      'Turning analytics off clears the current identifier and stops future collection. We also respect Global Privacy Control and Do Not Track signals. Existing analytics events expire after 90 days. Technical rate-limit records use a keyed version of the requesting network address for abuse prevention and are separate from analytics reports.',
     ],
   },
   {

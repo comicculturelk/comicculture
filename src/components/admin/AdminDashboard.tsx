@@ -7,13 +7,7 @@ import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { formatPrice, formatSize } from '../../data/products';
 import { formatPaymentStatus, LOW_STOCK_THRESHOLD, ORDER_STATUSES, PAYMENT_STATUSES } from '../../lib/admin';
 import StatusBadge from './StatusBadge';
-
-const PERIODS = [
-  ['today', 'Today'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days'],
-  ['90d', 'Last 90 days'], ['all', 'All time'],
-] as const;
-
-type Period = typeof PERIODS[number][0];
+import { ADMIN_PERIODS as PERIODS, type AdminPeriod as Period } from '../../lib/adminPeriods';
 type Bucket = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
 type DemandClass = 'zero' | 'low' | 'new';
 

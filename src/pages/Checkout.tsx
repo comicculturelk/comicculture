@@ -1,4 +1,5 @@
-import { cloneElement, isValidElement, useId, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
+import { trackConversion } from '../lib/conversion';
 import type { ChangeEvent, FormEvent, ReactElement, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
@@ -90,6 +91,10 @@ export default function Checkout() {
   const [requestId] = useState(getCheckoutRequestId);
 
   const { fee: deliveryFee, failed: deliveryFeeFailed, refresh: refreshDeliveryFee } = useDeliveryFee(items.length > 0);
+  const hasCartItems = items.length > 0;
+  useEffect(() => {
+    if (hasCartItems) trackConversion('checkout');
+  }, [hasCartItems]);
   const currentPromo = appliedPromo?.subtotal === totalPrice ? appliedPromo : null;
   const total = deliveryFee === null ? null : orderTotal(totalPrice, deliveryFee, currentPromo?.discountAmount);
   const deliveryText = deliveryFee === null

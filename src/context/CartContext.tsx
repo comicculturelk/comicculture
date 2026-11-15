@@ -1,4 +1,5 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react';
+import { trackConversion } from '../lib/conversion';
 
 export interface CartItem {
   /**
@@ -97,6 +98,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const cap = item.maxStock ?? existing?.maxStock;
     const desiredQty = (existing?.quantity ?? 0) + quantity;
     const cappedQty = cap != null ? Math.min(desiredQty, cap) : desiredQty;
+    if (cappedQty > (existing?.quantity ?? 0)) trackConversion('cart', item.productId);
 
     setStockMessage(
       cap != null && desiredQty > cap

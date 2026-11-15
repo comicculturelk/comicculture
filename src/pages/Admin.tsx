@@ -6,6 +6,7 @@ import { getStoreAdminRole, type StoreAdminRole } from '../data/admin';
 import AdminProducts from '../components/admin/AdminProducts';
 import AdminCollections from '../components/admin/AdminCollections';
 import AdminDashboard from '../components/admin/AdminDashboard';
+import AdminConversion from '../components/admin/AdminConversion';
 import AdminHistory from '../components/admin/AdminHistory';
 import AdminInventory from '../components/admin/AdminInventory';
 import AdminOrders from '../components/admin/AdminOrders';
@@ -235,6 +236,7 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
         {view === 'promos' && <AdminPromos />}
         {view === 'reviews' && <AdminReviews />}
         {view === 'dashboard' && <AdminDashboard onOrders={() => setView('orders')} onInventory={() => setView('inventory')} />}
+        {view === 'conversion' && <AdminConversion />}
         {view === 'history' && <AdminHistory />}
         {view === 'team' && role === 'owner' && <AdminTeam />}
       </div>

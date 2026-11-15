@@ -10,6 +10,7 @@ import { getSignedUrl } from '../../lib/storage';
 import { formatDate, formatPaymentStatus, ORDER_STATUSES, PAYMENT_STATUSES } from '../../lib/admin';
 import { useDialog } from '../../hooks/useDialog';
 import StatusBadge from './StatusBadge';
+import OrderStatusEmails, { type StatusEmail } from './OrderStatusEmails';
 
 const PAGE_SIZE = 25;
 const NEXT_STATUSES: Record<string, string[]> = {
@@ -128,6 +129,10 @@ export default function AdminOrders() {
   const [paymentNotes, setPaymentNotes] = useState<Record<string, string>>({});
   const [notificationStatus, setNotificationStatus] = useState<Record<string, string | null>>({});
   const [notificationError, setNotificationError] = useState(false);
+  const [statusEmails, setStatusEmails] = useState<Record<string, StatusEmail[]>>({});
+  const [statusEmailsUnavailable, setStatusEmailsUnavailable] = useState(false);
+  const [retryingEmail, setRetryingEmail] = useState<string | null>(null);
+  const [emailRetryErrors, setEmailRetryErrors] = useState<Record<string, string>>({});
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [shipmentDrafts, setShipmentDrafts] = useState<Record<string, { courierName: string; trackingNumber: string; trackingUrl: string }>>({});
   const [shipmentSavingId, setShipmentSavingId] = useState<string | null>(null);
@@ -238,6 +243,7 @@ export default function AdminOrders() {
         payment_status: outcome,
         status: outcome === 'paid' ? 'confirmed' : o.status,
       } : o)));
+      if (outcome === 'paid') setRefreshKey((value) => value + 1);
     } catch (e) {
       setOrderErrors((prev) => ({ ...prev, [orderId]: e instanceof Error ? e.message : 'Could not update payment status.' }));
     } finally {
@@ -283,10 +289,23 @@ export default function AdminOrders() {
       setTotalCount(count ?? 0);
       setNotificationStatus({});
       setNotificationError(false);
-      const { data: confirmations, error: confirmationsError } = await supabaseAdmin.rpc('admin_order_notification_status', { p_order_ids: (data ?? []).map((row) => row.id) });
+      setStatusEmails({});
+      setStatusEmailsUnavailable(false);
+      const ids = (data ?? []).map((row) => row.id);
+      if (!ids.length) return;
+      const [confirmations, updates] = await Promise.all([
+        supabaseAdmin.rpc('admin_order_notification_status', { p_order_ids: ids }),
+        supabaseAdmin.rpc('admin_order_status_emails', { p_order_ids: ids }),
+      ]);
       if (request !== requestId.current) return;
-      if (confirmationsError) setNotificationError(true);
-      else setNotificationStatus(Object.fromEntries((confirmations ?? []).map((row: { order_id: string; sent_at: string | null }) => [row.order_id, row.sent_at])));
+      if (confirmations.error) setNotificationError(true);
+      else setNotificationStatus(Object.fromEntries((confirmations.data ?? []).map((row: { order_id: string; sent_at: string | null }) => [row.order_id, row.sent_at])));
+      if (updates.error) setStatusEmailsUnavailable(true);
+      else {
+        const grouped: Record<string, StatusEmail[]> = {};
+        for (const row of (updates.data ?? []) as StatusEmail[]) (grouped[row.order_id] ??= []).push(row);
+        setStatusEmails(grouped);
+      }
     } catch (e) {
       if (request === requestId.current) setError(e instanceof Error ? e.message : 'Could not load orders.');
     } finally {
@@ -295,6 +314,21 @@ export default function AdminOrders() {
   }, [dateFrom, dateTo, page, paymentFilter, search, statusFilter]);
 
   useEffect(() => { void loadOrders(); }, [loadOrders, refreshKey]);
+
+  const retryStatusEmail = async (orderId: string, emailId: string) => {
+    if (retryingEmail) return;
+    setRetryingEmail(emailId);
+    setEmailRetryErrors(prev => ({ ...prev, [orderId]: '' }));
+    try {
+      const { error: retryError } = await supabaseAdmin.rpc('admin_retry_order_status_email', { p_id: emailId });
+      if (retryError) throw retryError;
+      setRefreshKey(value => value + 1);
+    } catch {
+      setEmailRetryErrors(prev => ({ ...prev, [orderId]: 'Could not queue this email. Refresh to check if it is still eligible.' }));
+    } finally {
+      setRetryingEmail(null);
+    }
+  };
 
   const handleStatusChange = async (order: OrderRow, status: string, cancellation?: { reason: string; refundConfirmed: boolean; refundReference: string }) => {
     if (status === 'cancelled' && !cancellation) {
@@ -322,6 +356,7 @@ export default function AdminOrders() {
         refund_reference: cancellation?.refundReference || o.refund_reference,
       } : o)));
       setCancellingOrder(null);
+      setRefreshKey((value) => value + 1);
     } catch (e) {
       setOrderErrors((prev) => ({ ...prev, [order.id]: e instanceof Error ? e.message : 'Could not update order status.' }));
     } finally {
@@ -569,6 +604,8 @@ export default function AdminOrders() {
                   </div>
 
                   <p className="mt-3 text-xs text-muted-foreground">Order email: {notificationError ? 'Status unavailable. Refresh to retry.' : notificationStatus[order.id] ? `Send confirmed ${formatDate(notificationStatus[order.id]!)}` : 'Send not confirmed. Check the order manually; this does not prove delivery failed.'}</p>
+                  <OrderStatusEmails rows={statusEmails[order.id] ?? []} unavailable={statusEmailsUnavailable}
+                    retrying={retryingEmail} error={emailRetryErrors[order.id]} onRetry={(id) => void retryStatusEmail(order.id, id)} />
                   {order.status === 'packed' && (!order.courier_name || !order.tracking_number) && <p className="mt-2 text-xs text-muted-foreground">Save the courier name and tracking number before marking this order shipped.</p>}
                   {order.payment_method === 'BANK_TRANSFER' && (
                     <div className="mt-4 border-t border-border pt-4">

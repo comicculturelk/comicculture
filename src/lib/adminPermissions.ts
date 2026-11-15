@@ -1,6 +1,7 @@
 export type StoreAdminRole = "owner" | "admin" | "staff";
 export const ADMIN_VIEWS = [
   "dashboard",
+  "conversion",
   "orders",
   "products",
   "collections",

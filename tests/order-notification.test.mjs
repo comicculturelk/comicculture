@@ -4,8 +4,10 @@ import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
 
+const sharedResend = readFileSync(new URL('../supabase/functions/_shared/resend.ts', import.meta.url), 'utf8').replace(/^export /gm, '');
 const source = readFileSync(new URL('../supabase/functions/send-order-notification/index.ts', import.meta.url), 'utf8')
-  .replace(/import \{ createClient \} from '[^']+';/, 'const createClient = testCreateClient;');
+  .replace(/import \{ createClient \} from '[^']+';/, 'const createClient = testCreateClient;')
+  .replace(/import \{ escapeHtml, sendViaResend \} from '[^']+';/, () => sharedResend);
 const emitted = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
 const orderId = '00000000-0000-0000-0000-000000000001';
 const token = '00000000-0000-0000-0000-000000000002';
@@ -83,19 +85,19 @@ test('bank-transfer confirmation requests verification without claiming dispatch
   const s = setup({ row: { ...order, payment_method: 'BANK_TRANSFER', payment_status: 'awaiting_verification' } });
   await s.handler(s.request());
   assert.match(s.sent[1].body.subject, /Order Received/);
-  assert.match(s.sent[1].body.html, /Payment verification required/);
-  assert.match(s.sent[1].body.html, /review your bank-transfer receipt/);
+  assert.match(s.sent[1].body.html, /Payment verification is handled separately/);
+  assert.match(s.sent[1].body.html, /received your bank-transfer receipt/);
   assert.doesNotMatch(s.sent[1].body.html, /already moving|being prepared for dispatch|Pay in cash/);
 });
 
-test('already verified bank payment and preorder snapshots are described accurately', async () => {
+test('a late bank receipt acknowledgement leaves verification to the status email and preserves preorder snapshots', async () => {
   const s = setup({ row: { ...order, payment_method: 'BANK_TRANSFER', payment_status: 'paid',
     order_items: [{ ...order.order_items[0], is_preorder: true, preorder_days: 14 }] } });
   await s.handler(s.request());
-  assert.match(s.sent[1].body.subject, /Order Confirmed/);
-  assert.match(s.sent[1].body.html, /payment has been verified/);
+  assert.match(s.sent[1].body.subject, /Order Received/);
+  assert.doesNotMatch(s.sent[1].body.html, /payment has been verified/);
   assert.match(s.sent[1].body.html, /Delivery within 14 days/);
-  assert.doesNotMatch(s.sent[1].body.html, /Payment verification required/);
+  assert.match(s.sent[1].body.html, /Payment verification is handled separately/);
 });
 
 test('partial send failures remain retryable with the same per-recipient idempotency keys', async () => {
