@@ -11,6 +11,7 @@ const infoLinks = [
   { label: 'Return & Exchange Policy', to: '/return-policy' },
   { label: 'Terms & Conditions', to: '/terms-and-conditions' },
   { label: 'Privacy policy', to: '/privacy-policy' },
+  { label: 'Privacy preferences', to: '/privacy-policy#analytics-choice' },
 ];
 
 export default function Footer() {

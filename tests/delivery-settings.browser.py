@@ -2,9 +2,10 @@ import base64
 import json
 import os
 import re
+import sys
 import time
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -19,10 +20,15 @@ DASHBOARD_SCREENSHOTS = os.environ.get("COMICCULTURE_DASHBOARD_SCREENSHOTS")
 CONVERSION_FIXTURE = os.environ.get("COMICCULTURE_CONVERSION_FIXTURE")
 CONVERSION = json.loads(Path(CONVERSION_FIXTURE).read_text()) if CONVERSION_FIXTURE else None
 FEATURE_SCREENSHOTS = os.environ.get("COMICCULTURE_FEATURE_SCREENSHOTS")
+CONSENT_SCREENSHOTS = os.environ.get("COMICCULTURE_CONSENT_SCREENSHOTS")
+CONSENT_ONLY = "--consent-only" in sys.argv
+BUILD_DIR = Path(os.environ["COMICCULTURE_BROWSER_BUILD"]).resolve() if os.environ.get("COMICCULTURE_BROWSER_BUILD") else None
+CONSENT_KEY = "comicculture-conversion-choice"
+VISIT_KEY = "comicculture-conversion-session"
 PRODUCT = {
     "id": "test-product", "slug": "test-product", "name": "Conversion test design", "product_code": "QA-DESIGN",
     "collection": "", "collection_id": None, "tagline": "Synthetic fixture", "description": "A test design.", "lore": "",
-    "image": "", "images": [], "featured": True, "created_at": "2026-11-14T00:00:00Z",
+    "image": "/images/logo/comicculture-logo.png", "images": [], "featured": True, "created_at": "2026-11-14T00:00:00Z",
     "versions": [{"id": "qa-version", "product_id": "test-product", "version_name": "Cotton",
                   "product_type": "oversized_tshirt", "images": [], "is_preorder": False, "is_active": True,
                   "sort_order": 0, "sizes": [{"id": "00000000-0000-0000-0000-000000000030", "version_id": "qa-version",
@@ -93,7 +99,7 @@ def mock_backend(route):
         route.fulfill(json=user)
     elif path == "/rest/v1/rpc/get_store_admin_role":
         route.fulfill(json=admin_role)
-    elif CONVERSION and path == "/rest/v1/products":
+    elif path == "/rest/v1/products":
         route.fulfill(json=[PRODUCT])
     elif CONVERSION and path == "/rest/v1/rpc/admin_checkout_conversion":
         if conversion_report_down:
@@ -155,7 +161,7 @@ def mock_backend(route):
         route.fulfill(json={"path": f"{req.headers['x-checkout-id']}/receipt.png"})
     elif path == "/functions/v1/checkout":
         payload = req.post_data_json
-        if CONVERSION and payload["action"] == "analytics":
+        if payload["action"] == "analytics":
             analytics_events.append(payload["input"])
             if analytics_down:
                 return route.fulfill(status=503, json={"message": "Synthetic analytics outage"})
@@ -200,6 +206,21 @@ def mock_backend(route):
 
 
 def setup(context):
+    if BUILD_DIR:
+        # Serve the production build through Playwright when loopback HTTP or
+        # the catalog required by the Vite SEO middleware is unavailable.
+        def serve_build(route):
+            relative_path = unquote(urlsplit(route.request.url).path).lstrip("/")
+            asset = (BUILD_DIR / relative_path).resolve()
+            if asset.is_relative_to(BUILD_DIR) and asset.is_file():
+                route.fulfill(path=asset)
+            elif route.request.resource_type == "document":
+                route.fulfill(path=BUILD_DIR / "app.html")
+            else:
+                route.abort()
+
+        context.route("**/*", lambda route: route.abort())
+        context.route(f"{BASE_URL}/**", serve_build)
     context.route("**/*.supabase.co/**", mock_backend)
     context.route("https://challenges.cloudflare.com/**", lambda route: route.abort())
     context.add_init_script("""
@@ -496,8 +517,206 @@ def check_checkout_conversion(browser):
     shopper.close()
 
 
+def check_privacy_consent(browser):
+    global analytics_down
+    output = Path(CONSENT_SCREENSHOTS) if CONSENT_SCREENSHOTS else None
+    if output:
+        output.mkdir(parents=True, exist_ok=True)
+    heights = {320: 640, 375: 710, 390: 844, 768: 900, 1440: 900}
+    events_before = len(analytics_events)
+    shopper = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    setup(shopper)
+    page = shopper.new_page()
+    tab = shopper.new_page()
+    banner = page.get_by_role("region", name="Your privacy, your choice")
+    reject = banner.get_by_role("button", name="Only necessary")
+    accept = banner.get_by_role("button", name="Allow analytics")
+    choice = tab.get_by_label("Allow checkout analytics")
+
+    page.goto(f"{BASE_URL}/")
+    tab.goto(f"{BASE_URL}/privacy-policy")
+    expect(choice).not_to_be_checked()
+    expect(tab.get_by_role("region", name="Your privacy, your choice")).to_be_visible()
+    for width, height in heights.items():
+        page.set_viewport_size({"width": width, "height": height})
+        expect(banner).to_be_in_viewport(ratio=1)
+        assert_layout(page)
+        box = banner.bounding_box()
+        assert height - 24 <= box["y"] + box["height"] <= height
+        for button in (reject, accept):
+            expect(button).to_be_in_viewport(ratio=1)
+            assert button.bounding_box()["height"] >= 44
+        assert reject.get_attribute("class") == accept.get_attribute("class")
+        if output and width in (390, 1440):
+            page.evaluate("document.fonts.ready")
+            page.screenshot(path=output / f"privacy-consent-{width}.png", animations="disabled")
+
+    page.set_viewport_size({"width": 320, "height": 640})
+    banner.get_by_role("link", name="Privacy policy").focus()
+    page.keyboard.press("Tab")
+    expect(reject).to_be_focused()
+    page.keyboard.press("Tab")
+    expect(accept).to_be_focused()
+    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
+    assert len(analytics_events) == events_before
+    page.keyboard.press("Enter")
+    expect(banner).to_have_count(0)
+    expect(choice).to_be_checked()
+    expect(tab.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
+    assert page.evaluate("(key) => localStorage.getItem(key)", CONSENT_KEY) == "on"
+    page.reload()
+    expect(page.get_by_role("link", name="Privacy preferences")).to_have_attribute("href", "/privacy-policy#analytics-choice")
+    expect(banner).to_have_count(0)
+    page.get_by_role("link", name="Privacy preferences").click()
+    expect(page.get_by_role("region", name="Checkout analytics preference")).to_be_focused()
+    expect(page.get_by_label("Allow checkout analytics")).to_be_checked()
+    page.goto(f"{BASE_URL}/product/test-product")
+    expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
+    page.wait_for_function("(key) => Boolean(localStorage.getItem(key))", arg=VISIT_KEY)
+    choice.uncheck()
+    expect(tab.get_by_text("Checkout analytics preference", exact=True)).to_be_visible()
+    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
+    page.get_by_role("link", name="Privacy preferences").click()
+    expect(page.get_by_label("Allow checkout analytics")).not_to_be_checked()
+    expect(banner).to_have_count(0)
+    shopper.close()
+
+    declined = browser.new_context(viewport={"width": 320, "height": 640})
+    setup(declined)
+    page = declined.new_page()
+    events_before = len(analytics_events)
+    page.goto(f"{BASE_URL}/product/test-product")
+    expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
+    banner = page.get_by_role("region", name="Your privacy, your choice")
+    expect(banner).to_be_in_viewport(ratio=1)
+    assert banner.evaluate("(el) => getComputedStyle(el.parentElement).position") == "static"
+    page.get_by_role("button", name="M", exact=True).click()
+    page.get_by_role("button", name="Add to Cart", exact=True).click()
+    page.get_by_role("dialog", name="Your cart").get_by_role("link", name="Proceed to Checkout").click()
+    expect(page.get_by_role("heading", name="Checkout", exact=True)).to_be_visible()
+    expect(banner).to_be_visible()
+    assert banner.evaluate("(el) => getComputedStyle(el.parentElement).position") == "static"
+    if output:
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.evaluate("window.scrollTo({ top: 0, behavior: 'instant' })")
+        expect(banner).to_be_in_viewport(ratio=1)
+        page.evaluate("document.fonts.ready")
+        page.screenshot(path=output / "privacy-consent-checkout-390.png", animations="disabled")
+        page.set_viewport_size({"width": 320, "height": 640})
+    fill_checkout(page)
+    place_order = page.get_by_role("button", name="Place Order", exact=True)
+    expect(place_order).to_be_enabled()
+    place_order.scroll_into_view_if_needed()
+    expect(place_order).to_be_in_viewport(ratio=1)
+    assert_layout(page)
+    place_order.click()
+    expect(page).to_have_url(f"{BASE_URL}/order-success")
+    assert "conversionSession" not in order_attempts[-1]
+    banner.get_by_role("button", name="Only necessary").click()
+    expect(banner).to_have_count(0)
+    assert page.evaluate("(key) => localStorage.getItem(key)", CONSENT_KEY) == "off"
+    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
+    page.reload()
+    expect(banner).to_have_count(0)
+    page.goto(f"{BASE_URL}/product/test-product")
+    expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
+    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
+    page.goto(f"{BASE_URL}/privacy-policy")
+    expect(page.get_by_label("Allow checkout analytics")).not_to_be_checked()
+    expect(banner).to_have_count(0)
+    assert len(analytics_events) == events_before
+    declined.close()
+
+    opted_in = browser.new_context(viewport={"width": 390, "height": 844})
+    setup(opted_in)
+    page = opted_in.new_page()
+    events_before = len(analytics_events)
+    analytics_down = True
+    page.goto(f"{BASE_URL}/product/test-product")
+    page.get_by_role("button", name="Allow analytics").click()
+    page.get_by_role("button", name="M", exact=True).click()
+    page.get_by_role("button", name="Add to Cart", exact=True).click()
+    page.get_by_role("dialog", name="Your cart").get_by_role("link", name="Proceed to Checkout").click()
+    fill_checkout(page)
+    page.get_by_role("button", name="Place Order", exact=True).click()
+    expect(page).to_have_url(f"{BASE_URL}/order-success")
+    assert [event["stage"] for event in analytics_events[events_before:]] == ["view", "cart", "checkout"]
+    assert order_attempts[-1]["conversionSession"] == analytics_events[events_before]["sessionId"]
+    analytics_down = False
+    opted_in.close()
+
+    for signal, value in (("globalPrivacyControl", True), ("doNotTrack", "1"), ("doNotTrack", "yes")):
+        protected = browser.new_context()
+        setup(protected)
+        protected.add_init_script(f"""
+            Object.defineProperty(navigator, {json.dumps(signal)}, {{ value: {json.dumps(value)} }});
+            localStorage.setItem({json.dumps(CONSENT_KEY)}, 'on');
+        """)
+        page = protected.new_page()
+        events_before = len(analytics_events)
+        page.goto(f"{BASE_URL}/product/test-product")
+        expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
+        expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
+        page.goto(f"{BASE_URL}/privacy-policy")
+        choice = page.get_by_label("Allow checkout analytics")
+        expect(choice).not_to_be_checked()
+        expect(choice).to_be_disabled()
+        assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
+        assert len(analytics_events) == events_before
+        protected.close()
+
+    blocked = browser.new_context()
+    setup(blocked)
+    blocked.add_init_script(f"""
+        const set = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key, value) {{
+            if (key === {json.dumps(CONSENT_KEY)}) throw new DOMException('Blocked', 'SecurityError');
+            return set.call(this, key, value);
+        }};
+    """)
+    page = blocked.new_page()
+    page.goto(f"{BASE_URL}/privacy-policy")
+    page.get_by_role("button", name="Allow analytics").click()
+    expect(page.get_by_label("Allow checkout analytics")).to_be_disabled()
+    expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
+    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
+    expect(page.get_by_text("Analytics is off because your browser could not store this preference.", exact=False)).to_be_visible()
+    blocked.close()
+
+    blocked = browser.new_context()
+    setup(blocked)
+    blocked.add_init_script("""
+        Object.defineProperty(window, 'localStorage', {
+            get() { throw new DOMException('Blocked', 'SecurityError'); },
+        });
+    """)
+    page = blocked.new_page()
+    page.goto(f"{BASE_URL}/privacy-policy")
+    expect(page.get_by_label("Allow checkout analytics")).to_be_disabled()
+    expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
+    page.goto(f"{BASE_URL}/product/test-product")
+    expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
+    blocked.close()
+
+    admin = browser.new_context()
+    setup(admin)
+    admin.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
+    page = admin.new_page()
+    for route in ("/admin?section=settings", "/ADMIN?section=settings"):
+        page.goto(f"{BASE_URL}{route}")
+        expect(page.get_by_role("heading", name="Delivery settings")).to_be_visible()
+        expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
+    admin.close()
+    assert not unexpected, unexpected
+    print("PASS: privacy consent, persistence, cross-tab changes, withdrawal, privacy signals, blocked storage, checkout with no consent or analytics outage, admin isolation, and 320/375/390/768/1440px layouts.")
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(channel="msedge")
+    if CONSENT_ONLY:
+        check_privacy_consent(browser)
+        browser.close()
+        sys.exit(0)
     admin_context = browser.new_context(viewport={"width": 1440, "height": 900})
     setup(admin_context)
     admin_context.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
@@ -683,6 +902,7 @@ with sync_playwright() as playwright:
     if CONVERSION:
         check_checkout_conversion(browser)
         print("PASS: conversion filters, empty/error states, 390/768/1440px layouts, opt-in shopper events, checkout during analytics failure, and status email retry.")
+    check_privacy_consent(browser)
     assert not unexpected, unexpected
     if REFERENCES:
         print("PASS: reference confirmation, tracking, admin search, history, WhatsApp, packing slips and email HTML.")
