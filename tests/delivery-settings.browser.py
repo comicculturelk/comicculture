@@ -2,7 +2,6 @@ import base64
 import json
 import os
 import re
-import sys
 import time
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -17,16 +16,13 @@ REFERENCES = json.loads(Path(REFERENCE_FIXTURE).read_text()) if REFERENCE_FIXTUR
 DASHBOARD_FIXTURE = os.environ.get("COMICCULTURE_DASHBOARD_FIXTURE")
 DASHBOARD = json.loads(Path(DASHBOARD_FIXTURE).read_text()) if DASHBOARD_FIXTURE else None
 DASHBOARD_SCREENSHOTS = os.environ.get("COMICCULTURE_DASHBOARD_SCREENSHOTS")
-CONVERSION_FIXTURE = os.environ.get("COMICCULTURE_CONVERSION_FIXTURE")
-CONVERSION = json.loads(Path(CONVERSION_FIXTURE).read_text()) if CONVERSION_FIXTURE else None
 FEATURE_SCREENSHOTS = os.environ.get("COMICCULTURE_FEATURE_SCREENSHOTS")
-CONSENT_SCREENSHOTS = os.environ.get("COMICCULTURE_CONSENT_SCREENSHOTS")
-CONSENT_ONLY = "--consent-only" in sys.argv
+PRIVACY_SCREENSHOTS = os.environ.get("COMICCULTURE_PRIVACY_SCREENSHOTS")
 BUILD_DIR = Path(os.environ["COMICCULTURE_BROWSER_BUILD"]).resolve() if os.environ.get("COMICCULTURE_BROWSER_BUILD") else None
 CONSENT_KEY = "comicculture-conversion-choice"
 VISIT_KEY = "comicculture-conversion-session"
 PRODUCT = {
-    "id": "test-product", "slug": "test-product", "name": "Conversion test design", "product_code": "QA-DESIGN",
+    "id": "test-product", "slug": "test-product", "name": "Test design", "product_code": "QA-DESIGN",
     "collection": "", "collection_id": None, "tagline": "Synthetic fixture", "description": "A test design.", "lore": "",
     "image": "/images/logo/comicculture-logo.png", "images": [], "featured": True, "created_at": "2026-11-14T00:00:00Z",
     "versions": [{"id": "qa-version", "product_id": "test-product", "version_name": "Cotton",
@@ -68,10 +64,8 @@ order_attempts = []
 unexpected = []
 dashboard_requests = []
 dashboard_state = "normal"
-analytics_events = []
-analytics_down = False
-conversion_report_down = False
 notifications_retried = []
+confirmation_requests = []
 
 
 def mock_backend(route):
@@ -83,6 +77,12 @@ def mock_backend(route):
         route.abort()
         return
     path = url.path
+    if path == "/rest/v1/rpc/admin_checkout_conversion" or (
+        path == "/functions/v1/checkout" and "x-checkout-id" not in req.headers
+        and req.method == "POST" and req.post_data_json.get("action") == "analytics"
+    ):
+        unexpected.append(f"Retired analytics request: {path}")
+        return route.fulfill(status=400, json={"message": "Retired endpoint"})
     if path == "/rest/v1/delivery_settings":
         if req.method == "PATCH":
             assert req.headers.get("authorization") == f"Bearer {token}"
@@ -101,11 +101,7 @@ def mock_backend(route):
         route.fulfill(json=admin_role)
     elif path == "/rest/v1/products":
         route.fulfill(json=[PRODUCT])
-    elif CONVERSION and path == "/rest/v1/rpc/admin_checkout_conversion":
-        if conversion_report_down:
-            return route.fulfill(status=500, json={"message": "Synthetic report outage"})
-        route.fulfill(json=CONVERSION[req.post_data_json["p_period"]])
-    elif CONVERSION and REFERENCES and path == "/rest/v1/rpc/admin_order_status_emails":
+    elif REFERENCES and path == "/rest/v1/rpc/admin_order_status_emails":
         order_id = REFERENCES["current"]["order_id"]
         second_id = REFERENCES["historical"]["order_id"]
         rows = [
@@ -121,7 +117,7 @@ def mock_backend(route):
              "retryable": not notifications_retried},
         ]
         route.fulfill(json=[row for row in rows if row["order_id"] in req.post_data_json["p_order_ids"]])
-    elif CONVERSION and path == "/rest/v1/rpc/admin_retry_order_status_email":
+    elif REFERENCES and path == "/rest/v1/rpc/admin_retry_order_status_email":
         assert req.headers.get("authorization") == f"Bearer {token}"
         notifications_retried.append(req.post_data_json["p_id"])
         route.fulfill(status=204)
@@ -150,7 +146,7 @@ def mock_backend(route):
     elif REFERENCES and path == "/rest/v1/orders":
         query = parse_qs(url.query).get("or", [""])[0]
         orders = [{
-            **row, "id": row["order_id"], "status": ("delivered" if row == REFERENCES["current"] else "packed") if CONVERSION else "pending",
+            **row, "id": row["order_id"], "status": "delivered" if row == REFERENCES["current"] else "packed",
             "created_at": "2026-11-14T00:00:00Z",
             "payment_method": "COD", "payment_status": "pending", "full_name": "Synthetic customer",
             "phone": "0771234567", "address_line1": "Synthetic address", "city": "Colombo",
@@ -161,11 +157,6 @@ def mock_backend(route):
         route.fulfill(json={"path": f"{req.headers['x-checkout-id']}/receipt.png"})
     elif path == "/functions/v1/checkout":
         payload = req.post_data_json
-        if payload["action"] == "analytics":
-            analytics_events.append(payload["input"])
-            if analytics_down:
-                return route.fulfill(status=503, json={"message": "Synthetic analytics outage"})
-            return route.fulfill(status=204)
         if REFERENCES and payload["action"] == "track":
             details = payload["input"]
             if details["email"] == "limited@example.invalid":
@@ -181,6 +172,8 @@ def mock_backend(route):
                               tracking_url="https://courier.example.invalid/track/QA-123")
             return route.fulfill(json=result)
         order_attempts.append(payload)
+        assert set(payload) == {"action", "input", "requestId", "token"}
+        assert "conversionSession" not in payload["input"]
         assert payload["action"] == "order"
         assert payload["token"] == "synthetic-checkout-token"
         quote = payload["input"]
@@ -200,6 +193,7 @@ def mock_backend(route):
                 "notification_token": "synthetic-notification-token",
             })
     elif path == "/functions/v1/send-order-notification":
+        confirmation_requests.append(req.post_data_json)
         route.fulfill(json={})
     else:
         route.fulfill(json=[])
@@ -380,343 +374,146 @@ def check_dashboard(browser):
     context.close()
 
 
-def check_checkout_conversion(browser):
-    global admin_role, analytics_down, conversion_report_down
+def check_status_email_admin(browser):
+    global admin_role
     admin_role = "admin"
     context = browser.new_context(viewport={"width": 1440, "height": 960}, timezone_id="America/New_York")
     setup(context)
     context.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
     page = context.new_page()
-    page.goto(f"{BASE_URL}/admin?section=conversion")
-    funnel = page.get_by_role("heading", name="Conversion funnel")
-    expect(funnel).to_be_visible()
-    expect(page.get_by_role("heading", name="Checkout conversion", exact=True)).to_be_visible()
-    expect(page.get_by_text("Attributed orders", exact=True)).to_be_visible()
-    expect(page.get_by_text("Mobile-size", exact=True)).to_be_visible()
-    expect(page.get_by_text("Desktop-size", exact=True)).to_be_visible()
-    period = page.get_by_role("group", name="Conversion period")
-    for label in ("Today", "Last 7 days", "Last 90 days", "All retained", "Last 30 days"):
-        period.get_by_role("button", name=label, exact=True).click()
-        expect(period.get_by_role("button", name=label, exact=True)).to_have_attribute("aria-pressed", "true")
-        expect(page.get_by_text(re.compile(r"Asia/Colombo"))).to_be_visible()
-
-    saved = CONVERSION["today"]
-    CONVERSION["today"] = {**saved, "viewed": 0, "added": 0, "started": 0, "purchased": 0, "products": []}
-    period.get_by_role("button", name="Today", exact=True).click()
-    expect(page.get_by_text("No tracked product views", exact=True)).to_be_visible()
-    CONVERSION["today"] = saved
-    conversion_report_down = True
-    page.get_by_role("button", name="Refresh", exact=True).click()
-    expect(page.get_by_role("alert")).to_contain_text("Could not load")
-    conversion_report_down = False
-    page.get_by_role("button", name="Try again").click()
-    expect(funnel).to_be_visible()
-    period.get_by_role("button", name="Last 30 days", exact=True).click()
-    expect(funnel).to_be_visible()
     output = Path(FEATURE_SCREENSHOTS) if FEATURE_SCREENSHOTS else None
     if output:
         output.mkdir(parents=True, exist_ok=True)
+
+    page.goto(f"{BASE_URL}/admin?section=orders")
+    page.get_by_text("Search and payment/date filters", exact=False).click()
+    search = page.get_by_placeholder("Order, customer, phone, email, tracking")
+    search.fill(REFERENCES["historical"]["order_reference"])
+    expect(page.get_by_text(REFERENCES["current"]["order_reference"], exact=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="View Details", exact=True)).to_have_count(1)
+    page.get_by_role("button", name="View Details", exact=True).click()
+    emails = page.get_by_role("region", name="Customer status emails")
+    expect(emails.get_by_text("Pending", exact=True)).to_be_visible()
+    for width in (390, 1440):
+        page.set_viewport_size({"width": width, "height": 960})
+        if output:
+            emails.screenshot(path=output / f"status-email-pending-{width}.png", animations="disabled")
+    search.fill(REFERENCES["current"]["order_reference"])
+    expect(page.get_by_text(REFERENCES["current"]["order_reference"], exact=True)).to_be_visible()
+    expect(page.get_by_text(REFERENCES["historical"]["order_reference"], exact=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="View Details", exact=True)).to_have_count(1)
+    page.get_by_role("button", name="View Details", exact=True).click()
+    emails = page.get_by_role("region", name="Customer status emails")
+    for state in ("Sent", "Failed", "Skipped"):
+        expect(emails.get_by_text(state, exact=True)).to_be_visible()
     for width in (390, 768, 1440):
         page.set_viewport_size({"width": width, "height": 960})
         assert_layout(page)
         if output:
-            page.evaluate("document.fonts.ready")
-            page.screenshot(path=output / f"conversion-{width}.png", full_page=True, animations="disabled")
-
-    if REFERENCES:
-        page.goto(f"{BASE_URL}/admin?section=orders")
-        page.get_by_text("Search and payment/date filters", exact=False).click()
-        search = page.get_by_placeholder("Order, customer, phone, email, tracking")
-        search.fill(REFERENCES["historical"]["order_reference"])
-        expect(page.get_by_text(REFERENCES["current"]["order_reference"], exact=True)).to_have_count(0)
-        expect(page.get_by_role("button", name="View Details", exact=True)).to_have_count(1)
-        page.get_by_role("button", name="View Details", exact=True).click()
-        emails = page.get_by_role("region", name="Customer status emails")
-        expect(emails.get_by_text("Pending", exact=True)).to_be_visible()
-        for width in (390, 1440):
-            page.set_viewport_size({"width": width, "height": 960})
-            if output:
-                emails.screenshot(path=output / f"status-email-pending-{width}.png", animations="disabled")
-        search.fill(REFERENCES["current"]["order_reference"])
-        expect(page.get_by_text(REFERENCES["current"]["order_reference"], exact=True)).to_be_visible()
-        expect(page.get_by_text(REFERENCES["historical"]["order_reference"], exact=True)).to_have_count(0)
-        expect(page.get_by_role("button", name="View Details", exact=True)).to_have_count(1)
-        page.get_by_role("button", name="View Details", exact=True).click()
-        emails = page.get_by_role("region", name="Customer status emails")
-        for state in ("Sent", "Failed", "Skipped"):
-            expect(emails.get_by_text(state, exact=True)).to_be_visible()
-        for width in (390, 768, 1440):
-            page.set_viewport_size({"width": width, "height": 960})
-            assert_layout(page)
-            if output:
-                emails.screenshot(path=output / f"status-emails-{width}.png", animations="disabled")
-        emails.get_by_role("button", name="Retry delivered email").click()
-        expect(emails.get_by_role("button", name="Retry delivered email")).to_have_count(0)
-        assert notifications_retried == ["failed-qa"]
-
-    admin_role = "staff"
-    page.goto(f"{BASE_URL}/admin?section=conversion")
-    expect(page.get_by_role("button", name="conversion", exact=True)).to_have_count(0)
-    expect(page.get_by_role("heading", name="Checkout conversion", exact=True)).to_have_count(0)
+            emails.screenshot(path=output / f"status-emails-{width}.png", animations="disabled")
+    emails.get_by_role("button", name="Retry delivered email").click()
+    expect(emails.get_by_role("button", name="Retry delivered email")).to_have_count(0)
+    assert notifications_retried == ["failed-qa"]
     context.close()
-    admin_role = "admin"
-
-    shopper = browser.new_context(viewport={"width": 390, "height": 900})
-    setup(shopper)
-    page = shopper.new_page()
-
-    def open_design():
-        page.get_by_role("link", name=re.compile("Back to shop")).click()
-        page.locator('a[href="/product/test-product"]').first.click()
-        expect(page.get_by_role("heading", name="Conversion test design", exact=True)).to_be_visible()
-
-    page.goto(f"{BASE_URL}/privacy-policy")
-    choice = page.get_by_label("Allow checkout analytics")
-    expect(choice).not_to_be_checked()
-    open_design()
-    assert not analytics_events
-    page.goto(f"{BASE_URL}/privacy-policy")
-    choice.check()
-    open_design()
-    page.get_by_role("button", name="M", exact=True).click()
-    page.get_by_role("button", name="Add to Cart", exact=True).click()
-    page.get_by_role("dialog", name="Your cart").get_by_role("link", name="Proceed to Checkout").click()
-    expect(page.get_by_role("heading", name="Checkout", exact=True)).to_be_visible()
-    expect(page.get_by_text("Payment method", exact=True)).to_be_visible()
-    # A real opt-in journey produces all three browser stages. The order is
-    # attributed by the server wrapper, never by a browser purchase event.
-    page.wait_for_function(
-        "() => JSON.parse(localStorage.getItem('comicculture-conversion-session') || 'null')?.id",
-    )
-    fill_checkout(page)
-    expect(page.get_by_role("button", name="Place Order", exact=True)).to_be_enabled()
-    assert [event["stage"] for event in analytics_events] == ["view", "cart", "checkout"]
-    visit = analytics_events[0]["sessionId"]
-    assert all(event["sessionId"] == visit and event["device"] == "mobile" for event in analytics_events)
-    assert set(analytics_events[0]) == {"stage", "device", "productId", "sessionId"}
-    assert analytics_events[0]["productId"] == "test-product"
-    page.get_by_role("button", name="Place Order", exact=True).click()
-    expect(page).to_have_url(f"{BASE_URL}/order-success")
-    assert order_attempts[-1]["conversionSession"] == visit
-    assert "conversionSession" not in order_attempts[-1]["input"]
-    assert not any(event["stage"] == "purchase" for event in analytics_events)
-
-    page.goto(f"{BASE_URL}/privacy-policy")
-    choice.uncheck()
-    assert page.evaluate("localStorage.getItem('comicculture-conversion-session')") is None
-    choice.check()
-    analytics_down = True
-    open_design()
-    page.get_by_role("button", name="M", exact=True).click()
-    page.get_by_role("button", name="Add to Cart", exact=True).click()
-    page.get_by_role("dialog", name="Your cart").get_by_role("link", name="Proceed to Checkout").click()
-    fill_checkout(page)
-    page.get_by_role("button", name="Place Order", exact=True).click()
-    expect(page).to_have_url(f"{BASE_URL}/order-success")
-    analytics_down = False
-    shopper.close()
 
 
-def check_privacy_consent(browser):
-    global analytics_down
-    output = Path(CONSENT_SCREENSHOTS) if CONSENT_SCREENSHOTS else None
+def check_privacy_first_storefront(browser):
+    output = Path(PRIVACY_SCREENSHOTS) if PRIVACY_SCREENSHOTS else None
     if output:
         output.mkdir(parents=True, exist_ok=True)
-    heights = {320: 640, 375: 710, 390: 844, 768: 900, 1440: 900}
-    events_before = len(analytics_events)
-    shopper = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
-    setup(shopper)
-    page = shopper.new_page()
-    tab = shopper.new_page()
-    banner = page.get_by_role("region", name="Your privacy, your choice")
-    reject = banner.get_by_role("button", name="Only necessary")
-    accept = banner.get_by_role("button", name="Allow analytics")
-    choice = tab.get_by_label("Allow checkout analytics")
+    context = browser.new_context(reduced_motion="reduce")
+    setup(context)
+    context.add_init_script(f"""
+        if (!sessionStorage.getItem('legacy-fixture')) {{
+            localStorage.setItem({json.dumps(CONSENT_KEY)}, 'on');
+            localStorage.setItem({json.dumps(VISIT_KEY)}, '{{"id":"retired-test-session"}}');
+            sessionStorage.setItem('legacy-fixture', 'seeded');
+        }}
+    """)
+    page = context.new_page()
+    console_errors = []
+    page.on("pageerror", lambda error: console_errors.append(str(error)))
 
-    page.goto(f"{BASE_URL}/")
-    tab.goto(f"{BASE_URL}/privacy-policy")
-    expect(choice).not_to_be_checked()
-    expect(tab.get_by_role("region", name="Your privacy, your choice")).to_be_visible()
-    for width, height in heights.items():
-        page.set_viewport_size({"width": width, "height": height})
-        expect(banner).to_be_in_viewport(ratio=1)
+    def check_page(name, width):
+        expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
+        expect(page.get_by_text("Allow analytics", exact=True)).to_have_count(0)
+        expect(page.get_by_role("link", name="Privacy preferences")).to_have_count(0)
+        assert page.evaluate("(keys) => keys.every(key => localStorage.getItem(key) === null)", [CONSENT_KEY, VISIT_KEY])
         assert_layout(page)
-        box = banner.bounding_box()
-        assert height - 24 <= box["y"] + box["height"] <= height
-        for button in (reject, accept):
-            expect(button).to_be_in_viewport(ratio=1)
-            assert button.bounding_box()["height"] >= 44
-        assert reject.get_attribute("class") == accept.get_attribute("class")
-        if output and width in (390, 1440):
+        if output:
             page.evaluate("document.fonts.ready")
-            page.screenshot(path=output / f"privacy-consent-{width}.png", animations="disabled")
+            page.screenshot(path=output / f"{name}-{width}.png", animations="disabled")
 
-    page.set_viewport_size({"width": 320, "height": 640})
-    banner.get_by_role("link", name="Privacy policy").focus()
-    page.keyboard.press("Tab")
-    expect(reject).to_be_focused()
-    page.keyboard.press("Tab")
-    expect(accept).to_be_focused()
-    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
-    assert len(analytics_events) == events_before
-    page.keyboard.press("Enter")
-    expect(banner).to_have_count(0)
-    expect(choice).to_be_checked()
-    expect(tab.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
-    assert page.evaluate("(key) => localStorage.getItem(key)", CONSENT_KEY) == "on"
-    page.reload()
-    expect(page.get_by_role("link", name="Privacy preferences")).to_have_attribute("href", "/privacy-policy#analytics-choice")
-    expect(banner).to_have_count(0)
-    page.get_by_role("link", name="Privacy preferences").click()
-    expect(page.get_by_role("region", name="Checkout analytics preference")).to_be_focused()
-    expect(page.get_by_label("Allow checkout analytics")).to_be_checked()
-    page.goto(f"{BASE_URL}/product/test-product")
-    expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
-    page.wait_for_function("(key) => Boolean(localStorage.getItem(key))", arg=VISIT_KEY)
-    choice.uncheck()
-    expect(tab.get_by_text("Checkout analytics preference", exact=True)).to_be_visible()
-    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
-    page.get_by_role("link", name="Privacy preferences").click()
-    expect(page.get_by_label("Allow checkout analytics")).not_to_be_checked()
-    expect(banner).to_have_count(0)
-    shopper.close()
+    for width, height in ((320, 640), (375, 710), (390, 844), (768, 900), (1440, 900)):
+        page.set_viewport_size({"width": width, "height": height})
+        page.goto(f"{BASE_URL}/")
+        expect(page.get_by_role("heading", name="Wear your universe.")).to_be_visible()
+        check_page("home", width)
+        if width == 390:
+            page.get_by_role("button", name="Toggle menu").click()
+            expect(page.get_by_role("dialog", name="Navigation")).to_be_visible()
+            page.get_by_role("button", name="Close menu").click()
+        page.get_by_role("link", name="Browse all designs").click()
+        expect(page.get_by_role("heading", name="Shop All", exact=True)).to_be_visible()
+        design = page.locator('a[href="/product/test-product"]').first
+        expect(design).to_be_visible()
+        check_page("shop", width)
+        design.click()
+        expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
+        check_page("product", width)
+        if width == 320:
+            page.get_by_role("button", name="M", exact=True).click()
+            page.get_by_role("button", name="Add to Cart", exact=True).click()
+            expect(page.get_by_role("dialog", name="Your cart")).to_be_visible()
+            page.reload()
+        page.get_by_role("button", name="Open cart").click()
+        cart = page.get_by_role("dialog", name="Your cart")
+        expect(cart.get_by_text(PRODUCT["name"], exact=False).first).to_be_visible()
+        check_page("cart", width)
+        cart.get_by_role("link", name="Proceed to Checkout").click()
+        expect(page.get_by_role("heading", name="Checkout", exact=True)).to_be_visible()
+        check_page("checkout", width)
+        page.get_by_role("contentinfo").get_by_role("link", name="Privacy policy", exact=True).click()
+        expect(page.get_by_role("heading", name="Privacy policy", exact=True)).to_be_visible()
+        expect(page.get_by_role("heading", name="Browser storage and security tools")).to_be_visible()
+        expect(page.get_by_label("Allow checkout analytics")).to_have_count(0)
+        check_page("privacy", width)
 
-    declined = browser.new_context(viewport={"width": 320, "height": 640})
-    setup(declined)
-    page = declined.new_page()
-    events_before = len(analytics_events)
-    page.goto(f"{BASE_URL}/product/test-product")
-    expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
-    banner = page.get_by_role("region", name="Your privacy, your choice")
-    expect(banner).to_be_in_viewport(ratio=1)
-    assert banner.evaluate("(el) => getComputedStyle(el.parentElement).position") == "static"
-    page.get_by_role("button", name="M", exact=True).click()
-    page.get_by_role("button", name="Add to Cart", exact=True).click()
-    page.get_by_role("dialog", name="Your cart").get_by_role("link", name="Proceed to Checkout").click()
-    expect(page.get_by_role("heading", name="Checkout", exact=True)).to_be_visible()
-    expect(banner).to_be_visible()
-    assert banner.evaluate("(el) => getComputedStyle(el.parentElement).position") == "static"
-    if output:
-        page.set_viewport_size({"width": 390, "height": 844})
-        page.evaluate("window.scrollTo({ top: 0, behavior: 'instant' })")
-        expect(banner).to_be_in_viewport(ratio=1)
-        page.evaluate("document.fonts.ready")
-        page.screenshot(path=output / "privacy-consent-checkout-390.png", animations="disabled")
-        page.set_viewport_size({"width": 320, "height": 640})
-    fill_checkout(page)
-    place_order = page.get_by_role("button", name="Place Order", exact=True)
-    expect(place_order).to_be_enabled()
-    place_order.scroll_into_view_if_needed()
-    expect(place_order).to_be_in_viewport(ratio=1)
-    assert_layout(page)
-    place_order.click()
-    expect(page).to_have_url(f"{BASE_URL}/order-success")
-    assert "conversionSession" not in order_attempts[-1]
-    banner.get_by_role("button", name="Only necessary").click()
-    expect(banner).to_have_count(0)
-    assert page.evaluate("(key) => localStorage.getItem(key)", CONSENT_KEY) == "off"
-    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
-    page.reload()
-    expect(banner).to_have_count(0)
-    page.goto(f"{BASE_URL}/product/test-product")
-    expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
-    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
-    page.goto(f"{BASE_URL}/privacy-policy")
-    expect(page.get_by_label("Allow checkout analytics")).not_to_be_checked()
-    expect(banner).to_have_count(0)
-    assert len(analytics_events) == events_before
-    declined.close()
-
-    opted_in = browser.new_context(viewport={"width": 390, "height": 844})
-    setup(opted_in)
-    page = opted_in.new_page()
-    events_before = len(analytics_events)
-    analytics_down = True
-    page.goto(f"{BASE_URL}/product/test-product")
-    page.get_by_role("button", name="Allow analytics").click()
-    page.get_by_role("button", name="M", exact=True).click()
-    page.get_by_role("button", name="Add to Cart", exact=True).click()
-    page.get_by_role("dialog", name="Your cart").get_by_role("link", name="Proceed to Checkout").click()
+    page.goto(f"{BASE_URL}/checkout")
     fill_checkout(page)
     page.get_by_role("button", name="Place Order", exact=True).click()
     expect(page).to_have_url(f"{BASE_URL}/order-success")
-    assert [event["stage"] for event in analytics_events[events_before:]] == ["view", "cart", "checkout"]
-    assert order_attempts[-1]["conversionSession"] == analytics_events[events_before]["sessionId"]
-    analytics_down = False
-    opted_in.close()
-
-    for signal, value in (("globalPrivacyControl", True), ("doNotTrack", "1"), ("doNotTrack", "yes")):
-        protected = browser.new_context()
-        setup(protected)
-        protected.add_init_script(f"""
-            Object.defineProperty(navigator, {json.dumps(signal)}, {{ value: {json.dumps(value)} }});
-            localStorage.setItem({json.dumps(CONSENT_KEY)}, 'on');
-        """)
-        page = protected.new_page()
-        events_before = len(analytics_events)
-        page.goto(f"{BASE_URL}/product/test-product")
-        expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
-        expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
-        page.goto(f"{BASE_URL}/privacy-policy")
-        choice = page.get_by_label("Allow checkout analytics")
-        expect(choice).not_to_be_checked()
-        expect(choice).to_be_disabled()
-        assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
-        assert len(analytics_events) == events_before
-        protected.close()
-
-    blocked = browser.new_context()
-    setup(blocked)
-    blocked.add_init_script(f"""
-        const set = Storage.prototype.setItem;
-        Storage.prototype.setItem = function (key, value) {{
-            if (key === {json.dumps(CONSENT_KEY)}) throw new DOMException('Blocked', 'SecurityError');
-            return set.call(this, key, value);
-        }};
-    """)
-    page = blocked.new_page()
-    page.goto(f"{BASE_URL}/privacy-policy")
-    page.get_by_role("button", name="Allow analytics").click()
-    expect(page.get_by_label("Allow checkout analytics")).to_be_disabled()
     expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
-    assert page.evaluate("(key) => localStorage.getItem(key)", VISIT_KEY) is None
-    expect(page.get_by_text("Analytics is off because your browser could not store this preference.", exact=False)).to_be_visible()
-    blocked.close()
+    assert not console_errors, console_errors
+    context.close()
 
-    blocked = browser.new_context()
-    setup(blocked)
-    blocked.add_init_script("""
-        Object.defineProperty(window, 'localStorage', {
-            get() { throw new DOMException('Blocked', 'SecurityError'); },
-        });
-    """)
-    page = blocked.new_page()
-    page.goto(f"{BASE_URL}/privacy-policy")
-    expect(page.get_by_label("Allow checkout analytics")).to_be_disabled()
-    expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
-    page.goto(f"{BASE_URL}/product/test-product")
-    expect(page.get_by_role("heading", name=PRODUCT["name"], exact=True)).to_be_visible()
-    blocked.close()
 
-    admin = browser.new_context()
-    setup(admin)
-    admin.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
-    page = admin.new_page()
-    for route in ("/admin?section=settings", "/ADMIN?section=settings"):
-        page.goto(f"{BASE_URL}{route}")
-        expect(page.get_by_role("heading", name="Delivery settings")).to_be_visible()
-        expect(page.get_by_role("region", name="Your privacy, your choice")).to_have_count(0)
-    admin.close()
-    assert not unexpected, unexpected
-    print("PASS: privacy consent, persistence, cross-tab changes, withdrawal, privacy signals, blocked storage, checkout with no consent or analytics outage, admin isolation, and 320/375/390/768/1440px layouts.")
+def check_admin_auth_and_retired_url(browser):
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    setup(context)
+    page = context.new_page()
+    page.goto(f"{BASE_URL}/admin?section=conversion")
+    expect(page.get_by_role("heading", name="Admin sign in")).to_be_visible()
+    aal1 = f"{segment({'alg': 'HS256'})}.{segment({'sub': user['id'], 'aal': 'aal1', 'exp': expires})}.dGVzdA"
+    page.evaluate("(value) => localStorage.setItem('comicculture-admin-auth', JSON.stringify(value))", {**session, "access_token": aal1})
+    page.reload()
+    expect(page.get_by_role("heading", name="Two-step verification")).to_be_visible()
+    expect(page.get_by_label("Authenticator code")).to_be_visible()
+    expect(page.get_by_role("region", name="Key metrics")).to_have_count(0)
+    page.evaluate("(value) => localStorage.setItem('comicculture-admin-auth', JSON.stringify(value))", session)
+    page.reload()
+    sections = page.get_by_role("navigation", name="Admin sections")
+    expect(sections.get_by_role("button", name="conversion", exact=True)).to_have_count(0)
+    expect(page.locator("option[value=conversion]")).to_have_count(0)
+    expect(sections.get_by_role("button", name="orders", exact=True)).to_have_attribute("aria-current", "page")
+    if DASHBOARD:
+        sections.get_by_role("button", name="dashboard", exact=True).click()
+        expect(page.get_by_role("region", name="Key metrics")).to_be_visible()
+    context.close()
 
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(channel="msedge")
-    if CONSENT_ONLY:
-        check_privacy_consent(browser)
-        browser.close()
-        sys.exit(0)
     admin_context = browser.new_context(viewport={"width": 1440, "height": 900})
     setup(admin_context)
     admin_context.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
@@ -899,11 +696,19 @@ with sync_playwright() as playwright:
     if DASHBOARD:
         check_dashboard(browser)
         print("PASS: dashboard periods, comparison, chart keyboard controls, demand filters, navigation, refresh/error/empty states, and 390/768/1440px layouts.")
-    if CONVERSION:
-        check_checkout_conversion(browser)
-        print("PASS: conversion filters, empty/error states, 390/768/1440px layouts, opt-in shopper events, checkout during analytics failure, and status email retry.")
-    check_privacy_consent(browser)
+    if REFERENCES:
+        check_status_email_admin(browser)
+        print("PASS: admin status email display and retry.")
+    check_privacy_first_storefront(browser)
+    check_admin_auth_and_retired_url(browser)
+    print("PASS: storefront, cart persistence, checkout, policy and footer at 320/375/390/768/1440px, admin MFA and retired URL, and zero conversion requests.")
     assert not unexpected, unexpected
+    assert len(confirmation_requests) == 3
+    assert all(payload == {
+        "orderId": "00000000-0000-0000-0000-000000000009",
+        "notificationToken": "synthetic-notification-token",
+    } for payload in confirmation_requests)
+    print("PASS: COD and bank-transfer checkout, receipt uploads, pricing retry with the same request ID, and confirmation requests.")
     if REFERENCES:
         print("PASS: reference confirmation, tracking, admin search, history, WhatsApp, packing slips and email HTML.")
     browser.close()

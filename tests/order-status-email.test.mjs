@@ -290,16 +290,14 @@ test('operator scheduling uses only Vault references and invokes the secured wor
   const secret='z'.repeat(48);
   await db.query("INSERT INTO vault.decrypted_secrets VALUES ('order_status_worker_url',$1),('order_status_worker_secret',$2)",[url,secret]);
   await db.exec(script);
-  await db.exec(read('../supabase/ops/schedule-checkout-conversion-retention.sql'));
   await db.exec(script);
   const {rows}=await db.query('SELECT * FROM cron.jobs ORDER BY name');
   assert.deepEqual(rows.map(row=>[row.name,row.schedule]),[
-    ['checkout-conversion-retention','23 * * * *'],['order-status-email-dispatch','* * * * *'],
+    ['order-status-email-dispatch','* * * * *'],
     ['order-status-email-payload-cleanup','17 * * * *'],
   ]);
-  assert.equal(rows[0].command,'SELECT public.prune_checkout_conversion();');
-  assert.ok(!rows[1].command.includes(secret));
-  const result=(await db.query(rows[1].command)).rows[0].http_post;
+  assert.ok(!rows[0].command.includes(secret));
+  const result=(await db.query(rows[0].command)).rows[0].http_post;
   assert.deepEqual(result,[url,{'Content-Type':'application/json','x-worker-secret':secret},{},55000]);
 });
 

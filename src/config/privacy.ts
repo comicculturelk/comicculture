@@ -1,5 +1,5 @@
 // Shared by the React page and server-rendered page so the notice stays consistent.
-export const PRIVACY_UPDATED_ON = '15 November 2026';
+export const PRIVACY_UPDATED_ON = '22 November 2026';
 
 export const PRIVACY_SECTIONS = [
   {
@@ -24,6 +24,7 @@ export const PRIVACY_SECTIONS = [
     paragraphs: [
       'Authorised store staff use the information needed to manage orders and support requests. Our delivery courier receives the contact, address and parcel information needed to deliver your order and collect cash on delivery where applicable.',
       'We use Supabase for database and file storage, Vercel for website hosting, Resend for order emails, and Cloudflare Turnstile for checkout security. These providers process information needed to deliver their services. Cloudflare may receive your IP address and browser signals during security verification. Cloud services may process or store information outside Sri Lanka.',
+      'We load typefaces from Google Fonts. Your browser sends Google technical information such as your IP address and browser details when it requests those files.',
       'We may disclose relevant records where required by applicable law or to resolve a dispute or protect the store and its customers. We do not sell customer information.',
     ],
   },
@@ -31,9 +32,8 @@ export const PRIVACY_SECTIONS = [
     title: 'Browser storage and security tools',
     paragraphs: [
       'The cart is saved in local storage on your browser so it can remain available when you return on the same browser. Clearing site data removes that saved cart. Staff sign-in also uses browser storage for authentication sessions. Guest checkout does not require a customer account.',
+      'Checkout uses session storage to keep a request identifier for safe retries. Security rate limits use a keyed version of the requesting network address to prevent abuse.',
       'Cloudflare Turnstile and our infrastructure providers may use storage or cookies needed for security and service operation. We do not use advertising pixels.',
-      'Optional checkout analytics starts only if you choose Allow analytics in the privacy banner or turn it on in Privacy preferences. We save your choice in this browser. We use a random browser session ID lasting up to 24 hours, a broad screen-size category and product identifiers to count product views, cart additions, checkout starts and successful order placements. We use this to improve checkout. The analytics records exclude names, contact details, addresses, bank details, receipt information and form contents.',
-      'You can change your choice at any time through Privacy preferences in the footer. Turning analytics off clears the current identifier and stops future collection. We also respect Global Privacy Control and Do Not Track signals. Existing analytics events expire after 90 days. Technical rate-limit records use a keyed version of the requesting network address for abuse prevention and are separate from analytics reports.',
     ],
   },
   {

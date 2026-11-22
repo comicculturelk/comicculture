@@ -1,5 +1,4 @@
-import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
-import { trackConversion, useConversionChoice } from '../lib/conversion';
+import { cloneElement, isValidElement, useId, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, ReactElement, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
@@ -21,7 +20,6 @@ import { useProducts } from '../hooks/useProducts';
 import { CHECKOUT_ERROR_MESSAGE, createOrder, type PaymentMethod } from '../data/orders';
 import { formatPrice, formatSize, getPreorderMessage } from '../data/products';
 import CheckoutSecurity from '../components/CheckoutSecurity';
-import PrivacyConsentBanner from '../components/PrivacyConsentBanner';
 import { CheckoutPricingError, checkoutRequest, completeCheckout, getCheckoutRequestId, uploadCheckoutReceipt } from '../lib/checkout';
 import { STORE_CONFIG } from '../config/store';
 import { useDeliveryFee } from '../hooks/useDeliveryFee';
@@ -92,11 +90,6 @@ export default function Checkout() {
   const [requestId] = useState(getCheckoutRequestId);
 
   const { fee: deliveryFee, failed: deliveryFeeFailed, refresh: refreshDeliveryFee } = useDeliveryFee(items.length > 0);
-  const hasCartItems = items.length > 0;
-  const analyticsEnabled = useConversionChoice() === 'on';
-  useEffect(() => {
-    if (hasCartItems && analyticsEnabled) trackConversion('checkout');
-  }, [hasCartItems, analyticsEnabled]);
   const currentPromo = appliedPromo?.subtotal === totalPrice ? appliedPromo : null;
   const total = deliveryFee === null ? null : orderTotal(totalPrice, deliveryFee, currentPromo?.discountAmount);
   const deliveryText = deliveryFee === null
@@ -339,7 +332,6 @@ export default function Checkout() {
           <Link to="/shop" className="btn-primary">
             Browse Collection
           </Link>
-          <PrivacyConsentBanner />
         </div>
       </section>
     );
@@ -371,7 +363,6 @@ export default function Checkout() {
           Checkout
         </h1>
 
-        <PrivacyConsentBanner />
         <form
           ref={checkoutFormRef}
           onSubmit={handleSubmit}

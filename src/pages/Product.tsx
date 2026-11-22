@@ -15,8 +15,6 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
-import { trackConversion, useConversionChoice } from '../lib/conversion';
-import PrivacyConsentBanner from '../components/PrivacyConsentBanner';
 import { useProduct } from '../hooks/useProduct';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
@@ -79,11 +77,6 @@ export default function Product() {
   const purchaseCtaRef = useRef<HTMLButtonElement>(null);
   const sizeOptionsRef = useRef<HTMLDivElement>(null);
   const [showStickyBuy, setShowStickyBuy] = useState(false);
-  const viewedProduct = loading ? undefined : product?.id;
-  const analyticsEnabled = useConversionChoice() === 'on';
-  useEffect(() => {
-    if (viewedProduct && analyticsEnabled) trackConversion('view', viewedProduct);
-  }, [viewedProduct, analyticsEnabled]);
 
   // Reset per-product UI state whenever the loaded product changes: land on
   // the default version, no selected size, and its own image (falling back
@@ -159,7 +152,6 @@ export default function Product() {
         <Link to="/shop" className="btn-primary">
           Back to Shop
         </Link>
-        <PrivacyConsentBanner />
       </section>
     );
   }
@@ -268,7 +260,6 @@ export default function Product() {
         <div className="absolute inset-0 bg-web-pattern opacity-10" />
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <PrivacyConsentBanner />
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
           <Link to="/" className="transition-colors hover:text-foreground">

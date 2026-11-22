@@ -3,7 +3,6 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import PrivacyConsentBanner from './components/PrivacyConsentBanner';
 import ScrollToTop from './components/ScrollToTop';
 import { CartProvider } from './context/CartContext';
 import CollectionPage from './pages/CollectionPage';
@@ -30,7 +29,6 @@ const CartDrawer = lazy(() => import('./components/CartDrawer'));
 export default function App() {
   const pathname = useLocation().pathname;
   const isAdminRoute = pathname.toLowerCase().startsWith('/admin');
-  const hasInlineConsent = /^\/(?:product\/[^/]+|checkout)\/?$/i.test(pathname);
   const utilityRoute = UTILITY_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
   return (
@@ -63,7 +61,6 @@ export default function App() {
           </Suspense>
         </main>
         {!isAdminRoute && <Footer />}
-        {!isAdminRoute && !hasInlineConsent && <PrivacyConsentBanner placement="bottom" />}
         {!isAdminRoute && (
           <Suspense fallback={null}>
             <CartDrawer />

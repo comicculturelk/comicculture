@@ -12,32 +12,12 @@ export interface CheckoutConfig {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const RECEIPT_LIMIT = 5 * 1024 * 1024;
-const LIMITS = { receipt: 6, order: 10, track: 60, promo: 60, analytics: 120 } as const;
+const LIMITS = { receipt: 6, order: 10, track: 60, promo: 60 } as const;
 const NUMERIC_ORDER_REFERENCE = /^[0-9]{12}$/;
 const UUID_ORDER_REFERENCE = /^CC-[0-9A-F]{12}4[0-9A-F]{3}[89AB][0-9A-F]{15}$/;
 const LEGACY_TRACK_CONTACT_LIMIT = 12;
 const NUMERIC_TRACK_CONTACT_LIMIT = 20;
 type Action = keyof typeof LIMITS;
-
-function allowsConversion(request: Request): boolean {
-  const agent = request.headers.get('user-agent');
-  return Boolean(agent && !/bot|crawl|spider|headless|curl|wget|python-requests/i.test(agent))
-    && request.headers.get('sec-gpc') !== '1' && request.headers.get('dnt') !== '1';
-}
-
-function conversionEvent(input: unknown) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new RequestError(400, 'Invalid conversion event.');
-  const { sessionId, stage, device, productId } = input as Record<string, unknown>;
-  if (Object.keys(input).some(key => !['sessionId','stage','device','productId'].includes(key))
-    || typeof sessionId !== 'string' || !UUID.test(sessionId)
-    || (stage !== 'view' && stage !== 'cart' && stage !== 'checkout')
-    || (device !== 'mobile' && device !== 'desktop' && device !== 'unknown')
-    || (stage === 'checkout' ? productId !== undefined
-      : typeof productId !== 'string' || !productId.length || productId.length > 128)) {
-    throw new RequestError(400, 'Invalid conversion event.');
-  }
-  return { p_session: sessionId, p_stage: stage, p_device: device, p_product_id: productId ?? null };
-}
 
 class RequestError extends Error {
   constructor(readonly status: number, message: string, readonly code?: string) { super(message); }
@@ -127,10 +107,7 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
       method: 'POST', headers: restHeaders, body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) {
-      if (name === 'submit_checkout_with_conversion' && [401,403,404].includes(response.status)) {
-        throw new RequestError(503, 'Conversion attribution is unavailable.');
-      }
-      if ((name === 'submit_checkout' || name === 'submit_checkout_with_conversion') && response.status === 400) {
+      if (name === 'submit_checkout' && response.status === 400) {
         const error = await response.json().catch(() => null);
         if (error?.code === 'CC001') throw new RequestError(409, 'Delivery fee changed.', 'delivery_fee_changed');
         if (error?.code === 'CC002') throw new RequestError(409, 'Order total changed.', 'order_total_changed');
@@ -174,8 +151,6 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
       catch { throw new RequestError(400,'Invalid request.'); }
       const action: Action = isReceipt ? 'receipt' : body?.action;
       if (typeof action !== 'string' || !Object.hasOwn(LIMITS,action)) throw new RequestError(400,'Invalid request.');
-      if (action === 'analytics' && !allowsConversion(request)) return new Response(null, { status:204, headers:cors });
-      const event = action === 'analytics' ? conversionEvent(body.input) : null;
       // The Supabase gateway supplies the forwarded client address. HMAC avoids storing raw IPs.
       const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
       const key = await crypto.subtle.importKey('raw',new TextEncoder().encode(config.serviceKey),{name:'HMAC',hash:'SHA-256'},false,['sign']);
@@ -186,14 +161,6 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
       const hash = await hashValue(ip);
       const permitted = await rpc('consume_checkout_attempt',{p_key:`${action}:${hash}`,p_limit:LIMITS[action]});
       if (!permitted) throw new RequestError(429,'Too many attempts. Please try again later.');
-
-      if (event) {
-        if (!await rpc('consume_checkout_attempt', { p_key: 'analytics:global', p_limit: 12000 })) {
-          throw new RequestError(429, 'Too many attempts. Please try again later.');
-        }
-        await rpc('record_checkout_conversion_event', event);
-        return new Response(null, { status:204, headers:cors });
-      }
 
       if (action === 'track' || action === 'promo') {
         const input = body?.input;
@@ -249,15 +216,6 @@ export function createCheckoutHandler(config: CheckoutConfig, fetcher: typeof fe
         validateOrderContact(body.input);
         // Keep the submitted payload intact so legacy retries retain their database hash.
         const input = { p_request_id: requestId, p_payload: body.input };
-        if (typeof body.conversionSession === 'string' && UUID.test(body.conversionSession) && allowsConversion(request)) {
-          try {
-            return reply(await rpc('submit_checkout_with_conversion', { ...input, p_session: body.conversionSession }));
-          } catch (error) {
-            // If the optional wrapper is unavailable or its response was lost,
-            // the same request ID makes the ordinary checkout retry safe.
-            if (error instanceof RequestError && error.status !== 503) throw error;
-          }
-        }
         return reply(await rpc('submit_checkout', input));
       }
       const extension = receiptExtension(bytes,request.headers.get('content-type')??'');

@@ -46,44 +46,6 @@ test('audit reproduction: sequence UPDATE permits resetting the next generated v
   }
 });
 
-test('conversion gateway validates metadata, respects privacy signals, and rate limits anonymous writes', async () => {
-  const calls = [];
-  let allowed = true, wrapperMissing = false;
-  const handler = createCheckoutHandler(config, async (url, options) => {
-    const name = url.split('/').at(-1);
-    calls.push({name, body: options?.body && typeof options.body === 'string' ? JSON.parse(options.body) : null});
-    if (name === 'consume_checkout_attempt') return Response.json(allowed);
-    if (name === 'record_checkout_conversion_event') return new Response(null,{status:204});
-    if (name === 'siteverify') return Response.json({success:true,action:'checkout',hostname:'comicculture.lk'});
-    if (name === 'submit_checkout_with_conversion' && wrapperMissing) return Response.json({code:'PGRST202'},{status:404});
-    if (name.startsWith('submit_checkout')) return Response.json({order_id:id});
-    throw new Error('Unexpected fetch');
-  });
-  const ua = {'user-agent':'Mozilla/5.0 (Windows NT 10.0) Chrome/120.0'};
-  const input = {sessionId:id,stage:'view',device:'desktop',productId:'test-product'};
-  for (const patch of [{stage:'purchase'},{email:'fake@example.invalid'},{stage:'checkout'},{device:'fingerprint'}]) {
-    assert.equal((await handler(request({action:'analytics',input:{...input,...patch}},ua))).status,400);
-  }
-  for (const headers of [{...ua,'sec-gpc':'1'},{...ua,dnt:'1'},{'user-agent':'ExampleCrawler/1'}]) {
-    assert.equal((await handler(request({action:'analytics',input},headers))).status,204);
-  }
-  assert.equal(calls.length,0);
-  allowed = false;
-  assert.equal((await handler(request({action:'analytics',input},ua))).status,429);
-  assert.equal(calls.length,1);
-  assert.match(calls[0].body.p_key,/^analytics:[a-f0-9]{64}$/);
-  assert.equal(calls[0].body.p_limit,120);
-  allowed = true;
-  assert.equal((await handler(request({action:'analytics',input},ua))).status,204);
-  assert.deepEqual(calls.at(-2).body,{p_key:'analytics:global',p_limit:12000});
-  assert.deepEqual(calls.at(-1).body,{p_session:id,p_stage:'view',p_device:'desktop',p_product_id:'test-product'});
-  assert.equal((await handler(request({conversionSession:id},ua))).status,200);
-  assert.deepEqual(calls.at(-1),{name:'submit_checkout_with_conversion',body:{p_request_id:id,p_payload:contact,p_session:id}});
-  wrapperMissing = true;
-  assert.equal((await handler(request({conversionSession:id},ua))).status,200);
-  assert.deepEqual(calls.at(-1),{name:'submit_checkout',body:{p_request_id:id,p_payload:contact}});
-});
-
 test('checkout gateway fails closed and gates writes before the order RPC',async t => {
   const calls = [];
   let verification = {success:true,action:'checkout',hostname:'comicculture.lk'};
@@ -123,6 +85,12 @@ test('checkout gateway fails closed and gates writes before the order RPC',async
     assert.ok(!calls.some(call=>call.url.includes('siteverify')||call.url.includes('submit_checkout')));
     limited=false;
   });
+  await t.test('retired analytics is rejected before any backend call', async () => {
+    calls.length = 0;
+    assert.equal((await handler(request({action:'analytics'}))).status, 400);
+    assert.deepEqual(calls, []);
+  });
+
   await t.test('valid verification forwards one request with its idempotency key',async()=>{
     calls.length=0;verification={success:true,action:'checkout',hostname:'comicculture.lk'};
     assert.equal((await handler(request())).status,200);
@@ -321,9 +289,8 @@ test('security migrations preserve checkout transactions and enforce role bounda
   await db.exec(read('../supabase/migrations/20261026114635_security_admin_and_uploads.sql'));
   await db.exec(read('../supabase/migrations/20261026120954_security_activate_boundary.sql'));
   const payload={fullName:'Test customer',phone:'0771234567',email:' SHOPPER@EXAMPLE.INVALID ',addressLine1:'Test address',city:'Colombo',district:'Colombo',paymentMethod:'COD',items:[{version_size_id:'00000000-0000-0000-0000-000000000030',quantity:1}]};
-  const submit=(input=payload,requestId=crypto.randomUUID(),session)=>session
-    ? db.query('SELECT public.submit_checkout_with_conversion($1,$2,$3) AS result',[requestId,JSON.stringify(input),session])
-    : db.query('SELECT public.submit_checkout($1,$2) AS result',[requestId,JSON.stringify(input)]);
+  const submit=(input=payload,requestId=crypto.randomUUID())=>
+    db.query('SELECT public.submit_checkout($1,$2) AS result',[requestId,JSON.stringify(input)]);
   const stock=async()=>Number((await db.query('SELECT stock FROM product_version_sizes')).rows[0].stock);
   const login=async(role,claims={})=>{await db.exec('RESET ROLE');await db.query("SELECT set_config('request.jwt.claims',$1,false)",[JSON.stringify(claims)]);await db.exec(`SET ROLE ${role}`);};
   await t.test('public users cannot call the old checkout, tracking, promo, or new write gateway RPCs',async()=>{
@@ -546,27 +513,58 @@ test('security migrations preserve checkout transactions and enforce role bounda
     assert.equal(Number((await saveFee(0)).rows[0].delivery_fee), 0);
     await db.exec('RESET ROLE');
     await db.exec(read('../supabase/migrations/20261115140806_checkout_conversion_analytics.sql'));
+    await db.exec(`
+      CREATE SCHEMA cron;
+      CREATE TABLE cron.job(jobid bigint PRIMARY KEY, jobname text);
+      CREATE TABLE cron.job_run_details(jobid bigint);
+      CREATE FUNCTION cron.unschedule(bigint) RETURNS boolean LANGUAGE sql AS $$
+        WITH removed AS (DELETE FROM cron.job WHERE jobid=$1 RETURNING jobid)
+        SELECT EXISTS (SELECT FROM removed);
+      $$;
+      INSERT INTO cron.job VALUES (1,'checkout-conversion-retention'),(2,'order-status-email-dispatch'),
+        (3,'order-status-email-payload-cleanup');
+      INSERT INTO cron.job_run_details VALUES (1),(2);
+      INSERT INTO checkout_attempts(key,window_start)
+      VALUES ('analytics:global',now()), ('analytics:' || repeat('a',64),now()),
+        ('order:' || repeat('a',64),now()), ('analytics:unrelated',now());
+      CREATE VIEW public.test_external_dependency AS SELECT * FROM public.checkout_conversion_sessions;
+    `);
+    await db.query("SELECT record_checkout_conversion_event($1,'view','mobile','test-product')",[crypto.randomUUID()]);
+    const cleanup = read('../supabase/migrations/20261122050200_remove_checkout_conversion_analytics.sql');
+    await assert.rejects(db.exec(cleanup), {code:'2BP01'});
+    await db.exec('ROLLBACK');
+    assert.equal((await db.query('SELECT count(*)::int AS n FROM public.test_external_dependency')).rows[0].n,1);
+    assert.equal((await db.query('SELECT count(*)::int AS n FROM cron.job')).rows[0].n,3);
+    await db.exec('DROP VIEW public.test_external_dependency');
+    await db.exec(cleanup);
+    assert.deepEqual((await db.query('SELECT jobid::int FROM cron.job ORDER BY jobid')).rows.map(row=>row.jobid),[2,3]);
+    assert.equal((await db.query('SELECT count(*)::int AS n FROM cron.job_run_details')).rows[0].n,2);
+    assert.deepEqual((await db.query("SELECT key FROM checkout_attempts WHERE key LIKE 'analytics:%' OR key=$1 ORDER BY key",['order:'+'a'.repeat(64)])).rows.map(row=>row.key),['analytics:unrelated','order:'+'a'.repeat(64)]);
+    const { rows: [removed] } = await db.query(`
+      SELECT to_regclass('public.checkout_conversion_sessions') IS NULL AS sessions,
+             to_regclass('public.checkout_conversion_events') IS NULL AS events,
+             NOT EXISTS (SELECT FROM pg_proc WHERE proname ~ 'checkout_conversion|^submit_checkout_with_conversion$') AS functions,
+             NOT EXISTS (SELECT FROM pg_trigger WHERE tgname='checkout_conversion_purchase') AS trigger
+    `);
+    assert.ok(Object.values(removed).every(Boolean), JSON.stringify(removed));
     await login('service_role');
-    const trackedVisit = crypto.randomUUID();
-    for (const stage of ['view','cart','checkout']) {
-      await db.query("SELECT record_checkout_conversion_event($1,$2,'mobile',$3)",[trackedVisit,stage,stage==='checkout'?null:'test-product']);
-    }
+    assert.deepEqual((await submit({...payload,total:0,expectedDeliveryFee:475.25,expectedTotal:575.25},id)).rows[0].result, beforeChangeRetry);
     const codPayload = {...payload,expectedDeliveryFee:0,expectedTotal:100};
     const gateway = createCheckoutHandler(config, async (url, options) => {
       if (url.includes('consume_checkout_attempt')) return Response.json(true);
       if (url.includes('siteverify')) return Response.json({success:true,action:'checkout',hostname:'comicculture.lk'});
-      assert.ok(url.endsWith('/submit_checkout_with_conversion'));
-      const {p_payload,p_request_id,p_session} = JSON.parse(options.body);
-      return Response.json((await submit(p_payload,p_request_id,p_session)).rows[0].result);
+      assert.ok(url.endsWith('/submit_checkout'));
+      const {p_payload,p_request_id} = JSON.parse(options.body);
+      return Response.json((await submit(p_payload,p_request_id)).rows[0].result);
     });
-    const response = await gateway(request({requestId:codId,input:codPayload,conversionSession:trackedVisit},{'user-agent':'Mozilla/5.0 Chrome/120'}));
+    const response = await gateway(request({requestId:codId,input:codPayload,conversionSession:crypto.randomUUID()}));
     assert.equal(response.status,200);
     const cod = await response.json();
     if (process.env.COMICCULTURE_REFERENCE_FIXTURE) {
       writeFileSync(process.env.COMICCULTURE_REFERENCE_FIXTURE, JSON.stringify({current:cod, historical:beforeChangeRetry, uuid:legacyUuid}));
     }
     assert.match(cod.order_reference,/^[0-9]{12}$/);
-    assert.deepEqual((await submit(codPayload, codId, trackedVisit)).rows[0].result, cod);
+    assert.deepEqual((await submit(codPayload, codId)).rows[0].result, cod);
     for (const order of [beforeChangeRetry,legacyUuid,cod]) {
       const {rows} = await db.query('SELECT public.get_order_tracking($1,$2,$3) AS result',[order.order_reference,null,payload.phone]);
       assert.equal(rows[0].result.order_reference,order.order_reference);
@@ -588,24 +586,19 @@ test('security migrations preserve checkout transactions and enforce role bounda
     await db.exec("INSERT INTO promo_codes(code,discount_type,discount_value,minimum_subtotal) VALUES('TEST20','fixed',20,0)");
     await login('service_role');
     const bank = {...payload,paymentMethod:'BANK_TRANSFER',receiptPath:path,promoCode:'TEST20'};
-    await assert.rejects(submit({...bank,expectedDeliveryFee:0,expectedTotal:80}, bankId, trackedVisit), {code:'CC001'});
-    await assert.rejects(submit({...bank,expectedDeliveryFee:475.25,expectedTotal:575.25}, bankId, trackedVisit), {code:'CC002'});
+    await assert.rejects(submit({...bank,expectedDeliveryFee:0,expectedTotal:80}, bankId), {code:'CC001'});
+    await assert.rejects(submit({...bank,expectedDeliveryFee:475.25,expectedTotal:575.25}, bankId), {code:'CC002'});
     await db.exec('RESET ROLE');
-    assert.equal((await db.query("SELECT count(*)::int AS n FROM checkout_conversion_events WHERE stage='purchase'")).rows[0].n,1);
     assert.equal((await db.query("SELECT usage_count FROM promo_codes WHERE code='TEST20'")).rows[0].usage_count, 0);
     assert.equal((await db.query('SELECT order_id FROM checkout_receipts WHERE path=$1',[path])).rows[0].order_id, null);
     assert.equal(await stock(), initialStock-1);
     await login('service_role');
-    const confirmed = (await submit({...bank,expectedDeliveryFee:475.25,expectedTotal:555.25,deliveryFee:0,total:0}, bankId, trackedVisit)).rows[0].result;
+    const confirmed = (await submit({...bank,expectedDeliveryFee:475.25,expectedTotal:555.25,deliveryFee:0,total:0}, bankId)).rows[0].result;
     assert.deepEqual([confirmed.subtotal,confirmed.delivery_fee,confirmed.total].map(Number), [100,475.25,555.25]);
     await db.exec('RESET ROLE');
     assert.equal((await db.query('SELECT payment_status FROM orders WHERE id=$1',[confirmed.order_id])).rows[0].payment_status, 'awaiting_verification');
     assert.equal(await stock(), initialStock-2);
     assert.deepEqual((await historicalOrders()).filter(order => historical.some(prior => prior.id === order.id)), historical);
-    await login('authenticated', {sub:owner,aal:'aal2'});
-    const conversion = (await db.query("SELECT admin_checkout_conversion('7d') AS result")).rows[0].result;
-    assert.deepEqual([conversion.viewed, conversion.added, conversion.started, conversion.purchased, conversion.attributed_orders],[1,1,1,1,2]);
-    await db.exec('RESET ROLE');
     const auditRows = (await db.query("SELECT actor_id, entity_id, after_data FROM admin_activity_log WHERE entity_type='delivery_settings'")).rows;
     assert.ok(auditRows.some(row => row.actor_id === admin && row.entity_id === '1' && row.after_data.delivery_fee === 475.25));
 
