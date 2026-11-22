@@ -96,6 +96,41 @@ test('parallel PostgreSQL checkouts retry a simultaneous unique-key collision', 
   assert.equal((await query('SELECT count(*) FROM inventory_movements m JOIN orders o ON m.reason = o.order_reference')).rows[0].count, '2');
   assert.equal((await query('SELECT count(*) FROM order_items')).rows[0].count, '2');
 
+  await t.test('Restock Review reads committed stock without waiting for an inventory write', async () => {
+    const owner = '00000000-0000-0000-0000-000000000001';
+    const roles = read('../supabase/migrations/20261028060247_multi_user_admin_onboarding.sql');
+    await query(`
+      ALTER TABLE orders ADD COLUMN created_at timestamptz NOT NULL DEFAULT now();
+      ALTER TABLE store_admins ADD COLUMN role text DEFAULT 'owner';
+      CREATE TABLE auth.users(id uuid PRIMARY KEY, email_confirmed_at timestamptz);
+      INSERT INTO auth.users VALUES ('${owner}', now());
+      UPDATE product_versions SET is_preorder=false;
+      CREATE INDEX orders_created_at_idx ON orders(created_at);
+      CREATE INDEX idx_order_items_version_size_id ON order_items(version_size_id);
+      CREATE INDEX idx_order_items_order_id ON order_items(order_id);
+    `);
+    await query(roles.slice(roles.indexOf('CREATE OR REPLACE FUNCTION public.get_store_admin_role'), roles.indexOf('CREATE OR REPLACE FUNCTION public.staff_inventory')));
+    await query(read('./fixtures/restock-review-rls.sql'));
+    await query(read('../supabase/migrations/20261122061946_admin_restock_review.sql'));
+
+    await second.query("SET ROLE authenticated; SET statement_timeout = '2s'");
+    try {
+      await second.query("SELECT set_config('request.jwt.claims', $1, false)", [JSON.stringify({sub: owner, aal: 'aal2'})]);
+      const candidates = async () => (await second.query('SELECT public.admin_restock_review() AS report')).rows[0].report.candidates;
+      await first.query(`BEGIN; UPDATE product_version_sizes SET stock=7 WHERE id='${firstSize}'`);
+      try {
+        const before = await candidates();
+        assert.equal(before.find((size) => size.edition_size_id === firstSize)?.stock, 3);
+        assert.equal(before.find((size) => size.edition_size_id === firstSize)?.order_count, 1);
+      } finally {
+        await first.query('COMMIT');
+      }
+      assert.deepEqual((await candidates()).map((size) => size.edition_size_id), [secondSize]);
+    } finally {
+      await second.query('RESET ROLE');
+    }
+  });
+
   await t.test('two worker connections claim different ready notifications using SKIP LOCKED', async () => {
     await query(read('../supabase/migrations/20261115140801_order_status_email_outbox.sql'));
     assert.equal((await query('SELECT count(*) FROM order_status_email_outbox')).rows[0].count, '0');

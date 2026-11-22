@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PackagePlus, Search, SlidersHorizontal } from 'lucide-react';
 import { fetchProducts, type Product } from '../../data/products';
 import {
@@ -8,6 +9,7 @@ import {
   type AdjustmentReason,
 } from '../../data/inventory';
 import { LOW_STOCK_THRESHOLD } from '../../lib/admin';
+import AdminRestockReview from './AdminRestockReview';
 
 /**
  * A stock action targets one product_version_sizes row directly — the
@@ -124,37 +126,102 @@ function StockActionForm({
   );
 }
 
-export default function AdminInventory() {
-  const [products, setProducts] = useState<Product[]>([]);
+const reviewPath = '?section=inventory&inventory=restock-review';
+const stockPath = '?section=inventory';
+
+export default function AdminInventory({ onAccessLost }: { onAccessLost: () => void }) {
+  const [params, setParams] = useSearchParams();
+  const showReview = params.get('inventory') === 'restock-review';
+  const stockTarget = showReview ? null : params.get('stock');
+  const [catalog, setCatalog] = useState<{ products: Product[]; target: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<StockAction>(null);
   const [search, setSearch] = useState('');
 
-  const loadProducts = () => {
+  const [stockRevision, setStockRevision] = useState(0);
+  const catalogRequest = useRef(0);
+  const lastFocusedTarget = useRef<string | null>(null);
+
+  const loadProducts = useCallback(async () => {
+    const request = ++catalogRequest.current;
     setLoading(true);
-    fetchProducts()
-      .then(setProducts)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load products'))
-      .finally(() => setLoading(false));
-  };
+    setError(null);
+    try {
+      const products = await fetchProducts();
+      if (request === catalogRequest.current) setCatalog({ products, target: stockTarget });
+    } catch (err) {
+      if (request === catalogRequest.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load products');
+      }
+    } finally {
+      if (request === catalogRequest.current) setLoading(false);
+    }
+  }, [stockTarget]);
 
-  useEffect(loadProducts, []);
+  useEffect(() => {
+    if (!showReview) void loadProducts();
+    return () => { catalogRequest.current += 1; };
+  }, [loadProducts, showReview, stockRevision]);
 
-  const handleDone = () => {
+  useEffect(() => {
     setActiveAction(null);
-    loadProducts();
+    lastFocusedTarget.current = null;
+  }, [showReview, stockTarget]);
+
+  const handleAccessLost = useCallback(() => {
+    setParams({ section: 'inventory' }, { replace: true });
+    onAccessLost();
+  }, [onAccessLost, setParams]);
+
+  const handleDone = (completedAction: NonNullable<StockAction>) => {
+    setActiveAction((action) => action === completedAction ? null : action);
+    setStockRevision((revision) => revision + 1);
   };
 
-  if (loading) return <p className="text-muted-foreground">Loading products...</p>;
+  const catalogMatchesTarget = catalog?.target === stockTarget;
+  const products = catalogMatchesTarget ? catalog.products : [];
+  const awaitingTarget = !error && !catalogMatchesTarget;
+  const targetProduct = stockTarget && products.find((product) =>
+    product.versions.some((version) => version.sizes.some((size) => size.id === stockTarget)));
 
-  const visibleProducts = products.filter((product) => `${product.name} ${product.collection} ${product.versions.flatMap((version) => `${version.versionName} ${version.sizes.map((size) => size.sku).join(' ')}`).join(' ')}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+  useEffect(() => {
+    if (!showReview && stockTarget && lastFocusedTarget.current !== stockTarget && targetProduct && !loading && !error) {
+      document.getElementById(`inventory-size-${stockTarget}`)?.focus();
+      lastFocusedTarget.current = stockTarget;
+    }
+  }, [showReview, stockTarget, targetProduct, loading, error]);
+
+  const visibleProducts = products.filter((product) => product === targetProduct
+    || `${product.name} ${product.collection} ${product.versions.flatMap((version) => `${version.versionName} ${version.sizes.map((size) => size.sku).join(' ')}`).join(' ')}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
 
   return (
     <div className="space-y-4">
-      {error && <p className="text-primary">{error}</p>}
+      <nav aria-label="Inventory views" className="flex flex-wrap gap-2">
+        <Link to={stockPath} aria-current={!showReview ? 'page' : undefined}
+          className={!showReview ? 'btn-primary min-h-11 text-sm' : 'btn-outline min-h-11 text-sm'}>Stock levels</Link>
+        <Link to={reviewPath} aria-current={showReview ? 'page' : undefined}
+          className={showReview ? 'btn-primary min-h-11 text-sm' : 'btn-outline min-h-11 text-sm'}>Restock Review</Link>
+      </nav>
+      <AdminRestockReview visible={showReview} stockRevision={stockRevision} onAccessLost={handleAccessLost} />
+      {!showReview && (loading || awaitingTarget) && (
+        <p role="status" className="text-muted-foreground">
+          {awaitingTarget ? 'Loading products…' : 'Refreshing stock levels…'}
+        </p>
+      )}
+      {!showReview && !awaitingTarget && <>
+      {error && <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-primary">
+        <p>{error}</p>
+        <button type="button" className="btn-outline" onClick={() => void loadProducts()}>Retry loading stock</button>
+      </div>}
+      {stockTarget && !error && !targetProduct && (
+        <div role="alert" className="glass flex flex-wrap items-center gap-3 rounded-xl p-4 text-sm">
+          <p>Stock controls for this edition-size are unavailable.</p>
+          <Link to={reviewPath} className="btn-outline">Back to Restock Review</Link>
+        </div>
+      )}
       <label className="relative block max-w-xl text-xs text-muted-foreground"><Search className="absolute left-3 top-[2.1rem] h-4 w-4" /><span>Search inventory by product, edition, or SKU</span><input value={search} onChange={(event) => setSearch(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground" /></label>
-      {visibleProducts.length === 0 && <p className="text-sm text-muted-foreground">No matching inventory.</p>}
+      {!error && visibleProducts.length === 0 && <p className="text-sm text-muted-foreground">No matching inventory.</p>}
       {visibleProducts.map((product) => (
         <div key={product.id} className="glass rounded-2xl p-6">
           <p className="font-display text-lg text-foreground tracking-wide">{product.name}</p>
@@ -178,7 +245,12 @@ export default function AdminInventory() {
                     return (
                       <div
                         key={sizeRow.id}
-                        className="border-b border-border pb-3 last:border-0 last:pb-0"
+                        id={`inventory-size-${sizeRow.id}`}
+                        role="group"
+                        aria-label={`Stock controls for ${product.name}, ${version.versionName}, ${sizeRow.size}, SKU ${sizeRow.sku}`}
+                        tabIndex={sizeRow.id === stockTarget ? -1 : undefined}
+                        className={`scroll-mt-6 border-b border-border pb-3 last:border-0 last:pb-0 ${sizeRow.id === stockTarget
+                          ? 'rounded-lg outline outline-2 outline-offset-4 outline-primary' : ''}`}
                       >
                         <div className="flex flex-wrap items-center gap-4">
                           <span className="flex min-w-[7rem] flex-col text-xs font-medium uppercase tracking-wide text-muted">
@@ -243,7 +315,7 @@ export default function AdminInventory() {
                             key={`${activeAction.versionSizeId}:${activeAction.kind}`}
                             action={activeAction}
                             onCancel={() => setActiveAction(null)}
-                            onDone={handleDone}
+                            onDone={() => handleDone(activeAction)}
                           />
                         )}
                       </div>
@@ -255,6 +327,7 @@ export default function AdminInventory() {
           </div>
         </div>
       ))}
+      </>}
     </div>
   );
 }

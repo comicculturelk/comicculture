@@ -2,11 +2,12 @@ import base64
 import json
 import os
 import re
+import sys
 import time
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import Error as PlaywrightError, expect, sync_playwright
 
 
 BASE_URL = "http://127.0.0.1:5187"
@@ -512,8 +513,229 @@ def check_admin_auth_and_retired_url(browser):
     context.close()
 
 
+def check_restock_review(browser):
+    context = browser.new_context(viewport={"width": 390, "height": 900}, reduced_motion="reduce")
+    setup(context)
+    context.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
+    page = context.new_page()
+    stock = PRODUCT["versions"][0]["sizes"][0].copy()
+    stock.update(stock=0)
+    second = {**stock, "id": "00000000-0000-0000-0000-000000000031", "version_id": "qa-jersey", "sku": "QA-JERSEY-M", "stock": 1}
+    third = {**stock, "id": "00000000-0000-0000-0000-000000000032", "size": "S", "sku": "QA-S", "stock": 3}
+    duplicate = {**stock, "id": "00000000-0000-0000-0000-000000000033", "version_id": "qa-other", "sku": "QA-OTHER-M", "stock": 2}
+    other_product = {**PRODUCT, "id": "other-design", "slug": "other-design", "versions": [
+        {**PRODUCT["versions"][0], "id": "qa-other", "product_id": "other-design", "sizes": [duplicate]},
+    ]}
+    product = {**PRODUCT, "versions": [
+        {**PRODUCT["versions"][0], "sizes": [stock, third]},
+        {**PRODUCT["versions"][0], "id": "qa-jersey", "version_name": "Jersey", "sizes": [second]},
+    ]}
+    reviews = []
+    held = []
+    mutations = []
+    mode = "hold"
+    allow_write = False
+    held_writes = []
+    hold_write = False
+    role = "admin"
+
+    def payload(count=3):
+        return {"as_of": "2026-11-22T04:35:00Z", "starts_at": "2026-08-24T18:30:00Z", "candidates": [
+            {"edition_size_id": item["id"], "product": PRODUCT["name"], "edition": edition, "sku": item["sku"],
+             "size": item["size"], "stock": item["stock"], "order_count": orders}
+            for item, edition, orders in [(stock,"Cotton",count), (second,"Jersey",1), (duplicate,"Cotton",1), (third,"Cotton",0)]
+            if item["stock"] <= 3
+        ]}
+
+    def backend(route):
+        path = urlsplit(route.request.url).path
+        if path == "/rest/v1/products":
+            return route.fulfill(json=[product, other_product])
+        name = path.split("/")[-1]
+        if name == "get_store_admin_role":
+            return route.fulfill(json=role)
+        if name == "staff_inventory":
+            return route.fulfill(json=[{"product": "Test design", "version": "Cotton", "size": "M", "stock": 4}])
+        assert route.request.headers.get("authorization") == f"Bearer {token}"
+        if name == "admin_restock_review":
+            reviews.append(name)
+            if mode == "hold":
+                held.append(route)
+                return
+            if mode == "deny":
+                return route.fulfill(status=403, json={"code": "42501", "message": "Admin access required"})
+            if mode == "error":
+                return route.fulfill(status=503, json={"message": "Synthetic report failure"})
+            if mode == "invalid":
+                return route.fulfill(json={"candidates": [{}]})
+            if mode == "empty":
+                return route.fulfill(json={**payload(), "candidates": []})
+            return route.fulfill(json=payload())
+        body = route.request.post_data_json
+        mutations.append((name, body["p_version_size_id"]))
+        assert body["p_version_size_id"] == stock["id"]
+        if not allow_write:
+            return route.fulfill(status=400, json={"message": "Synthetic stock failure"})
+        if hold_write:
+            held_writes.append(route)
+            return
+        stock["stock"] += body["p_quantity"] if name == "restock_product" else body["p_quantity_change"]
+        return route.fulfill(json=None)
+
+    context.route(re.compile(r"https://delivery-test\.supabase\.co/rest/v1/(products|rpc/(get_store_admin_role|staff_inventory|admin_restock_review|restock_product|adjust_stock))(\?|$)"), backend)
+    page.goto(f"{BASE_URL}/admin?section=inventory")
+    review = page.get_by_role("link", name="Restock Review", exact=True)
+    expect(review).to_be_visible()
+    assert not reviews
+    review.focus()
+    page.keyboard.press("Enter")
+    heading = page.get_by_role("heading", name="Restock Review", exact=True)
+    expect(heading).to_be_visible()
+    expect(page.get_by_text("Loading restock review…", exact=True)).to_be_visible()
+    assert held and not mutations
+    held.pop().fulfill(status=503, json={"message": "Synthetic initial failure"})
+    expect(page.get_by_role("alert")).to_contain_text("Could not load restock review")
+    expect(page.get_by_text("No edition-sizes need review", exact=False)).to_have_count(0)
+    mode = "invalid"
+    page.get_by_role("button", name="Retry", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text("Could not load restock review")
+    mode = "empty"
+    page.get_by_role("button", name="Retry", exact=True).click()
+    expect(page.get_by_text("No edition-sizes need review", exact=False)).to_be_visible()
+    mode = "good"
+    refresh = page.get_by_role("button", name="Refresh", exact=True)
+    refresh.click()
+    correct = page.get_by_role("link", name="Open stock controls for Test design, Cotton, M, SKU QA-M", exact=True)
+    expect(correct).to_be_visible()
+    expect(page.get_by_role("link", name="Open stock controls for Test design, Cotton, M, SKU QA-OTHER-M", exact=True)).to_be_visible()
+    expect(page.get_by_text("Last refreshed", exact=False)).to_be_visible()
+    expect(page.get_by_text("Limited evidence", exact=True)).to_be_visible()
+    expect(page.get_by_text("3 orders", exact=True)).to_be_visible()
+    group_headings = page.get_by_role("heading", name=re.compile(r"^(2 or more orders|1 order|No orders)$"))
+    assert group_headings.all_text_contents() == ["2 or more orders", "1 order", "No orders"]
+
+    screenshots = os.environ.get("COMICCULTURE_RESTOCK_SCREENSHOTS")
+    for width in (320, 390, 768, 1440):
+        page.set_viewport_size({"width": width, "height": 900})
+        assert_layout(page)
+        if screenshots and width in (390, 1440):
+            folder = Path(screenshots)
+            folder.mkdir(parents=True, exist_ok=True)
+            page.evaluate("document.fonts.ready")
+            page.screenshot(path=folder / f"restock-review-{width}.png", full_page=True, animations="disabled")
+
+    mode = "hold"
+    refresh.click()
+    expect(page.get_by_text("Refreshing restock review…", exact=True)).to_be_visible()
+    assert len(held) == 1
+    mode = "good"
+    refresh.click()
+    expect(page.get_by_text("Refreshing restock review…", exact=True)).to_have_count(0)
+    try:
+        held.pop().fulfill(json=payload(count=9))
+    except PlaywrightError:
+        pass  # The browser can abort the superseded request.
+    expect(page.get_by_text("9 orders", exact=True)).to_have_count(0)
+
+    correct.focus()
+    page.keyboard.press("Enter")
+    target = page.get_by_role("group", name="Stock controls for Test design, Cotton, M, SKU QA-M")
+    expect(target).to_be_focused()
+    expect(page.get_by_label("Quantity received")).to_have_count(0)
+    assert not mutations
+    before = len(reviews)
+    target.get_by_role("button", name="Restock", exact=True).click()
+    page.get_by_label("Quantity received").fill("4")
+    page.get_by_role("button", name="Add stock", exact=True).click()
+    expect(page.get_by_text("Synthetic stock failure", exact=True)).to_be_visible()
+    assert len(reviews) == before and stock["stock"] == 0
+    allow_write = True
+    mode = "error"
+    with page.expect_request("**/rest/v1/rpc/admin_restock_review"):
+        page.get_by_role("button", name="Add stock", exact=True).click()
+    expect(page.get_by_label("Quantity received")).to_have_count(0)
+    expect(target.get_by_text("4", exact=True)).to_be_visible()
+    assert len(reviews) > before
+    review.click()
+    expect(page.get_by_role("alert")).to_contain_text("Showing the last successful review")
+    expect(correct).to_be_visible()
+    mode = "good"
+    page.get_by_role("button", name="Retry", exact=True).click()
+    expect(correct).to_have_count(0)
+    expect(page.get_by_role("alert")).to_have_count(0)
+
+    page.get_by_role("link", name="Stock levels", exact=True).click()
+    expect(target).to_be_visible()
+    before = len(reviews)
+    target.get_by_role("button", name="Adjust", exact=True).click()
+    page.get_by_label("Adjustment (+/-)").fill("-2")
+    with page.expect_request("**/rest/v1/rpc/admin_restock_review"):
+        page.get_by_role("button", name="Save adjustment", exact=True).click()
+    expect(target.get_by_text("2", exact=True)).to_be_visible()
+    assert len(reviews) > before
+    review.click()
+    expect(correct).to_be_visible()
+
+    # A background stock reload must keep another size's draft form intact.
+    correct.click()
+    hold_write = True
+    target.get_by_role("button", name="Restock", exact=True).click()
+    target.get_by_label("Quantity received").fill("1")
+    with page.expect_request("**/rest/v1/rpc/restock_product"):
+        target.get_by_role("button", name="Add stock", exact=True).click()
+    other = page.get_by_role("group", name="Stock controls for Test design, Jersey, M, SKU QA-JERSEY-M")
+    other.get_by_role("button", name="Adjust", exact=True).click()
+    draft = other.get_by_label("Adjustment (+/-)")
+    draft.fill("-1")
+    assert held_writes
+    stock["stock"] += 1
+    held_writes.pop().fulfill(json=None)
+    hold_write = False
+    expect(target.get_by_text("3", exact=True)).to_be_visible()
+    expect(draft).to_have_value("-1")
+    other.get_by_role("button", name="Cancel", exact=True).click()
+
+    page.goto(f"{BASE_URL}/admin?section=inventory&stock=00000000-0000-0000-0000-000000000099")
+    expect(page.get_by_text("Stock controls for this edition-size are unavailable", exact=False)).to_be_visible()
+    review.click()
+    expect(correct).to_be_visible()
+    role = "staff"
+    mode = "deny"
+    refresh.click()
+    expect(page.get_by_text("Staff can check stock", exact=False)).to_be_visible()
+    expect(correct).to_have_count(0)
+    expect(review).to_have_count(0)
+    assert mutations == [
+        ("restock_product", stock["id"]), ("restock_product", stock["id"]),
+        ("adjust_stock", stock["id"]), ("restock_product", stock["id"]),
+    ]
+    context.close()
+
+    for aal in (None, "aal1"):
+        restricted = browser.new_context()
+        setup(restricted)
+        restricted.route("**/rest/v1/rpc/get_store_admin_role", lambda route: route.fulfill(json="admin"))
+        report_requests = []
+        restricted.on("request", lambda request: report_requests.append(request.url) if "/admin_restock_review" in request.url else None)
+        if aal:
+            aal1 = f"{segment({'alg': 'HS256'})}.{segment({'sub': user['id'], 'aal': aal, 'exp': expires})}.dGVzdA"
+            low_session = {**session, "access_token": aal1}
+            restricted.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(low_session))});")
+        restricted_page = restricted.new_page()
+        restricted_page.goto(f"{BASE_URL}/admin?section=inventory&inventory=restock-review")
+        expect(restricted_page.get_by_role("heading", name="Two-step verification" if aal else "Admin sign in")).to_be_visible()
+        expect(restricted_page.get_by_role("heading", name="Restock Review")).to_have_count(0)
+        assert not report_requests
+        restricted.close()
+    print("PASS: Restock Review states, safe refresh and stock actions, keyboard stock link, responsive layout and browser access controls.")
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(channel="msedge")
+    if "--restock-review" in sys.argv:
+        check_restock_review(browser)
+        browser.close()
+        raise SystemExit(0)
     admin_context = browser.new_context(viewport={"width": 1440, "height": 900})
     setup(admin_context)
     admin_context.add_init_script(f"localStorage.setItem('comicculture-admin-auth', {json.dumps(json.dumps(session))});")
@@ -699,6 +921,7 @@ with sync_playwright() as playwright:
     if REFERENCES:
         check_status_email_admin(browser)
         print("PASS: admin status email display and retry.")
+    check_restock_review(browser)
     check_privacy_first_storefront(browser)
     check_admin_auth_and_retired_url(browser)
     print("PASS: storefront, cart persistence, checkout, policy and footer at 320/375/390/768/1440px, admin MFA and retired URL, and zero conversion requests.")

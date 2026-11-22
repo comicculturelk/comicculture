@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
@@ -28,6 +28,10 @@ export default function Admin() {
   const [accessError, setAccessError] = useState<string | null>(null);
   const [accessRetry, setAccessRetry] = useState(0);
   const userId = session?.user.id;
+  const recheckAdminAccess = useCallback(() => {
+    setAdminRole(null);
+    setAccessRetry((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     supabaseAdmin.auth.getSession().then(({ data, error }) => {
@@ -93,7 +97,7 @@ export default function Admin() {
       </section>
     );
   }
-  return <AdminMfaGate accessToken={session.access_token}><AdminPanel role={adminRole} /></AdminMfaGate>;
+  return <AdminMfaGate key={userId} accessToken={session.access_token}><AdminPanel role={adminRole} onAccessLost={recheckAdminAccess} /></AdminMfaGate>;
 }
 
 function AdminLogin() {
@@ -167,7 +171,7 @@ function AdminLogin() {
 }
 
 
-function AdminPanel({ role }: { role: StoreAdminRole }) {
+function AdminPanel({ role, onAccessLost }: { role: StoreAdminRole; onAccessLost: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedView = searchParams.get('section');
   const view: AdminView = ADMIN_VIEWS.includes(requestedView as AdminView) && permittedViews(role).includes(requestedView as AdminView)
@@ -229,7 +233,7 @@ function AdminPanel({ role }: { role: StoreAdminRole }) {
         {view === 'orders' && <AdminOrders />}
         {view === 'products' && <AdminProducts />}
         {view === 'collections' && <AdminCollections />}
-        {view === 'inventory' && (role === 'staff' ? <StaffInventory /> : <AdminInventory />)}
+        {view === 'inventory' && (role === 'staff' ? <StaffInventory /> : <AdminInventory onAccessLost={onAccessLost} />)}
         {view === 'account' && <AdminAccount />}
         {view === 'settings' && <AdminDeliverySettings />}
         {view === 'promos' && <AdminPromos />}
